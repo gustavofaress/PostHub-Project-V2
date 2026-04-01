@@ -16,6 +16,9 @@ import {
 import { Button } from '../shared/components/Button';
 import { Card } from '../shared/components/Card';
 
+import logoFull from '../assets/branding/logo-full-white.png';
+import logoIcon from '../assets/branding/logo-icon.png';
+
 const STRIPE_CHECKOUT_URL = 'https://buy.stripe.com/SEU_LINK_AQUI';
 
 const features = [
