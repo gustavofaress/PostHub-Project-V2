@@ -1,16 +1,17 @@
 import * as React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, User, ArrowRight, Check } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Mail, Lock, User, Check, Briefcase } from 'lucide-react';
 import { Card } from '../../shared/components/Card';
 import { Button } from '../../shared/components/Button';
 import { Input } from '../../shared/components/Input';
 import { useAuth } from '../../app/context/AuthContext';
 
 export const SignupPage = () => {
-  const navigate = useNavigate();
   const { signup } = useAuth();
+
   const [isLoading, setIsLoading] = React.useState(false);
   const [name, setName] = React.useState('');
+  const [profileName, setProfileName] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [error, setError] = React.useState('');
@@ -19,8 +20,9 @@ export const SignupPage = () => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
+
     try {
-      await signup(name || 'John Doe', email || 'user@company.com', password || 'password123');
+      await signup(name, email, password, profileName || name);
     } catch (err: any) {
       setError(err.message || 'Failed to sign up');
     } finally {
@@ -31,7 +33,9 @@ export const SignupPage = () => {
   return (
     <div className="min-h-screen bg-bg-main flex flex-col items-center justify-center p-4">
       <div className="mb-8 flex items-center gap-2">
-        <div className="h-10 w-10 rounded-xl bg-brand flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-brand/20">P</div>
+        <div className="h-10 w-10 rounded-xl bg-brand flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-brand/20">
+          P
+        </div>
         <span className="text-2xl font-bold tracking-tight text-text-primary">PostHub</span>
       </div>
 
@@ -47,27 +51,39 @@ export const SignupPage = () => {
               {error}
             </div>
           )}
-          <Input 
-            label="Full Name" 
-            placeholder="John Doe" 
+
+          <Input
+            label="Full Name"
+            placeholder="John Doe"
             icon={<User className="h-4 w-4" />}
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
           />
-          <Input 
-            label="Email Address" 
-            type="email" 
-            placeholder="name@company.com" 
+
+          <Input
+            label="Profile / Business Name"
+            placeholder="My Agency"
+            icon={<Briefcase className="h-4 w-4" />}
+            value={profileName}
+            onChange={(e) => setProfileName(e.target.value)}
+            required
+          />
+
+          <Input
+            label="Email Address"
+            type="email"
+            placeholder="name@company.com"
             icon={<Mail className="h-4 w-4" />}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
           />
-          <Input 
-            label="Password" 
-            type="password" 
-            placeholder="••••••••" 
+
+          <Input
+            label="Password"
+            type="password"
+            placeholder="••••••••"
             icon={<Lock className="h-4 w-4" />}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -79,7 +95,8 @@ export const SignupPage = () => {
               <Check className="h-3 w-3" />
             </div>
             <span className="text-xs text-text-secondary">
-              I agree to the <Link to="#" className="text-brand hover:underline">Terms of Service</Link> and <Link to="#" className="text-brand hover:underline">Privacy Policy</Link>.
+              I agree to the <Link to="#" className="text-brand hover:underline">Terms of Service</Link>{' '}
+              and <Link to="#" className="text-brand hover:underline">Privacy Policy</Link>.
             </span>
           </div>
 
@@ -90,7 +107,9 @@ export const SignupPage = () => {
 
         <p className="mt-8 text-center text-sm text-text-secondary">
           Already have an account?{' '}
-          <Link to="/login" className="font-semibold text-brand hover:underline">Sign in</Link>
+          <Link to="/login" className="font-semibold text-brand hover:underline">
+            Sign in
+          </Link>
         </p>
       </Card>
     </div>
