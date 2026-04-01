@@ -16,9 +16,6 @@ import {
 import { Button } from '../shared/components/Button';
 import { Card } from '../shared/components/Card';
 
-import logoFull from '../assets/branding/logo-full-white.png';
-import logoIcon from '../assets/branding/logo-icon.png';
-
 const STRIPE_CHECKOUT_URL = 'https://buy.stripe.com/SEU_LINK_AQUI';
 
 const features = [
@@ -219,7 +216,7 @@ export const LandingPage = () => {
                       <div>
                         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand/15 text-brand">
                           <img
-                            src={logoIcon}
+                            src="/logo-full-white.png"
                             alt="PostHub Icon"
                             className="h-8 w-8 object-contain"
                           />
@@ -433,7 +430,7 @@ export const LandingPage = () => {
           <div className="rounded-[32px] border border-white/10 bg-white/[0.04] px-8 py-12 text-center">
             <div className="mx-auto mb-5 flex justify-center">
               <img
-                src={logoFull}
+                src="/logo-full-white.png"
                 alt="PostHub"
                 className="h-10 w-auto object-contain"
               />
