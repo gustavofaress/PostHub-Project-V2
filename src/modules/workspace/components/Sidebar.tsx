@@ -24,7 +24,6 @@ export const Sidebar = () => {
     }, 150);
   };
 
-  // Clean up timeout on unmount
   React.useEffect(() => {
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -38,17 +37,23 @@ export const Sidebar = () => {
         <div className="px-3 mb-6 flex items-center justify-center">
           <Link 
             to="/workspace/dashboard" 
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-white text-[#38B6FF] shadow-sm transition-all duration-300 hover:scale-105 hover:shadow-md"
+            className="flex h-12 w-12 shrink-0 items-center justify-center transition-all duration-300 hover:scale-105"
           >
-            <span className="text-2xl font-black tracking-tighter">P</span>
+            <img
+              src="/logo-icon.png"
+              alt="PostHub"
+              className="h-10 w-10 object-contain"
+            />
           </Link>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 w-full flex flex-col gap-5 overflow-y-auto px-3 pb-4" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        <nav
+          className="flex-1 w-full flex flex-col gap-5 overflow-y-auto px-3 pb-4"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
           {NAV_GROUPS.map((group, groupIdx) => (
             <div key={group.label} className="flex w-full flex-col gap-2">
-              {/* Group Divider */}
               {groupIdx > 0 && <div className="h-[2px] w-6 bg-white/15 mb-1.5 rounded-full mx-auto" />}
               
               {group.items.map((item) => {
@@ -78,7 +83,6 @@ export const Sidebar = () => {
                         strokeWidth={isActive ? 2.5 : 2}
                       />
                       
-                      {/* Active Indicator Dot (Optional, keeping it for extra flair if desired, but making it subtle) */}
                       {isActive && (
                         <span className="absolute -right-1 -top-1 flex h-3.5 w-3.5 items-center justify-center">
                           <span className={cn("absolute inline-flex h-full w-full animate-ping rounded-full opacity-60", isApproval ? "bg-amber-400" : "bg-white")}></span>
@@ -129,10 +133,8 @@ export const Sidebar = () => {
             onMouseEnter={() => { if (timeoutRef.current) clearTimeout(timeoutRef.current); }}
             onMouseLeave={handleMouseLeave}
           >
-            {/* Invisible bridge to prevent hover loss */}
             <div className="w-[12px] self-stretch bg-transparent" />
             
-            {/* Actual Panel */}
             <div 
               className="w-[280px] bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100 p-5 animate-in fade-in zoom-in-95 duration-200 overflow-y-auto overscroll-contain hide-scrollbar pointer-events-auto"
               style={{ maxHeight: `min(80vh, ${availableHeight}px)` }}
