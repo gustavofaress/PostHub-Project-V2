@@ -1,13 +1,12 @@
 import * as React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, ArrowRight, Github } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Mail, Lock, Github } from 'lucide-react';
 import { Card } from '../../shared/components/Card';
 import { Button } from '../../shared/components/Button';
 import { Input } from '../../shared/components/Input';
 import { useAuth } from '../../app/context/AuthContext';
 
 export const LoginPage = () => {
-  const navigate = useNavigate();
   const { login } = useAuth();
   const [isLoading, setIsLoading] = React.useState(false);
   const [email, setEmail] = React.useState('');
@@ -18,8 +17,9 @@ export const LoginPage = () => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
+
     try {
-      await login(email || 'user@company.com', password || 'password123');
+      await login(email, password);
     } catch (err: any) {
       setError(err.message || 'Failed to login');
     } finally {
@@ -30,7 +30,9 @@ export const LoginPage = () => {
   return (
     <div className="min-h-screen bg-bg-main flex flex-col items-center justify-center p-4">
       <div className="mb-8 flex items-center gap-2">
-        <div className="h-10 w-10 rounded-xl bg-brand flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-brand/20">P</div>
+        <div className="h-10 w-10 rounded-xl bg-brand flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-brand/20">
+          P
+        </div>
         <span className="text-2xl font-bold tracking-tight text-text-primary">PostHub</span>
       </div>
 
@@ -46,23 +48,28 @@ export const LoginPage = () => {
               {error}
             </div>
           )}
-          <Input 
-            label="Email Address" 
-            type="email" 
-            placeholder="name@company.com" 
+
+          <Input
+            label="Email Address"
+            type="email"
+            placeholder="name@company.com"
             icon={<Mail className="h-4 w-4" />}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
           />
+
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium text-text-primary">Password</label>
-              <Link to="#" className="text-xs text-brand hover:underline">Forgot password?</Link>
+              <Link to="#" className="text-xs text-brand hover:underline">
+                Forgot password?
+              </Link>
             </div>
-            <Input 
-              type="password" 
-              placeholder="••••••••" 
+
+            <Input
+              type="password"
+              placeholder="••••••••"
               icon={<Lock className="h-4 w-4" />}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -89,6 +96,7 @@ export const LoginPage = () => {
             <Github className="h-4 w-4" />
             Github
           </Button>
+
           <Button variant="secondary" className="gap-2" type="button">
             <svg className="h-4 w-4" viewBox="0 0 24 24">
               <path
@@ -114,7 +122,9 @@ export const LoginPage = () => {
 
         <p className="mt-8 text-center text-sm text-text-secondary">
           Don't have an account?{' '}
-          <Link to="/signup" className="font-semibold text-brand hover:underline">Sign up for free</Link>
+          <Link to="/signup" className="font-semibold text-brand hover:underline">
+            Sign up for free
+          </Link>
         </p>
       </Card>
     </div>
