@@ -24,36 +24,42 @@ const features = [
     description:
       'Centralize referências, temas e oportunidades para nunca mais travar na hora de planejar o próximo conteúdo.',
     icon: Lightbulb,
+    image: '/banco-de-ideias.png',
   },
   {
     title: 'Gerador de Roteiros',
     description:
       'Transforme ideias em roteiros mais estratégicos com estrutura pensada para retenção, clareza e conversão.',
     icon: BrainCircuit,
+    image: '/gerador-de-roteiros.png',
   },
   {
     title: 'Calendário Editorial',
     description:
       'Visualize o mês inteiro, organize entregas e tenha clareza do que precisa ser produzido, revisado e publicado.',
     icon: Calendar,
+    image: '/calendario-editorial.png',
   },
   {
     title: 'Kanban de Produção',
     description:
       'Acompanhe cada conteúdo do planejamento até a publicação com um fluxo operacional simples e visual.',
     icon: KanbanSquare,
+    image: '/kanban.png',
   },
   {
     title: 'Aprovação de Conteúdo',
     description:
       'Envie materiais para aprovação, receba feedback e mantenha o processo mais profissional com clientes e equipe.',
     icon: ShieldCheck,
+    image: '/aprovacao.png',
   },
   {
     title: 'Performance',
     description:
       'Conecte estratégia e resultado analisando métricas importantes para tomar decisões melhores sobre conteúdo.',
     icon: BarChart3,
+    image: '/performance.png',
   },
 ];
 
@@ -202,9 +208,9 @@ export const LandingPage = () => {
                   <div className="rounded-3xl border border-dashed border-white/15 bg-gradient-to-br from-white/[0.05] to-white/[0.02] p-6">
                     <div className="mb-4 flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-semibold text-white/90">PlaceHolder do Mockup Principal</p>
+                        <p className="text-sm font-semibold text-white/90">Visão do sistema</p>
                         <p className="text-sm text-white/50">
-                          Substitua esta área por um mockup do sistema
+                          Calendário editorial da PostHub
                         </p>
                       </div>
                       <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/60">
@@ -212,20 +218,12 @@ export const LandingPage = () => {
                       </div>
                     </div>
 
-                    <div className="flex min-h-[420px] items-center justify-center rounded-[24px] border border-dashed border-brand/30 bg-[linear-gradient(180deg,rgba(59,130,246,0.08),rgba(255,255,255,0.02))] text-center">
-                      <div>
-                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand/15 text-brand">
-                          <img
-                            src="/logo-full-white.png"
-                            alt="PostHub Icon"
-                            className="h-8 w-8 object-contain"
-                          />
-                        </div>
-                        <p className="text-lg font-semibold text-white/90">Mockup do sistema aqui</p>
-                        <p className="mt-2 max-w-sm text-sm text-white/50">
-                          Ideal para colocar uma imagem da PostHub em desktop, seguindo a estética premium da landing page.
-                        </p>
-                      </div>
+                    <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[#0f152b] shadow-[0_10px_40px_rgba(0,0,0,0.25)]">
+                      <img
+                        src="/calendario-editorial.png"
+                        alt="Calendário Editorial da PostHub"
+                        className="h-full min-h-[420px] w-full object-cover object-top"
+                      />
                     </div>
                   </div>
                 </div>
@@ -300,18 +298,12 @@ export const LandingPage = () => {
                   </div>
 
                   <div className="border-t border-white/10 p-6 lg:border-l lg:border-t-0 lg:p-8">
-                    <div className="flex h-full min-h-[320px] items-center justify-center rounded-[24px] border border-dashed border-brand/30 bg-[linear-gradient(180deg,rgba(59,130,246,0.08),rgba(255,255,255,0.02))] text-center">
-                      <div>
-                        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand/15 text-brand">
-                          <feature.icon className="h-7 w-7" />
-                        </div>
-                        <p className="text-lg font-semibold text-white/90">
-                          Placeholder da tela de {feature.title}
-                        </p>
-                        <p className="mt-2 max-w-sm text-sm text-white/50">
-                          Substitua esta área pela captura da ferramenta dentro da PostHub.
-                        </p>
-                      </div>
+                    <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[#0f152b] shadow-[0_10px_40px_rgba(0,0,0,0.25)]">
+                      <img
+                        src={feature.image}
+                        alt={`Tela do módulo ${feature.title}`}
+                        className="h-full min-h-[320px] w-full object-cover object-top"
+                      />
                     </div>
                   </div>
                 </div>
