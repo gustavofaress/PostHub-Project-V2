@@ -1,11 +1,11 @@
 import * as React from 'react';
-import { 
-  LayoutDashboard, 
-  FileText, 
-  Lightbulb, 
-  Calendar, 
-  Trello, 
-  Settings, 
+import {
+  LayoutDashboard,
+  FileText,
+  Lightbulb,
+  Calendar,
+  Trello,
+  Settings,
   User,
   LogOut,
   Plus,
@@ -17,10 +17,11 @@ import {
   Share2,
   HelpCircle,
   CreditCard,
-  Rocket
+  Rocket,
+  TrendingUp
 } from 'lucide-react';
 
-export type WorkspaceModule = 
+export type WorkspaceModule =
   | 'onboarding'
   | 'dashboard'
   | 'consultant'
@@ -31,6 +32,7 @@ export type WorkspaceModule =
   | 'kanban'
   | 'scheduler'
   | 'performance'
+  | 'reports'
   | 'references'
   | 'integrations'
   | 'settings'
@@ -74,11 +76,11 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Overview',
     items: [
-      { 
-        id: 'onboarding', 
-        label: 'Setup Guide', 
+      {
+        id: 'onboarding',
+        label: 'Setup Guide',
         description: 'Configure your workspace and connect your social channels.',
-        icon: Rocket, 
+        icon: Rocket,
         path: '/workspace/onboarding',
         subItems: [
           { label: 'Welcome Tutorial', path: '/workspace/onboarding' },
@@ -87,11 +89,11 @@ export const NAV_GROUPS: NavGroup[] = [
           { label: 'Brand Kit Setup', path: '/workspace/onboarding?tab=brand' }
         ]
       },
-      { 
-        id: 'dashboard', 
-        label: 'Workspace Overview', 
+      {
+        id: 'dashboard',
+        label: 'Workspace Overview',
         description: 'Your central command for content operations and daily tasks.',
-        icon: LayoutDashboard, 
+        icon: LayoutDashboard,
         path: '/workspace/dashboard',
         subItems: [
           { label: 'Recent Activity', path: '/workspace/dashboard' },
@@ -100,11 +102,11 @@ export const NAV_GROUPS: NavGroup[] = [
           { label: 'Team Updates', path: '/workspace/dashboard?tab=updates' }
         ]
       },
-      { 
-        id: 'consultant', 
-        label: 'AI Strategist', 
+      {
+        id: 'consultant',
+        label: 'AI Strategist',
         description: 'Your creative partner for content strategy and brainstorming.',
-        icon: MessageSquare, 
+        icon: MessageSquare,
         path: '/workspace/consultant',
         subItems: [
           { label: 'New Strategy Session', path: '/workspace/consultant' },
@@ -118,11 +120,11 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Content Creation',
     items: [
-      { 
-        id: 'scripts', 
-        label: 'Script Studio', 
+      {
+        id: 'scripts',
+        label: 'Script Studio',
         description: 'Draft, format, and perfect scripts for short-form video content.',
-        icon: FileText, 
+        icon: FileText,
         path: '/workspace/scripts',
         subItems: [
           { label: 'Script Wizard', path: '/workspace/scripts' },
@@ -132,11 +134,11 @@ export const NAV_GROUPS: NavGroup[] = [
           { label: 'Templates', path: '/workspace/scripts?tab=templates' }
         ]
       },
-      { 
-        id: 'ideas', 
-        label: 'Idea Vault', 
+      {
+        id: 'ideas',
+        label: 'Idea Vault',
         description: 'Capture, organize, and prioritize your creative sparks.',
-        icon: Lightbulb, 
+        icon: Lightbulb,
         path: '/workspace/ideas',
         subItems: [
           { label: 'Idea Bank', path: '/workspace/ideas' },
@@ -145,11 +147,11 @@ export const NAV_GROUPS: NavGroup[] = [
           { label: 'Trend Alerts', path: '/workspace/ideas?tab=trends' }
         ]
       },
-      { 
-        id: 'approval', 
-        label: 'Review & Approval', 
+      {
+        id: 'approval',
+        label: 'Review & Approval',
         description: 'Streamline client and team sign-offs before publishing.',
-        icon: CheckCircle, 
+        icon: CheckCircle,
         path: '/workspace/approval',
         subItems: [
           { label: 'Send Post for Review', path: '/workspace/approval' },
@@ -163,11 +165,11 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Management',
     items: [
-      { 
-        id: 'calendar', 
-        label: 'Editorial Calendar', 
+      {
+        id: 'calendar',
+        label: 'Editorial Calendar',
         description: 'Visualize and orchestrate your entire content pipeline.',
-        icon: Calendar, 
+        icon: Calendar,
         path: '/workspace/calendar',
         subItems: [
           { label: 'Editorial Planning', path: '/workspace/calendar' },
@@ -176,11 +178,11 @@ export const NAV_GROUPS: NavGroup[] = [
           { label: 'Campaigns', path: '/workspace/calendar?view=campaigns' }
         ]
       },
-      { 
-        id: 'kanban', 
-        label: 'Production Board', 
+      {
+        id: 'kanban',
+        label: 'Production Board',
         description: 'Track content status from ideation to final delivery.',
-        icon: Trello, 
+        icon: Trello,
         path: '/workspace/kanban',
         subItems: [
           { label: 'Active Sprints', path: '/workspace/kanban' },
@@ -189,11 +191,11 @@ export const NAV_GROUPS: NavGroup[] = [
           { label: 'Archived Tasks', path: '/workspace/kanban?tab=archived' }
         ]
       },
-      { 
-        id: 'scheduler', 
-        label: 'Auto-Publisher', 
+      {
+        id: 'scheduler',
+        label: 'Auto-Publisher',
         description: 'Schedule and automatically publish across all platforms.',
-        icon: Clock, 
+        icon: Clock,
         path: '/workspace/scheduler',
         subItems: [
           { label: 'Publishing Queue', path: '/workspace/scheduler' },
@@ -207,11 +209,11 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Strategy & Growth',
     items: [
-      { 
-        id: 'performance', 
-        label: 'Analytics & Insights', 
+      {
+        id: 'performance',
+        label: 'Analytics & Insights',
         description: 'Measure impact, track growth, and optimize your strategy.',
-        icon: BarChart3, 
+        icon: BarChart3,
         path: '/workspace/performance',
         subItems: [
           { label: 'Cross-Platform Overview', path: '/workspace/performance' },
@@ -220,11 +222,25 @@ export const NAV_GROUPS: NavGroup[] = [
           { label: 'Custom Reports', path: '/workspace/performance?tab=reports' }
         ]
       },
-      { 
-        id: 'references', 
-        label: 'Swipe File', 
+      {
+        id: 'reports',
+        label: 'Reports',
+        description: 'Build professional white-label client reports, configure periods, choose sections, preview the report and export it as PDF.',
+        icon: TrendingUp,
+        path: '/workspace/reports',
+        subItems: [
+          { label: 'Report Builder', path: '/workspace/reports' },
+          { label: 'Period Selection', path: '/workspace/reports?tab=period' },
+          { label: 'Included Sections', path: '/workspace/reports?tab=sections' },
+          { label: 'Preview & Notes', path: '/workspace/reports?tab=preview' },
+          { label: 'Export PDF', path: '/workspace/reports?tab=export' }
+        ]
+      },
+      {
+        id: 'references',
+        label: 'Swipe File',
         description: 'Curate inspiring content and track competitor strategies.',
-        icon: BookOpen, 
+        icon: BookOpen,
         path: '/workspace/references',
         subItems: [
           { label: 'Saved Links', path: '/workspace/references' },
@@ -238,11 +254,11 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: 'System',
     items: [
-      { 
-        id: 'integrations', 
-        label: 'Connections', 
+      {
+        id: 'integrations',
+        label: 'Connections',
         description: 'Manage linked social accounts and third-party tools.',
-        icon: Share2, 
+        icon: Share2,
         path: '/workspace/integrations',
         subItems: [
           { label: 'Social Platforms', path: '/workspace/integrations' },
@@ -250,11 +266,11 @@ export const NAV_GROUPS: NavGroup[] = [
           { label: 'API Webhooks', path: '/workspace/integrations?tab=webhooks' }
         ]
       },
-      { 
-        id: 'settings', 
-        label: 'Workspace Settings', 
+      {
+        id: 'settings',
+        label: 'Workspace Settings',
         description: 'Configure your environment, team roles, and billing.',
-        icon: Settings, 
+        icon: Settings,
         path: '/workspace/settings',
         subItems: [
           { label: 'General Preferences', path: '/workspace/settings' },
@@ -263,11 +279,11 @@ export const NAV_GROUPS: NavGroup[] = [
           { label: 'Notifications', path: '/workspace/settings?tab=notifications' }
         ]
       },
-      { 
-        id: 'account', 
-        label: 'Personal Profile', 
+      {
+        id: 'account',
+        label: 'Personal Profile',
         description: 'Manage your personal details and security settings.',
-        icon: User, 
+        icon: User,
         path: '/workspace/account',
         subItems: [
           { label: 'Profile Details', path: '/workspace/account' },
@@ -275,11 +291,11 @@ export const NAV_GROUPS: NavGroup[] = [
           { label: 'Active Sessions', path: '/workspace/account?tab=sessions' }
         ]
       },
-      { 
-        id: 'credits', 
-        label: 'AI Usage', 
+      {
+        id: 'credits',
+        label: 'AI Usage',
         description: 'Monitor your AI generation credits and limits.',
-        icon: CreditCard, 
+        icon: CreditCard,
         path: '/workspace/credits',
         subItems: [
           { label: 'Current Balance', path: '/workspace/credits' },
@@ -287,11 +303,11 @@ export const NAV_GROUPS: NavGroup[] = [
           { label: 'Upgrade Plan', path: '/workspace/credits?tab=upgrade' }
         ]
       },
-      { 
-        id: 'support', 
-        label: 'Help Center', 
+      {
+        id: 'support',
+        label: 'Help Center',
         description: 'Access tutorials, documentation, and customer support.',
-        icon: HelpCircle, 
+        icon: HelpCircle,
         path: '/workspace/support',
         subItems: [
           { label: 'Knowledge Base', path: '/workspace/support' },
