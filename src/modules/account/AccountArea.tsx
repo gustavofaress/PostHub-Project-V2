@@ -4,8 +4,21 @@ import { Card, CardTitle, CardDescription } from '../../shared/components/Card';
 import { Button } from '../../shared/components/Button';
 import { Input } from '../../shared/components/Input';
 import { Avatar } from '../../shared/components/Avatar';
+import { useAuth } from '../../app/context/AuthContext';
 
 export const AccountArea = () => {
+  const { user } = useAuth();
+
+  const [website, setWebsite] = React.useState('');
+
+  const fullName = user?.name?.trim() || 'User';
+  const email = user?.email || '';
+
+  const nameParts = React.useMemo(() => fullName.split(' ').filter(Boolean), [fullName]);
+  const firstName = nameParts[0] || '';
+  const lastName = nameParts.slice(1).join(' ') || '';
+  const initials = `${firstName[0] || ''}${lastName[0] || ''}`.toUpperCase() || 'U';
+
   return (
     <div className="max-w-4xl space-y-8">
       <div>
@@ -16,18 +29,18 @@ export const AccountArea = () => {
       <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
         <div className="space-y-4">
           <Card className="flex flex-col items-center text-center">
-            <Avatar fallback="GF" size="lg" className="h-24 w-24 mb-4" />
-            <h3 className="font-bold text-text-primary">Gustavo Fares</h3>
-            <p className="text-sm text-text-secondary mb-4">Social Media Manager</p>
+            <Avatar fallback={initials} size="lg" className="h-24 w-24 mb-4" />
+            <h3 className="font-bold text-text-primary">{fullName}</h3>
+            <p className="text-sm text-text-secondary mb-4">Account Owner</p>
             <Button variant="outline" size="sm" className="w-full">Change Photo</Button>
           </Card>
-          
+
           <nav className="space-y-1">
             {[
               { label: 'Profile', icon: User, active: true },
               { label: 'Security', icon: Shield },
               { label: 'Notifications', icon: Bell },
-            ].map(item => (
+            ].map((item) => (
               <button
                 key={item.label}
                 className={cn(
@@ -46,13 +59,17 @@ export const AccountArea = () => {
           <Card>
             <CardTitle className="mb-6">Personal Information</CardTitle>
             <div className="grid grid-cols-2 gap-4">
-              <Input label="First Name" defaultValue="Gustavo" />
-              <Input label="Last Name" defaultValue="Fares" />
+              <Input label="First Name" defaultValue={firstName} />
+              <Input label="Last Name" defaultValue={lastName} />
               <div className="col-span-2">
-                <Input label="Email Address" defaultValue="gustavo@example.com" icon={<Mail className="h-4 w-4" />} />
+                <Input label="Email Address" defaultValue={email} icon={<Mail className="h-4 w-4" />} />
               </div>
               <div className="col-span-2">
-                <Input label="Website" defaultValue="https://gustavofares.com" icon={<Globe className="h-4 w-4" />} />
+                <Input
+                  label="Website"
+                  defaultValue={website}
+                  icon={<Globe className="h-4 w-4" />}
+                />
               </div>
             </div>
             <div className="mt-8 flex justify-end">
