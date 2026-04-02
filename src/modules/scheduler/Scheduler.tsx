@@ -18,10 +18,10 @@ import { Badge } from '../../shared/components/Badge';
 import { cn } from '../../shared/utils/cn';
 
 const SCHEDULED_POSTS = [
-  { id: '1', title: 'Morning Motivation', time: '09:00 AM', date: 'Today', platform: 'Instagram', status: 'scheduled', thumbnail: 'https://picsum.photos/seed/sch1/400/400' },
-  { id: '2', title: 'Product Demo', time: '02:30 PM', date: 'Today', platform: 'TikTok', status: 'scheduled', thumbnail: 'https://picsum.photos/seed/sch2/400/400' },
-  { id: '3', title: 'Weekly Wrap-up', time: '06:00 PM', date: 'Tomorrow', platform: 'YouTube', status: 'pending', thumbnail: 'https://picsum.photos/seed/sch3/400/400' },
-  { id: '4', title: 'New Feature Announcement', time: '11:00 AM', date: 'Apr 2, 2024', platform: 'Instagram', status: 'scheduled', thumbnail: 'https://picsum.photos/seed/sch4/400/400' },
+  { id: '1', title: 'Motivação da manhã', time: '09:00', date: 'Hoje', platform: 'Instagram', status: 'scheduled', thumbnail: 'https://picsum.photos/seed/sch1/400/400' },
+  { id: '2', title: 'Demonstração do produto', time: '14:30', date: 'Hoje', platform: 'TikTok', status: 'scheduled', thumbnail: 'https://picsum.photos/seed/sch2/400/400' },
+  { id: '3', title: 'Resumo da semana', time: '18:00', date: 'Amanhã', platform: 'YouTube', status: 'pending', thumbnail: 'https://picsum.photos/seed/sch3/400/400' },
+  { id: '4', title: 'Anúncio de nova funcionalidade', time: '11:00', date: '2 de abr. de 2024', platform: 'Instagram', status: 'scheduled', thumbnail: 'https://picsum.photos/seed/sch4/400/400' },
 ];
 
 export const Scheduler = () => {
@@ -31,13 +31,13 @@ export const Scheduler = () => {
         <div>
           <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
             <Clock className="h-6 w-6 text-brand" />
-            Content Scheduler
+            Agendador de Conteúdo
           </h1>
-          <p className="text-text-secondary">Schedule and automate your social media posts.</p>
+          <p className="text-text-secondary">Agende e automatize suas publicações nas redes sociais.</p>
         </div>
         <Button className="gap-2">
           <Plus className="h-4 w-4" />
-          Schedule Post
+          Agendar Post
         </Button>
       </div>
 
@@ -46,12 +46,12 @@ export const Scheduler = () => {
         <div className="lg:col-span-8 space-y-6">
           <Card className="p-0 overflow-hidden">
             <div className="flex items-center justify-between p-6 border-b border-gray-100">
-              <h2 className="font-bold text-text-primary">Upcoming Queue</h2>
+              <h2 className="font-bold text-text-primary">Fila de Publicações</h2>
               <div className="flex items-center gap-2">
                 <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
-                <span className="text-sm font-medium">April 2024</span>
+                <span className="text-sm font-medium">Abril 2024</span>
                 <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                   <ChevronRight className="h-4 w-4" />
                 </Button>
@@ -69,7 +69,7 @@ export const Scheduler = () => {
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="font-bold text-text-primary truncate">{post.title}</h3>
                       <Badge variant={post.status === 'scheduled' ? 'success' : 'warning'} className="text-[10px] py-0 px-1.5">
-                        {post.status.toUpperCase()}
+                        {post.status === 'scheduled' ? 'AGENDADO' : 'PENDENTE'}
                       </Badge>
                     </div>
                     <div className="flex items-center gap-3 text-xs text-text-secondary">
@@ -91,7 +91,7 @@ export const Scheduler = () => {
                   </div>
 
                   <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button variant="ghost" size="sm">Edit</Button>
+                    <Button variant="ghost" size="sm">Editar</Button>
                     <button className="p-2 text-gray-400 hover:text-text-primary">
                       <MoreVertical className="h-4 w-4" />
                     </button>
@@ -105,14 +105,14 @@ export const Scheduler = () => {
         {/* Sidebar: Insights & Settings */}
         <div className="lg:col-span-4 space-y-6">
           <Card>
-            <h3 className="font-bold text-text-primary mb-4">Best Times to Post</h3>
-            <p className="text-xs text-text-secondary mb-6">Based on your audience activity from the last 30 days.</p>
+            <h3 className="font-bold text-text-primary mb-4">Melhores Horários para Postar</h3>
+            <p className="text-xs text-text-secondary mb-6">Com base na atividade da sua audiência nos últimos 30 dias.</p>
             
             <div className="space-y-4">
               {[
-                { platform: 'Instagram', time: '11:00 AM', engagement: 'High' },
-                { platform: 'TikTok', time: '08:30 PM', engagement: 'Very High' },
-                { platform: 'YouTube', time: '04:00 PM', engagement: 'Medium' },
+                { platform: 'Instagram', time: '11:00', engagement: 'Alto' },
+                { platform: 'TikTok', time: '20:30', engagement: 'Muito Alto' },
+                { platform: 'YouTube', time: '16:00', engagement: 'Médio' },
               ].map(item => (
                 <div key={item.platform} className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-100">
                   <div className="flex items-center gap-3">
@@ -135,14 +135,14 @@ export const Scheduler = () => {
           <Card className="bg-brand text-white border-none">
             <div className="flex items-center gap-2 mb-3">
               <CheckCircle2 className="h-5 w-5" />
-              <h3 className="font-bold">Auto-Publishing</h3>
+              <h3 className="font-bold">Publicação Automática</h3>
             </div>
             <p className="text-sm text-white/80 mb-4">
-              Your accounts are connected and ready for automatic publishing. No manual action required!
+              Suas contas estão conectadas e prontas para publicação automática. Nenhuma ação manual é necessária!
             </p>
             <div className="flex items-center gap-2 text-xs font-medium bg-white/10 p-2 rounded-lg">
               <AlertCircle className="h-3 w-3" />
-              Next sync in 14 minutes
+              Próxima sincronização em 14 minutos
             </div>
           </Card>
         </div>
