@@ -304,10 +304,10 @@ export const IdeasBank = () => {
         <div>
           <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
             <Lightbulb className="h-6 w-6 text-brand" />
-            Ideas Bank
+            Banco de Ideias
           </h1>
           <p className="text-text-secondary">
-            Store and organize your content inspirations.
+            Armazene e organize suas inspirações de conteúdo.
           </p>
           {activeProfile && (
             <p className="text-sm text-text-secondary mt-1">
@@ -318,7 +318,7 @@ export const IdeasBank = () => {
 
         <Button className="gap-2" onClick={openCreateModal}>
           <Plus className="h-4 w-4" />
-          New Idea
+          Nova Ideia
         </Button>
       </div>
 
@@ -333,7 +333,7 @@ export const IdeasBank = () => {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
-            placeholder="Search ideas..."
+            placeholder="Buscar ideias..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="h-10 w-full rounded-lg border border-gray-200 bg-white pl-10 pr-4 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 transition-all"
@@ -345,21 +345,21 @@ export const IdeasBank = () => {
             trigger={
               <Button variant="secondary" size="sm" className="gap-2">
                 <Filter className="h-4 w-4" />
-                {filterPriority ? `Priority: ${filterPriority}` : 'Filter'}
+                {filterPriority ? `Prioridade: ${filterPriority}` : 'Filtrar'}
               </Button>
             }
           >
             <DropdownItem onClick={() => setFilterPriority(null)}>
-              All Priorities
+              Todas as Prioridades
             </DropdownItem>
             <DropdownItem onClick={() => setFilterPriority('High')}>
-              High Priority
+              Prioridade Alta
             </DropdownItem>
             <DropdownItem onClick={() => setFilterPriority('Medium')}>
-              Medium Priority
+              Prioridade Média
             </DropdownItem>
             <DropdownItem onClick={() => setFilterPriority('Low')}>
-              Low Priority
+              Prioridade Baixa
             </DropdownItem>
           </Dropdown>
 
@@ -371,7 +371,7 @@ export const IdeasBank = () => {
               </Button>
             }
           >
-            <DropdownItem onClick={() => setFilterTag(null)}>All Tags</DropdownItem>
+            <DropdownItem onClick={() => setFilterTag(null)}>Todas as Tags</DropdownItem>
             {allTags.map((tag) => (
               <DropdownItem key={tag} onClick={() => setFilterTag(tag)}>
                 #{tag}
@@ -402,7 +402,11 @@ export const IdeasBank = () => {
                       : 'default'
                   }
                 >
-                  {idea.priority} Priority
+                  {idea.priority === 'High'
+                    ? 'Prioridade Alta'
+                    : idea.priority === 'Medium'
+                    ? 'Prioridade Média'
+                    : 'Prioridade Baixa'}
                 </Badge>
 
                 <Dropdown
@@ -413,14 +417,14 @@ export const IdeasBank = () => {
                   }
                 >
                   <DropdownItem icon={Edit} onClick={() => openEditModal(idea)}>
-                    Edit Idea
+                    Editar Ideia
                   </DropdownItem>
                   <DropdownItem
                     icon={Trash}
                     onClick={() => handleDeleteIdea(idea.id)}
                     className="text-red-500 hover:text-red-600 hover:bg-red-50"
                   >
-                    Delete Idea
+                    Excluir Ideia
                   </DropdownItem>
                 </Dropdown>
               </div>
@@ -450,7 +454,7 @@ export const IdeasBank = () => {
                   className="h-8 px-2"
                   onClick={handleConvertToScript}
                 >
-                  Convert to Script
+                  Converter em Roteiro
                 </Button>
               </div>
             </Card>
@@ -459,114 +463,114 @@ export const IdeasBank = () => {
       ) : (
         <Card className="flex items-center justify-center py-20">
           <EmptyState
-            title="No ideas found"
-            description="Try adjusting your search or add a new inspiration to your bank."
+            title="Nenhuma ideia encontrada"
+            description="Tente ajustar sua busca ou adicione uma nova inspiração ao seu banco."
             icon={Lightbulb}
-            action={<Button onClick={openCreateModal}>Add New Idea</Button>}
+            action={<Button onClick={openCreateModal}>Adicionar Nova Ideia</Button>}
           />
         </Card>
       )}
 
       <Modal
-  isOpen={isModalOpen}
-  onClose={() => setIsModalOpen(false)}
-  title={editingIdea ? 'Edit Idea' : 'Add New Idea'}
->
-  <form onSubmit={handleSaveIdea} className="space-y-6">
-    <div className="space-y-1">
-      <h3 className="text-base font-semibold text-text-primary">
-        {editingIdea ? 'Update idea details' : 'Create a new idea'}
-      </h3>
-      <p className="text-sm text-text-secondary">
-        Organize your inspiration and prepare it for future content production.
-      </p>
-    </div>
-
-    <div className="space-y-5">
-      <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-4 space-y-4">
-        <div className="space-y-1">
-          <h4 className="text-sm font-semibold text-text-primary">
-            Content information
-          </h4>
-          <p className="text-xs text-text-secondary">
-            Define the main idea and the tags that help categorize it.
-          </p>
-        </div>
-
-        <Input
-          label="Idea Title"
-          placeholder="What's your idea about?"
-          value={newIdeaTitle}
-          onChange={(e) => setNewIdeaTitle(e.target.value)}
-          required
-        />
-
-        <Input
-          label="Tags"
-          placeholder="e.g. vlog, tips, educational"
-          value={newIdeaTags}
-          onChange={(e) => setNewIdeaTags(e.target.value)}
-        />
-      </div>
-
-      <div className="rounded-xl border border-gray-100 bg-white p-4 space-y-4">
-        <div className="space-y-1">
-          <h4 className="text-sm font-semibold text-text-primary">
-            Workflow settings
-          </h4>
-          <p className="text-xs text-text-secondary">
-            Set the priority and current stage for this idea.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-text-primary">
-              Priority
-            </label>
-            <select
-              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-text-primary focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 transition-all"
-              value={newIdeaPriority}
-              onChange={(e) => setNewIdeaPriority(e.target.value)}
-            >
-              <option value="Low">Low</option>
-              <option value="Medium">Medium</option>
-              <option value="High">High</option>
-            </select>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-text-primary">
-              Status
-            </label>
-            <select
-              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-text-primary focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 transition-all"
-              value={newIdeaStatus}
-              onChange={(e) => setNewIdeaStatus(e.target.value)}
-            >
-              <option value="Backlog">Backlog</option>
-              <option value="Planned">Planned</option>
-              <option value="Drafting">Drafting</option>
-            </select>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div className="flex flex-col-reverse gap-3 border-t border-gray-100 pt-5 sm:flex-row sm:justify-end">
-      <Button
-        variant="secondary"
-        onClick={() => setIsModalOpen(false)}
-        type="button"
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editingIdea ? 'Editar Ideia' : 'Adicionar Nova Ideia'}
       >
-        Cancel
-      </Button>
-      <Button type="submit">
-        {editingIdea ? 'Save Changes' : 'Save Idea'}
-      </Button>
-    </div>
-  </form>
-</Modal>
+        <form onSubmit={handleSaveIdea} className="space-y-6">
+          <div className="space-y-1">
+            <h3 className="text-base font-semibold text-text-primary">
+              {editingIdea ? 'Atualize os detalhes da ideia' : 'Crie uma nova ideia'}
+            </h3>
+            <p className="text-sm text-text-secondary">
+              Organize sua inspiração e prepare-a para futuras produções de conteúdo.
+            </p>
+          </div>
+
+          <div className="space-y-5">
+            <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-4 space-y-4">
+              <div className="space-y-1">
+                <h4 className="text-sm font-semibold text-text-primary">
+                  Informações do conteúdo
+                </h4>
+                <p className="text-xs text-text-secondary">
+                  Defina a ideia principal e as tags que ajudam a categorizá-la.
+                </p>
+              </div>
+
+              <Input
+                label="Título da Ideia"
+                placeholder="Sobre o que é sua ideia?"
+                value={newIdeaTitle}
+                onChange={(e) => setNewIdeaTitle(e.target.value)}
+                required
+              />
+
+              <Input
+                label="Tags"
+                placeholder="Ex.: vlog, dicas, educativo"
+                value={newIdeaTags}
+                onChange={(e) => setNewIdeaTags(e.target.value)}
+              />
+            </div>
+
+            <div className="rounded-xl border border-gray-100 bg-white p-4 space-y-4">
+              <div className="space-y-1">
+                <h4 className="text-sm font-semibold text-text-primary">
+                  Configurações do fluxo
+                </h4>
+                <p className="text-xs text-text-secondary">
+                  Defina a prioridade e o estágio atual desta ideia.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-text-primary">
+                    Prioridade
+                  </label>
+                  <select
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-text-primary focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 transition-all"
+                    value={newIdeaPriority}
+                    onChange={(e) => setNewIdeaPriority(e.target.value)}
+                  >
+                    <option value="Low">Baixa</option>
+                    <option value="Medium">Média</option>
+                    <option value="High">Alta</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-text-primary">
+                    Status
+                  </label>
+                  <select
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-text-primary focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 transition-all"
+                    value={newIdeaStatus}
+                    onChange={(e) => setNewIdeaStatus(e.target.value)}
+                  >
+                    <option value="Backlog">Backlog</option>
+                    <option value="Planned">Planejada</option>
+                    <option value="Drafting">Em Rascunho</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col-reverse gap-3 border-t border-gray-100 pt-5 sm:flex-row sm:justify-end">
+            <Button
+              variant="secondary"
+              onClick={() => setIsModalOpen(false)}
+              type="button"
+            >
+              Cancelar
+            </Button>
+            <Button type="submit">
+              {editingIdea ? 'Salvar Alterações' : 'Salvar Ideia'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };
