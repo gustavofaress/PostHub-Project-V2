@@ -2,114 +2,152 @@ import * as React from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight,
-  CheckCircle2,
-  Sparkles,
-  Calendar,
+  Menu,
+  X,
   Lightbulb,
+  FileText,
+  Calendar,
+  LayoutDashboard,
+  CheckCircle,
   BarChart3,
-  KanbanSquare,
-  ShieldCheck,
-  BrainCircuit,
+  Check,
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Button } from '../shared/components/Button';
 
 const STRIPE_CHECKOUT_URL = 'https://buy.stripe.com/SEU_LINK_AQUI';
 
 const modules = [
   {
-    id: 'ideas',
-    label: 'Banco de Ideias',
+    id: 'ideias',
     title: 'Banco de Ideias',
     description:
-      'Centralize referências, temas e oportunidades para nunca mais travar na hora de planejar o próximo conteúdo.',
-    image: '/banco-de-ideias.png',
+      'Nunca mais perca uma boa ideia. Capture, categorize e desenvolva seus insights em um repositório centralizado e organizado.',
     icon: Lightbulb,
+    image: '/banco-de-ideias.png',
     topics: [
-      'Organize referências e temas em um só lugar',
-      'Salve ideias para diferentes formatos de conteúdo',
-      'Tenha mais clareza no planejamento editorial',
-      'Reduza o bloqueio criativo na operação',
+      'Captura rápida via atalhos',
+      'Categorização por tags e temas',
+      'Status de maturação da ideia',
+      'Integração direta com roteiros',
     ],
   },
   {
-    id: 'scripts',
-    label: 'Gerador de Roteiros',
+    id: 'roteiros',
     title: 'Gerador de Roteiros',
     description:
-      'Transforme ideias em roteiros mais estratégicos com estrutura pensada para retenção, clareza e conversão.',
+      'Estruture seus vídeos e posts com templates validados. Do gancho à chamada para ação, crie roteiros que retêm a atenção.',
+    icon: FileText,
     image: '/gerador-de-roteiros.png',
-    icon: BrainCircuit,
     topics: [
-      'Estruture vídeos com mais rapidez',
-      'Use roteiros com mais lógica estratégica',
-      'Ganhe consistência na criação de conteúdo',
-      'Acelere a produção sem depender do improviso',
+      'Templates para Reels, TikTok e YouTube',
+      'Estimativa de tempo de leitura e fala',
+      'Área de referências e links',
+      'Histórico de versões',
     ],
   },
   {
-    id: 'calendar',
-    label: 'Calendário Editorial',
+    id: 'calendario',
     title: 'Calendário Editorial',
     description:
-      'Visualize o mês inteiro, organize entregas e tenha clareza do que precisa ser produzido, revisado e publicado.',
-    image: '/calendario-editorial.png',
+      'Tenha visão total da sua estratégia. Planeje semanas ou meses de conteúdo com uma interface visual e intuitiva.',
     icon: Calendar,
+    image: '/calendario-editorial.png',
     topics: [
-      'Visualize sua operação com clareza',
-      'Planeje publicações e entregas do mês',
-      'Organize o fluxo de produção com previsibilidade',
-      'Evite atrasos e retrabalho na rotina',
+      'Visão mensal, semanal e diária',
+      'Filtros por rede social e formato',
+      'Arraste e solte para reagendar',
+      'Identificação de lacunas de postagem',
     ],
   },
   {
     id: 'kanban',
-    label: 'Kanban de Produção',
     title: 'Kanban de Produção',
     description:
-      'Acompanhe cada conteúdo do planejamento até a publicação com um fluxo operacional simples e visual.',
+      'Acompanhe cada etapa da criação. Saiba exatamente o que está sendo escrito, gravado, editado ou aguardando aprovação.',
+    icon: LayoutDashboard,
     image: '/kanban.png',
-    icon: KanbanSquare,
     topics: [
-      'Acompanhe cada etapa da produção',
-      'Tenha visão rápida do que está pendente',
-      'Organize tarefas de forma visual',
-      'Melhore a operação entre equipe e cliente',
+      'Colunas personalizáveis',
+      'Atribuição de responsáveis',
+      'Prazos e alertas de atraso',
+      'Anexos de arquivos pesados',
     ],
   },
   {
-    id: 'approval',
-    label: 'Aprovação de Conteúdo',
+    id: 'aprovacao',
     title: 'Aprovação de Conteúdo',
     description:
-      'Envie materiais para aprovação, receba feedback e mantenha o processo mais profissional com clientes e equipe.',
+      'Elimine o vai-e-vem no WhatsApp. Compartilhe links de aprovação com clientes ou gestores e receba feedback pontual.',
+    icon: CheckCircle,
     image: '/aprovacao.png',
-    icon: ShieldCheck,
     topics: [
-      'Compartilhe materiais para validação',
-      'Receba feedbacks com mais organização',
-      'Profissionalize a comunicação com clientes',
-      'Reduza ruídos na etapa de aprovação',
+      'Links externos seguros',
+      'Comentários diretos na peça',
+      'Histórico de alterações',
+      'Aprovação com um clique',
     ],
   },
   {
     id: 'performance',
-    label: 'Performance',
     title: 'Performance',
     description:
-      'Conecte estratégia e resultado analisando métricas importantes para tomar decisões melhores sobre conteúdo.',
-    image: '/performance.png',
+      'Entenda o que funciona. Analise métricas essenciais para otimizar sua estratégia e focar no que traz resultado real.',
     icon: BarChart3,
+    image: '/performance.png',
     topics: [
-      'Acompanhe métricas relevantes da operação',
-      'Tome decisões com mais base em dados',
-      'Conecte produção com resultado',
-      'Tenha mais visão estratégica do conteúdo',
+      'Dashboards consolidados',
+      'Métricas de engajamento e alcance',
+      'Identificação de melhores formatos',
+      'Relatórios automatizados',
     ],
+  },
+];
+
+const pricingFeatures = [
+  'Acesso completo a todos os módulos',
+  'Banco de Ideias ilimitado',
+  'Gerador de Roteiros com templates',
+  'Calendário Editorial interativo',
+  'Kanban de produção personalizável',
+  'Links de aprovação externos',
+  'Dashboards de performance',
+  'Suporte prioritário via chat',
+];
+
+const howItWorksSteps = [
+  {
+    num: '01',
+    title: 'Capture ideias',
+    desc: 'Registre insights no momento em que surgem, antes que se percam na rotina.',
+  },
+  {
+    num: '02',
+    title: 'Monte a estratégia',
+    desc: 'Transforme ideias soltas em roteiros estruturados e posicione-os no calendário.',
+  },
+  {
+    num: '03',
+    title: 'Execute com clareza',
+    desc: 'Acompanhe o status de cada peça no kanban. Grave, edite e aprove sem atrito.',
+  },
+  {
+    num: '04',
+    title: 'Ajuste com dados',
+    desc: 'Analise a performance do que foi publicado e retroalimente seu banco de ideias.',
   },
 ];
 
 export const LandingPage = () => {
   const [activeModuleId, setActiveModuleId] = React.useState(modules[0].id);
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const [isScrolled, setIsScrolled] = React.useState(false);
+
+  React.useEffect(() => {
+    const handleScroll = () => setIsScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const activeModule =
     modules.find((module) => module.id === activeModuleId) ?? modules[0];
@@ -117,11 +155,15 @@ export const LandingPage = () => {
   const ActiveIcon = activeModule.icon;
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#050816] text-white">
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,rgba(55,93,255,0.16),transparent_35%),radial-gradient(circle_at_80%_20%,rgba(0,229,255,0.10),transparent_25%),linear-gradient(180deg,#050816_0%,#070b1d_40%,#050816_100%)]" />
-
-      <nav className="sticky top-0 z-30 border-b border-white/10 bg-[#050816]/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 lg:px-8">
+    <div className="min-h-screen overflow-x-hidden bg-[#050816] text-white selection:bg-[#38B6FF] selection:text-white">
+      <header
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+          isScrolled
+            ? 'border-b border-white/10 bg-[#050816]/80 py-4 backdrop-blur-md'
+            : 'bg-transparent py-6'
+        }`}
+      >
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 md:px-12">
           <div className="flex items-center">
             <img
               src="/logo-full-white.png"
@@ -130,312 +172,349 @@ export const LandingPage = () => {
             />
           </div>
 
-          <div className="hidden items-center gap-8 md:flex">
+          <nav className="hidden items-center gap-8 md:flex">
             <a
               href="#recursos"
-              className="text-sm text-white/70 transition hover:text-white"
+              className="text-sm font-medium text-white/70 transition-colors hover:text-white"
             >
               Recursos
             </a>
             <a
               href="#como-funciona"
-              className="text-sm text-white/70 transition hover:text-white"
+              className="text-sm font-medium text-white/70 transition-colors hover:text-white"
             >
               Como funciona
             </a>
             <a
               href="#preco"
-              className="text-sm text-white/70 transition hover:text-white"
+              className="text-sm font-medium text-white/70 transition-colors hover:text-white"
             >
               Preço
             </a>
+          </nav>
+
+          <div className="hidden items-center gap-6 md:flex">
             <Link
               to="/login"
-              className="text-sm font-medium text-white/80 transition hover:text-white"
+              className="text-sm font-medium text-white/70 transition-colors hover:text-white"
             >
               Login
             </Link>
             <a href={STRIPE_CHECKOUT_URL} target="_blank" rel="noreferrer">
-              <Button size="sm" className="rounded-xl px-5">
+              <Button className="rounded-full px-5 py-2.5 text-sm font-semibold">
                 Assinar agora
               </Button>
             </a>
           </div>
+
+          <button
+            className="text-white/70 hover:text-white md:hidden"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="Abrir menu"
+          >
+            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
         </div>
-      </nav>
+
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="absolute top-full left-0 right-0 border-b border-white/10 bg-[#0A1023] p-6 shadow-2xl md:hidden"
+            >
+              <div className="flex flex-col gap-4">
+                <a
+                  href="#recursos"
+                  className="py-2 text-base font-medium text-white/80 hover:text-white"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Recursos
+                </a>
+                <a
+                  href="#como-funciona"
+                  className="py-2 text-base font-medium text-white/80 hover:text-white"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Como funciona
+                </a>
+                <a
+                  href="#preco"
+                  className="py-2 text-base font-medium text-white/80 hover:text-white"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Preço
+                </a>
+                <div className="my-2 h-px bg-white/10" />
+                <Link
+                  to="/login"
+                  className="py-2 text-base font-medium text-white/80 hover:text-white"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Login
+                </Link>
+                <a
+                  href={STRIPE_CHECKOUT_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-2"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <Button className="w-full rounded-xl py-3 text-base font-semibold">
+                    Assinar agora
+                  </Button>
+                </a>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </header>
 
       <main>
-        <section className="mx-auto grid max-w-7xl gap-8 px-6 pb-18 pt-14 lg:grid-cols-[1fr_0.98fr] lg:items-start lg:px-8 lg:pt-16 xl:gap-12">
-          <div className="lg:pt-6">
-            <HeroBadge>
-              <Sparkles className="h-3.5 w-3.5" />
-              Organização, estratégia e execução no mesmo sistema
-            </HeroBadge>
+        <section className="relative overflow-hidden pt-32 pb-20 md:pt-48 md:pb-32">
+          <div className="pointer-events-none absolute top-1/2 left-1/2 h-[800px] w-[800px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#38B6FF]/10 blur-[120px]" />
 
-            <h1 className="mt-6 max-w-4xl text-4xl font-extrabold leading-[0.98] tracking-tight text-white sm:text-5xl lg:text-7xl">
-              Pare de criar conteúdo no improviso.
-              <span className="bg-gradient-to-r from-white via-cyan-200 to-brand bg-clip-text text-transparent">
-                {' '}
-                Transforme sua operação em um processo.
-              </span>
-            </h1>
+          <div className="relative z-10 mx-auto max-w-7xl px-6 md:px-12">
+            <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-8">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6 }}
+                className="max-w-2xl"
+              >
+                <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
+                  <span className="h-2 w-2 rounded-full bg-[#38B6FF] animate-pulse" />
+                  <span className="text-xs font-medium text-white/80">
+                    Organização, estratégia e execução no mesmo sistema
+                  </span>
+                </div>
 
-            <p className="mt-6 max-w-2xl text-base leading-7 text-white/70 sm:text-lg">
-              Planeje ideias, gere roteiros, organize o calendário, acompanhe a
-              produção e visualize a performance em um só lugar. A PostHub foi
-              criada para quem quer operar conteúdo com mais clareza,
-              consistência e profissionalismo.
-            </p>
+                <h1 className="mb-6 text-4xl font-bold leading-[1.1] md:text-5xl lg:text-6xl">
+                  Pare de criar conteúdo no improviso.{' '}
+                  <span className="bg-gradient-to-r from-[#38B6FF] to-cyan-300 bg-clip-text text-transparent">
+                    Transforme sua operação em um processo.
+                  </span>
+                </h1>
 
-            <div className="mt-8 flex flex-col gap-4 sm:flex-row">
-              <a href={STRIPE_CHECKOUT_URL} target="_blank" rel="noreferrer">
-                <Button
-                  size="lg"
-                  className="w-full rounded-2xl px-8 py-6 text-base sm:w-auto"
-                >
-                  Começar agora
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-              </a>
+                <p className="mb-10 max-w-xl text-lg leading-relaxed text-white/60 md:text-xl">
+                  O PostHub centraliza suas ideias, roteiros, planejamento, fluxo
+                  de produção e performance em um único lugar. Feito para quem
+                  leva conteúdo a sério.
+                </p>
 
-              <Link to="/login">
-                <Button
-                  variant="secondary"
-                  size="lg"
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-8 py-6 text-base text-white hover:bg-white/10 sm:w-auto"
-                >
-                  Entrar na plataforma
-                </Button>
-              </Link>
-            </div>
+                <div className="mb-6 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+                  <a href={STRIPE_CHECKOUT_URL} target="_blank" rel="noreferrer">
+                    <Button className="flex w-full items-center justify-center gap-2 rounded-full px-8 py-4 text-base font-semibold shadow-[0_0_30px_rgba(56,182,255,0.25)] hover:shadow-[0_0_40px_rgba(56,182,255,0.4)] sm:w-auto">
+                      Começar agora
+                      <ArrowRight size={18} />
+                    </Button>
+                  </a>
 
-            <p className="mt-5 text-sm text-white/45">
-              Assinatura mensal de R$ 147,90
-            </p>
-          </div>
+                  <Link to="/login">
+                    <Button
+                      variant="secondary"
+                      className="flex w-full items-center justify-center rounded-full border border-white/10 bg-white/5 px-8 py-4 text-base font-semibold text-white hover:bg-white/10 sm:w-auto"
+                    >
+                      Entrar na plataforma
+                    </Button>
+                  </Link>
+                </div>
 
-          <div className="relative lg:-mt-12 xl:-mt-16">
-            <div className="overflow-hidden rounded-[32px] border border-white/10 bg-transparent shadow-[0_20px_80px_rgba(0,0,0,0.35)]">
-              <img
-                src="/hero.png"
-                alt="Visão principal da plataforma PostHub"
-                className="block w-full object-contain object-top"
-              />
+                <p className="text-sm text-white/40">
+                  Assinatura mensal de R$ 147,90. Cancele quando quiser.
+                </p>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, x: 20 }}
+                animate={{ opacity: 1, scale: 1, x: 0 }}
+                transition={{ duration: 0.8, delay: 0.2 }}
+                className="relative lg:h-[600px] flex items-center justify-center"
+              >
+                <div className="absolute inset-0 rounded-3xl bg-gradient-to-tr from-[#38B6FF]/20 to-transparent blur-3xl" />
+                <div className="relative w-full overflow-hidden rounded-2xl border border-white/10 bg-[#0A1023]/80 shadow-2xl ring-1 ring-white/5 backdrop-blur-sm">
+                  <div className="flex h-8 items-center gap-2 border-b border-white/10 bg-[#050816]/50 px-4">
+                    <div className="h-3 w-3 rounded-full bg-white/20" />
+                    <div className="h-3 w-3 rounded-full bg-white/20" />
+                    <div className="h-3 w-3 rounded-full bg-white/20" />
+                  </div>
+                  <img
+                    src="/hero.png"
+                    alt="Interface do PostHub"
+                    className="block h-auto w-full object-cover"
+                  />
+                </div>
+              </motion.div>
             </div>
           </div>
         </section>
 
-        <section id="recursos" className="bg-[#0A1023]/55 py-24">
-          <div className="mx-auto max-w-7xl px-6 lg:px-8">
-            <div className="max-w-3xl">
-              <HeroBadge>Principais ferramentas da PostHub</HeroBadge>
-              <h2 className="mt-5 text-3xl font-bold tracking-tight text-white sm:text-5xl">
-                Uma plataforma para organizar toda a sua operação de conteúdo.
+        <section id="recursos" className="relative bg-[#0A1023] py-24">
+          <div className="mx-auto max-w-7xl px-6 md:px-12">
+            <div className="mx-auto mb-16 max-w-3xl text-center">
+              <h2 className="mb-6 text-3xl font-bold md:text-4xl">
+                O sistema operacional do seu conteúdo
               </h2>
-              <p className="mt-5 text-lg leading-8 text-white/65">
-                Explore os principais módulos da PostHub e veja como cada parte
-                da plataforma contribui para uma operação mais organizada,
-                estratégica e previsível.
+              <p className="text-lg text-white/60">
+                Módulos integrados que cobrem 100% do ciclo de vida do conteúdo.
+                Da primeira faísca de ideia até a análise de resultados.
               </p>
             </div>
 
-            <div className="mt-10 flex flex-wrap gap-3">
-              {modules.map((module) => {
-                const isActive = module.id === activeModuleId;
-
-                return (
-                  <button
-                    key={module.id}
-                    type="button"
-                    onClick={() => setActiveModuleId(module.id)}
-                    className={`rounded-full border px-4 py-2.5 text-sm font-medium transition-all duration-200 ${
-                      isActive
-                        ? 'border-brand bg-brand text-[#050816] shadow-[0_0_20px_rgba(56,182,255,0.28)]'
-                        : 'border-white/10 bg-white/[0.04] text-white/65 hover:border-white/20 hover:bg-white/[0.06] hover:text-white'
-                    }`}
-                  >
-                    {module.label}
-                  </button>
-                );
-              })}
+            <div className="hide-scrollbar mb-8 flex gap-2 overflow-x-auto pb-4 justify-start lg:justify-center">
+              {modules.map((mod) => (
+                <button
+                  key={mod.id}
+                  onClick={() => setActiveModuleId(mod.id)}
+                  className={`flex items-center gap-2 rounded-full border px-5 py-3 whitespace-nowrap transition-all duration-300 ${
+                    activeModule.id === mod.id
+                      ? 'border-[#38B6FF]/30 bg-[#38B6FF]/10 text-[#38B6FF]'
+                      : 'border-white/5 bg-[#0F152B] text-white/60 hover:bg-white/5 hover:text-white'
+                  }`}
+                >
+                  <mod.icon size={18} />
+                  <span className="text-sm font-medium">{mod.title}</span>
+                </button>
+              ))}
             </div>
 
-            <div className="mt-10 overflow-hidden rounded-[32px] border border-white/10 bg-[#0B1023]/90 shadow-[0_20px_60px_rgba(0,0,0,0.28)]">
-              <div className="grid lg:grid-cols-[1.08fr_0.92fr]">
-                <div className="border-b border-white/10 p-6 lg:border-b-0 lg:border-r lg:p-8">
-                  <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[#0f152b] shadow-[0_10px_40px_rgba(0,0,0,0.28)]">
-                    <img
-                      src={activeModule.image}
-                      alt={`Tela do módulo ${activeModule.title}`}
-                      className="block h-full min-h-[340px] w-full object-cover object-top"
-                    />
+            <div className="overflow-hidden rounded-3xl border border-white/10 bg-[#0F152B] p-6 md:p-10">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeModule.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.3 }}
+                  className="grid items-center gap-10 lg:grid-cols-12"
+                >
+                  <div className="order-2 lg:order-1 lg:col-span-5">
+                    <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-xl border border-[#38B6FF]/20 bg-[#38B6FF]/10">
+                      <ActiveIcon className="text-[#38B6FF]" size={24} />
+                    </div>
+
+                    <h3 className="mb-4 text-2xl font-bold md:text-3xl">
+                      {activeModule.title}
+                    </h3>
+
+                    <p className="mb-8 text-lg leading-relaxed text-white/60">
+                      {activeModule.description}
+                    </p>
+
+                    <ul className="space-y-4">
+                      {activeModule.topics.map((topic, idx) => (
+                        <li key={idx} className="flex items-start gap-3">
+                          <div className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#38B6FF]/20">
+                            <div className="h-2 w-2 rounded-full bg-[#38B6FF]" />
+                          </div>
+                          <span className="text-white/80">{topic}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                </div>
 
-                <div className="p-8 lg:p-10">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-brand/20 bg-brand/10 text-brand">
-                    <ActiveIcon className="h-6 w-6" />
+                  <div className="order-1 lg:order-2 lg:col-span-7">
+                    <div className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-white/10 bg-[#050816] shadow-2xl md:aspect-[16/10]">
+                      <img
+                        src={activeModule.image}
+                        alt={activeModule.title}
+                        className="h-full w-full object-cover"
+                      />
+                      <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10" />
+                    </div>
                   </div>
-
-                  <div className="mt-6 inline-flex rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white/60">
-                    Módulo ativo
-                  </div>
-
-                  <h3 className="mt-5 text-3xl font-bold tracking-tight text-white">
-                    {activeModule.title}
-                  </h3>
-
-                  <p className="mt-4 max-w-xl text-base leading-7 text-white/65">
-                    {activeModule.description}
-                  </p>
-
-                  <div className="mt-8 grid gap-3 sm:grid-cols-2">
-                    {activeModule.topics.map((topic) => (
-                      <div
-                        key={topic}
-                        className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 text-sm text-white/75"
-                      >
-                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
-                        <span>{topic}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+                </motion.div>
+              </AnimatePresence>
             </div>
           </div>
         </section>
 
-        <section id="como-funciona" className="mx-auto max-w-7xl px-6 py-24 lg:px-8">
-          <div className="rounded-[32px] border border-white/10 bg-[#0B1023]/70 p-8 shadow-[0_20px_50px_rgba(0,0,0,0.22)] lg:p-12">
-            <div className="max-w-3xl">
-              <HeroBadge>Como funciona</HeroBadge>
-              <h2 className="mt-5 text-3xl font-bold tracking-tight text-white sm:text-5xl">
-                Uma operação simples para quem quer crescer com conteúdo.
+        <section id="como-funciona" className="bg-[#050816] py-24">
+          <div className="mx-auto max-w-7xl px-6 md:px-12">
+            <div className="mb-16">
+              <h2 className="mb-4 text-3xl font-bold md:text-4xl">
+                O método PostHub
               </h2>
-              <p className="mt-5 text-lg leading-8 text-white/65">
-                A lógica da PostHub é transformar a criação de conteúdo em um
-                processo claro: pensar, estruturar, produzir, acompanhar e
-                melhorar.
+              <p className="max-w-2xl text-lg text-white/60">
+                Um fluxo de trabalho lógico e sequencial que elimina a ansiedade
+                da criação de conteúdo.
               </p>
             </div>
 
-            <div className="mt-12 grid gap-6 lg:grid-cols-4">
-              {[
-                [
-                  '01',
-                  'Capture ideias',
-                  'Registre oportunidades de conteúdo e organize referências.',
-                ],
-                [
-                  '02',
-                  'Monte a estratégia',
-                  'Transforme ideias em roteiros, calendário e fluxo de produção.',
-                ],
-                [
-                  '03',
-                  'Execute com clareza',
-                  'Acompanhe as tarefas no Kanban e reduza o retrabalho.',
-                ],
-                [
-                  '04',
-                  'Ajuste com dados',
-                  'Olhe para performance e refine a tomada de decisão.',
-                ],
-              ].map(([step, title, desc]) => (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+              {howItWorksSteps.map((step, idx) => (
                 <div
-                  key={step}
-                  className="rounded-[24px] border border-white/10 bg-white/[0.03] p-6 transition hover:border-brand/30 hover:bg-white/[0.05]"
+                  key={idx}
+                  className="group rounded-3xl border border-white/5 bg-[#0A1023] p-8 transition-all duration-300 hover:border-white/10 hover:bg-[#0F152B]"
                 >
-                  <div className="text-sm font-bold text-brand">{step}</div>
-                  <h3 className="mt-4 text-xl font-semibold text-white">
-                    {title}
-                  </h3>
-                  <p className="mt-3 text-sm leading-6 text-white/60">{desc}</p>
+                  <div className="mb-6 text-5xl font-bold text-white/5 transition-colors group-hover:text-[#38B6FF]/20">
+                    {step.num}
+                  </div>
+                  <h3 className="mb-3 text-xl font-bold">{step.title}</h3>
+                  <p className="leading-relaxed text-white/60">{step.desc}</p>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        <section id="preco" className="mx-auto max-w-7xl px-6 py-24 lg:px-8">
-          <div className="mx-auto max-w-4xl text-center">
-            <HeroBadge>Plano da PostHub</HeroBadge>
-            <h2 className="mt-5 text-3xl font-bold tracking-tight text-white sm:text-5xl">
-              Uma ferramenta para estruturar a sua operação de conteúdo.
-            </h2>
-            <p className="mt-5 text-lg leading-8 text-white/65">
-              Pare de depender de vários apps desconectados. Tenha planejamento,
-              produção, organização e acompanhamento em um sistema só.
-            </p>
-          </div>
+        <section id="preco" className="relative overflow-hidden bg-[#0A1023] py-24">
+          <div className="pointer-events-none absolute top-0 right-0 h-[600px] w-[600px] rounded-full bg-[#38B6FF]/5 blur-[100px]" />
 
-          <div className="mx-auto mt-14 max-w-3xl">
-            <div className="relative overflow-hidden rounded-[32px] border border-brand/30 bg-[linear-gradient(180deg,rgba(59,130,246,0.14),rgba(255,255,255,0.04))] p-[1px] shadow-[0_20px_100px_rgba(59,130,246,0.16)]">
-              <div className="rounded-[31px] bg-[#0A1023] p-8 lg:p-10">
-                <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-                  <div>
-                    <div className="inline-flex items-center rounded-full border border-brand/20 bg-brand/10 px-3 py-1 text-xs font-bold text-brand">
-                      PLANO PRINCIPAL
-                    </div>
-                    <h3 className="mt-5 text-3xl font-bold text-white">
-                      PostHub
-                    </h3>
-                    <p className="mt-3 max-w-xl text-base leading-7 text-white/65">
-                      Ideal para social medias, criadores, freelancers e
-                      operações que querem organizar a gestão de redes sociais de
-                      forma profissional.
-                    </p>
-                  </div>
-
-                  <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-6 lg:min-w-[280px]">
-                    <div className="text-sm text-white/55">
-                      Assinatura mensal
-                    </div>
-                    <div className="mt-2 flex items-end gap-2">
-                      <span className="text-5xl font-extrabold tracking-tight text-white">
-                        R$ 147,90
-                      </span>
-                      <span className="pb-1 text-sm text-white/50">/mês</span>
-                    </div>
-                    <p className="mt-3 text-sm text-white/50">
-                      Acesso à plataforma para organizar e operar seu conteúdo em
-                      um só lugar.
-                    </p>
-
-                    <a
-                      href={STRIPE_CHECKOUT_URL}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-6 block"
-                    >
-                      <Button size="lg" className="w-full rounded-2xl">
-                        Assinar com Stripe
-                        <ArrowRight className="ml-2 h-5 w-5" />
-                      </Button>
-                    </a>
-
-                    <p className="mt-3 text-center text-xs text-white/45">
-                      Substitua o link acima pelo checkout do Stripe.
-                    </p>
-                  </div>
+          <div className="relative z-10 mx-auto max-w-7xl px-6 md:px-12">
+            <div className="grid items-center gap-16 lg:grid-cols-2">
+              <div>
+                <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#38B6FF]/20 bg-[#38B6FF]/10 px-3 py-1.5">
+                  <span className="text-xs font-medium text-[#38B6FF]">
+                    Plano da PostHub
+                  </span>
                 </div>
 
-                <div className="mt-10 grid gap-4 sm:grid-cols-2">
-                  {[
-                    'Banco de ideias para organizar temas e referências',
-                    'Gerador de roteiros para estruturar vídeos e conteúdos',
-                    'Calendário editorial para planejar publicações',
-                    'Kanban para acompanhar o fluxo de produção',
-                    'Sistema de aprovação para organizar feedbacks',
-                    'Área de performance para acompanhar os resultados',
-                  ].map((item) => (
-                    <div
-                      key={item}
-                      className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 text-sm text-white/75"
-                    >
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
-                      <span>{item}</span>
+                <h2 className="mb-6 text-3xl font-bold leading-tight md:text-5xl">
+                  Tudo que você precisa por um valor único.
+                </h2>
+
+                <p className="mb-8 max-w-md text-lg leading-relaxed text-white/60">
+                  Sem planos complexos ou taxas escondidas. Assine e tenha acesso
+                  imediato a todo o ecossistema PostHub para estruturar sua
+                  operação.
+                </p>
+              </div>
+
+              <div className="relative rounded-[2rem] border border-white/10 bg-[#050816] p-8 shadow-2xl md:p-12">
+                <div className="absolute top-0 left-1/2 h-px w-3/4 -translate-x-1/2 bg-gradient-to-r from-transparent via-[#38B6FF]/50 to-transparent" />
+
+                <div className="mb-8">
+                  <h3 className="mb-2 text-2xl font-bold">PostHub</h3>
+                  <p className="text-sm text-white/60">
+                    A solução definitiva para criadores e gestores.
+                  </p>
+                </div>
+
+                <div className="mb-8 flex items-baseline gap-2">
+                  <span className="text-5xl font-bold tracking-tight">
+                    R$ 147,90
+                  </span>
+                  <span className="text-white/50">/ mês</span>
+                </div>
+
+                <a href={STRIPE_CHECKOUT_URL} target="_blank" rel="noreferrer">
+                  <Button className="mb-10 w-full rounded-xl py-4 text-base font-bold shadow-[0_0_20px_rgba(56,182,255,0.2)] hover:shadow-[0_0_30px_rgba(56,182,255,0.4)]">
+                    Assinar agora
+                  </Button>
+                </a>
+
+                <div className="space-y-4">
+                  <p className="mb-4 text-sm font-medium text-white/80">
+                    O que está incluído:
+                  </p>
+                  {pricingFeatures.map((feature, idx) => (
+                    <div key={idx} className="flex items-start gap-3">
+                      <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#38B6FF]/10">
+                        <Check size={12} className="text-[#38B6FF]" />
+                      </div>
+                      <span className="text-sm text-white/70">{feature}</span>
                     </div>
                   ))}
                 </div>
@@ -444,39 +523,57 @@ export const LandingPage = () => {
           </div>
         </section>
 
-        <section className="mx-auto max-w-7xl px-6 pb-24 lg:px-8">
-          <div className="rounded-[32px] border border-white/10 bg-[#0B1023]/75 px-8 py-12 text-center shadow-[0_20px_60px_rgba(0,0,0,0.22)]">
-            <div className="mx-auto mb-5 flex justify-center">
+        <section className="relative overflow-hidden border-t border-white/5 bg-[#050816] py-24">
+          <div className="pointer-events-none absolute bottom-0 left-1/2 h-[400px] w-[800px] -translate-x-1/2 rounded-full bg-[#38B6FF]/10 blur-[120px]" />
+
+          <div className="relative z-10 mx-auto max-w-4xl px-6 text-center">
+            <div className="mb-8 mx-auto">
               <img
                 src="/logo-full-white.png"
                 alt="PostHub"
-                className="h-10 w-auto object-contain"
+                className="mx-auto h-12 w-auto object-contain"
               />
             </div>
 
-            <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-              Se conteúdo é parte da sua operação, ele precisa de processo.
+            <h2 className="mb-6 text-4xl font-bold leading-tight md:text-5xl">
+              Se conteúdo é parte da sua operação,{' '}
+              <span className="bg-gradient-to-r from-[#38B6FF] to-cyan-300 bg-clip-text text-transparent">
+                ele precisa de processo.
+              </span>
             </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-white/65">
-              A PostHub foi pensada para transformar redes sociais em algo mais
-              organizado, previsível e estratégico.
+
+            <p className="mx-auto mb-10 max-w-2xl text-xl text-white/60">
+              Junte-se aos profissionais que pararam de apagar incêndios e
+              começaram a construir ativos de forma previsível e organizada.
             </p>
 
-            <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
+            <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
               <a href={STRIPE_CHECKOUT_URL} target="_blank" rel="noreferrer">
-                <Button size="lg" className="w-full rounded-2xl px-8 sm:w-auto">
+                <Button className="w-full rounded-full px-8 py-4 text-base font-semibold shadow-[0_0_30px_rgba(56,182,255,0.25)] hover:shadow-[0_0_40px_rgba(56,182,255,0.4)] sm:w-auto">
                   Assinar agora
                 </Button>
               </a>
+
               <Link to="/login">
                 <Button
                   variant="secondary"
-                  size="lg"
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-8 text-white hover:bg-white/10 sm:w-auto"
+                  className="w-full rounded-full border border-white/10 bg-white/5 px-8 py-4 text-base font-semibold text-white hover:bg-white/10 sm:w-auto"
                 >
                   Entrar na PostHub
                 </Button>
               </Link>
+            </div>
+          </div>
+
+          <div className="mx-auto mt-32 flex max-w-7xl flex-col items-center justify-between gap-4 border-t border-white/10 px-6 pt-8 text-sm text-white/40 md:flex-row">
+            <p>© {new Date().getFullYear()} PostHub. Todos os direitos reservados.</p>
+            <div className="flex gap-6">
+              <a href="#" className="transition-colors hover:text-white">
+                Termos de Uso
+              </a>
+              <a href="#" className="transition-colors hover:text-white">
+                Privacidade
+              </a>
             </div>
           </div>
         </section>
@@ -484,9 +581,3 @@ export const LandingPage = () => {
     </div>
   );
 };
-
-const HeroBadge = ({ children }: { children: React.ReactNode }) => (
-  <div className="inline-flex items-center gap-2 rounded-full border border-brand/20 bg-brand/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-brand">
-    {children}
-  </div>
-);
