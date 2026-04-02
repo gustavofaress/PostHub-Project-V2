@@ -14,8 +14,6 @@ import {
   Eye,
   Settings2,
   ChevronDown,
-  TrendingUp,
-  Star,
 } from 'lucide-react';
 import { useProfile } from '../../app/context/ProfileContext';
 import { useAuth } from '../../app/context/AuthContext';
@@ -99,7 +97,6 @@ export const ReportsModule = () => {
     kpis: true,
     status: true,
     activity: true,
-    topContent: true,
     insights: true,
     notes: true,
   });
@@ -143,12 +140,7 @@ export const ReportsModule = () => {
     setErrorMessage(null);
 
     try {
-      const [
-        ideasResult,
-        scriptsResult,
-        calendarResult,
-        approvalsResult,
-      ] = await Promise.all([
+      const [ideasResult, scriptsResult, calendarResult, approvalsResult] = await Promise.all([
         supabase
           .from('ideas')
           .select('id,title,updated_at', { count: 'exact' })
@@ -319,30 +311,6 @@ export const ReportsModule = () => {
         return 'Últimos 30 dias';
     }
   };
-
-  const topContentMock = [
-    {
-      title: 'Como otimizar seu perfil no Instagram',
-      format: 'Reels',
-      metric: '12.5k views',
-      icon: TrendingUp,
-      metricColor: 'text-green-600',
-    },
-    {
-      title: '5 erros comuns em campanhas de tráfego',
-      format: 'Carrossel',
-      metric: '450 saves',
-      icon: Star,
-      metricColor: 'text-green-600',
-    },
-    {
-      title: 'Bastidores da nossa agência',
-      format: 'Stories',
-      metric: '8% engajamento',
-      icon: Activity,
-      metricColor: 'text-green-600',
-    },
-  ];
 
   const handleExportPdf = async () => {
     if (!reportPreviewRef.current) return;
@@ -532,7 +500,6 @@ export const ReportsModule = () => {
                   kpis: 'KPIs Gerais',
                   status: 'Status da Operação',
                   activity: 'Atividades Recentes',
-                  topContent: 'Top Conteúdos',
                   insights: 'Insights',
                   notes: 'Observações Finais',
                 }).map(([key, label]) => (
@@ -716,54 +683,10 @@ export const ReportsModule = () => {
               </div>
             )}
 
-            {sections.topContent && (
-              <section className="mb-12">
-                <h2 className="mb-6 text-sm font-bold uppercase tracking-widest text-gray-400">
-                  Top Conteúdos
-                </h2>
-
-                <div className="overflow-hidden rounded-2xl border border-gray-100">
-                  <table className="w-full text-left text-sm">
-                    <thead className="bg-gray-50 text-gray-500">
-                      <tr>
-                        <th className="px-6 py-4 font-medium">Conteúdo</th>
-                        <th className="px-6 py-4 font-medium">Formato</th>
-                        <th className="px-6 py-4 text-right font-medium">
-                          Métrica Principal
-                        </th>
-                      </tr>
-                    </thead>
-
-                    <tbody className="divide-y divide-gray-100">
-                      {topContentMock.map((item) => (
-                        <tr key={item.title}>
-                          <td className="px-6 py-4 font-medium text-gray-900">
-                            {item.title}
-                          </td>
-                          <td className="px-6 py-4 text-gray-500">{item.format}</td>
-                          <td
-                            className={cn(
-                              'px-6 py-4 text-right font-medium',
-                              item.metricColor
-                            )}
-                          >
-                            <div className="flex items-center justify-end gap-2">
-                              <item.icon className="h-4 w-4" />
-                              {item.metric}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            )}
-
             {sections.activity && (
               <section className="mb-12">
                 <h2 className="mb-6 text-sm font-bold uppercase tracking-widest text-gray-400">
-                  Atividades Recentes
+                  Linha do Tempo da Operação
                 </h2>
 
                 <div className="rounded-2xl border border-gray-100 p-8">
