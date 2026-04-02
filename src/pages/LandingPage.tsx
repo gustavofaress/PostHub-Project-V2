@@ -10,67 +10,112 @@ import {
   KanbanSquare,
   ShieldCheck,
   BrainCircuit,
-  Star,
 } from 'lucide-react';
 import { Button } from '../shared/components/Button';
-import { Card } from '../shared/components/Card';
 
 const STRIPE_CHECKOUT_URL = 'https://buy.stripe.com/SEU_LINK_AQUI';
 
-const features = [
+const modules = [
   {
+    id: 'ideas',
+    label: 'Banco de Ideias',
     title: 'Banco de Ideias',
     description:
       'Centralize referências, temas e oportunidades para nunca mais travar na hora de planejar o próximo conteúdo.',
-    icon: Lightbulb,
     image: '/banco-de-ideias.png',
+    icon: Lightbulb,
+    topics: [
+      'Organize referências e temas em um só lugar',
+      'Salve ideias para diferentes formatos de conteúdo',
+      'Tenha mais clareza no planejamento editorial',
+      'Reduza o bloqueio criativo na operação',
+    ],
   },
   {
+    id: 'scripts',
+    label: 'Gerador de Roteiros',
     title: 'Gerador de Roteiros',
     description:
       'Transforme ideias em roteiros mais estratégicos com estrutura pensada para retenção, clareza e conversão.',
-    icon: BrainCircuit,
     image: '/gerador-de-roteiros.png',
+    icon: BrainCircuit,
+    topics: [
+      'Estruture vídeos com mais rapidez',
+      'Use roteiros com lógica mais estratégica',
+      'Ganhe consistência na criação de conteúdo',
+      'Acelere a produção sem depender do improviso',
+    ],
   },
   {
+    id: 'calendar',
+    label: 'Calendário Editorial',
     title: 'Calendário Editorial',
     description:
       'Visualize o mês inteiro, organize entregas e tenha clareza do que precisa ser produzido, revisado e publicado.',
-    icon: Calendar,
     image: '/calendario-editorial.png',
+    icon: Calendar,
+    topics: [
+      'Visualize sua operação com clareza',
+      'Planeje publicações e entregas do mês',
+      'Organize o fluxo de produção com previsibilidade',
+      'Evite atrasos e retrabalho na rotina',
+    ],
   },
   {
+    id: 'kanban',
+    label: 'Kanban de Produção',
     title: 'Kanban de Produção',
     description:
       'Acompanhe cada conteúdo do planejamento até a publicação com um fluxo operacional simples e visual.',
-    icon: KanbanSquare,
     image: '/kanban.png',
+    icon: KanbanSquare,
+    topics: [
+      'Acompanhe cada etapa da produção',
+      'Tenha visão rápida do que está pendente',
+      'Organize tarefas de forma visual',
+      'Melhore a operação entre equipe e cliente',
+    ],
   },
   {
+    id: 'approval',
+    label: 'Aprovação de Conteúdo',
     title: 'Aprovação de Conteúdo',
     description:
       'Envie materiais para aprovação, receba feedback e mantenha o processo mais profissional com clientes e equipe.',
-    icon: ShieldCheck,
     image: '/aprovacao.png',
+    icon: ShieldCheck,
+    topics: [
+      'Compartilhe materiais para validação',
+      'Receba feedbacks com mais organização',
+      'Profissionalize a comunicação com clientes',
+      'Reduza ruídos na etapa de aprovação',
+    ],
   },
   {
+    id: 'performance',
+    label: 'Performance',
     title: 'Performance',
     description:
       'Conecte estratégia e resultado analisando métricas importantes para tomar decisões melhores sobre conteúdo.',
-    icon: BarChart3,
     image: '/performance.png',
+    icon: BarChart3,
+    topics: [
+      'Acompanhe métricas relevantes da operação',
+      'Tome decisões com mais base em dados',
+      'Conecte produção com resultado',
+      'Tenha mais visão estratégica do conteúdo',
+    ],
   },
 ];
 
-const benefits = [
-  'Planejamento, produção e análise no mesmo lugar',
-  'Mais clareza para organizar as redes sociais',
-  'Menos retrabalho e mais consistência no conteúdo',
-  'Fluxo profissional para equipes, freelancers e agências',
-  'Estrutura para transformar conteúdo em processo',
-];
-
 export const LandingPage = () => {
+  const [activeModuleId, setActiveModuleId] = React.useState(modules[0].id);
+
+  const activeModule =
+    modules.find((module) => module.id === activeModuleId) ?? modules[0];
+
+  const ActiveIcon = activeModule.icon;
+
   return (
     <div className="min-h-screen bg-[#050816] text-white">
       <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,rgba(55,93,255,0.16),transparent_35%),radial-gradient(circle_at_80%_20%,rgba(0,229,255,0.10),transparent_25%),linear-gradient(180deg,#050816_0%,#070b1d_40%,#050816_100%)]" />
@@ -108,7 +153,7 @@ export const LandingPage = () => {
       </nav>
 
       <main>
-        <section className="mx-auto grid max-w-7xl gap-8 px-6 pb-20 pt-14 lg:grid-cols-[1fr_0.98fr] lg:items-start lg:px-8 lg:pt-16 xl:gap-10">
+        <section className="mx-auto grid max-w-7xl gap-8 px-6 pb-16 pt-14 lg:grid-cols-[1fr_0.98fr] lg:items-start lg:px-8 lg:pt-16 xl:gap-10">
           <div className="lg:pt-6">
             <HeroBadge>
               <Sparkles className="h-3.5 w-3.5" />
@@ -147,35 +192,12 @@ export const LandingPage = () => {
               </Link>
             </div>
 
-            <p className="mt-4 text-sm text-white/45">
+            <p className="mt-5 text-sm text-white/45">
               Assinatura mensal de R$ 147,90
             </p>
-
-            <div className="mt-8 flex flex-wrap items-center gap-3 text-sm text-white/60">
-              <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2">
-                <Star className="h-4 w-4 text-yellow-400" />
-                Feito para social medias, freelancers e agências
-              </div>
-              <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2">
-                <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                Fluxo mais organizado do início ao fim
-              </div>
-            </div>
-
-            <div className="mt-10 grid max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2">
-              {benefits.map((item) => (
-                <div
-                  key={item}
-                  className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-sm text-white/75"
-                >
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
-                  <span>{item}</span>
-                </div>
-              ))}
-            </div>
           </div>
 
-          <div className="relative lg:-mt-6 xl:-mt-10">
+          <div className="relative lg:-mt-12 xl:-mt-16">
             <div className="overflow-hidden rounded-[32px] border border-white/10 bg-transparent shadow-[0_20px_120px_rgba(0,0,0,0.22)]">
               <img
                 src="/hero.png"
@@ -186,83 +208,79 @@ export const LandingPage = () => {
           </div>
         </section>
 
-        <section className="mx-auto max-w-7xl px-6 py-10 lg:px-8">
-          <div className="grid gap-4 rounded-[28px] border border-white/10 bg-white/[0.04] p-6 md:grid-cols-4">
-            {[
-              ['Conteúdo com mais processo', 'Planeje, produza e acompanhe tudo com clareza.'],
-              ['Mais consistência', 'Visualize a rotina de publicação e não dependa da memória.'],
-              ['Mais controle', 'Organize o fluxo com calendário, kanban e aprovações.'],
-              ['Mais visão estratégica', 'Conecte produção com análise e tomada de decisão.'],
-            ].map(([title, desc]) => (
-              <div key={title} className="rounded-2xl border border-white/8 bg-black/10 p-4">
-                <p className="text-sm font-semibold text-white">{title}</p>
-                <p className="mt-2 text-sm leading-6 text-white/55">{desc}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
         <section id="recursos" className="mx-auto max-w-7xl px-6 py-24 lg:px-8">
           <div className="max-w-3xl">
             <HeroBadge>Principais ferramentas da PostHub</HeroBadge>
             <h2 className="mt-5 text-3xl font-bold tracking-tight text-white sm:text-5xl">
-              Tudo o que você precisa para operar conteúdo com mais clareza.
+              Uma plataforma para organizar toda a sua operação de conteúdo.
             </h2>
             <p className="mt-5 text-lg leading-8 text-white/65">
-              A PostHub junta planejamento, organização, produção e acompanhamento em um único sistema.
-              Em vez de espalhar o processo em várias ferramentas, você centraliza a operação em um só lugar.
+              Explore os principais módulos da PostHub e veja como cada parte da
+              plataforma contribui para uma operação mais organizada, estratégica e previsível.
             </p>
           </div>
 
-          <div className="mt-14 space-y-6">
-            {features.map((feature, index) => (
-              <Card
-                key={feature.title}
-                className="overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.04] p-0 shadow-none"
-              >
-                <div className="grid gap-0 lg:grid-cols-[1fr_1.05fr]">
-                  <div className="p-8 lg:p-10">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand/15 text-brand">
-                      <feature.icon className="h-6 w-6" />
-                    </div>
+          <div className="mt-10 flex flex-wrap gap-3">
+            {modules.map((module) => {
+              const isActive = module.id === activeModuleId;
 
-                    <div className="mt-6 flex items-center gap-3">
-                      <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white/60">
-                        Recurso {String(index + 1).padStart(2, '0')}
-                      </span>
-                    </div>
+              return (
+                <button
+                  key={module.id}
+                  type="button"
+                  onClick={() => setActiveModuleId(module.id)}
+                  className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
+                    isActive
+                      ? 'border-brand bg-brand/15 text-white shadow-[0_0_0_1px_rgba(56,182,255,0.2)]'
+                      : 'border-white/10 bg-white/[0.04] text-white/65 hover:border-white/20 hover:bg-white/[0.06] hover:text-white'
+                  }`}
+                >
+                  {module.label}
+                </button>
+              );
+            })}
+          </div>
 
-                    <h3 className="mt-5 text-2xl font-bold text-white">{feature.title}</h3>
-                    <p className="mt-4 max-w-xl text-base leading-7 text-white/65">
-                      {feature.description}
-                    </p>
-
-                    <ul className="mt-6 space-y-3">
-                      {[
-                        'Fluxo mais organizado',
-                        'Mais velocidade para executar',
-                        'Mais clareza para a equipe ou operação',
-                      ].map((item) => (
-                        <li key={item} className="flex items-center gap-3 text-sm text-white/70">
-                          <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="border-t border-white/10 p-6 lg:border-l lg:border-t-0 lg:p-8">
-                    <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[#0f152b] shadow-[0_10px_40px_rgba(0,0,0,0.25)]">
-                      <img
-                        src={feature.image}
-                        alt={`Tela do módulo ${feature.title}`}
-                        className="h-full min-h-[320px] w-full object-cover object-top"
-                      />
-                    </div>
-                  </div>
+          <div className="mt-10 overflow-hidden rounded-[32px] border border-white/10 bg-white/[0.04]">
+            <div className="grid lg:grid-cols-[1.05fr_0.95fr]">
+              <div className="border-b border-white/10 p-6 lg:border-b-0 lg:border-r lg:p-8">
+                <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[#0f152b] shadow-[0_10px_40px_rgba(0,0,0,0.25)]">
+                  <img
+                    src={activeModule.image}
+                    alt={`Tela do módulo ${activeModule.title}`}
+                    className="block h-full min-h-[320px] w-full object-cover object-top"
+                  />
                 </div>
-              </Card>
-            ))}
+              </div>
+
+              <div className="p-8 lg:p-10">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand/15 text-brand">
+                  <ActiveIcon className="h-6 w-6" />
+                </div>
+
+                <div className="mt-6 inline-flex rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white/60">
+                  Módulo ativo
+                </div>
+
+                <h3 className="mt-5 text-3xl font-bold text-white">{activeModule.title}</h3>
+
+                <p className="mt-4 max-w-xl text-base leading-7 text-white/65">
+                  {activeModule.description}
+                </p>
+
+                <div className="mt-8 grid gap-3 sm:grid-cols-2">
+                  {activeModule.topics.map((topic) => (
+                    <div
+                      key={topic}
+                      className="flex items-start gap-3 rounded-2xl border border-white/10 bg-black/10 px-4 py-4 text-sm text-white/75"
+                    >
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+                      <span>{topic}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
