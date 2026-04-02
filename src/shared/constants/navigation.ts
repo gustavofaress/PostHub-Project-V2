@@ -17,7 +17,8 @@ import {
   Share2,
   HelpCircle,
   CreditCard,
-  Rocket
+  Rocket,
+  TrendingUp
 } from 'lucide-react';
 
 export type WorkspaceModule = 
@@ -31,6 +32,7 @@ export type WorkspaceModule =
   | 'kanban'
   | 'scheduler'
   | 'performance'
+  | 'reports'
   | 'references'
   | 'integrations'
   | 'settings'
@@ -218,6 +220,20 @@ export const NAV_GROUPS: NavGroup[] = [
           { label: 'Audience Demographics', path: '/workspace/performance?tab=audience' },
           { label: 'Top Performing Posts', path: '/workspace/performance?tab=top' },
           { label: 'Custom Reports', path: '/workspace/performance?tab=reports' }
+        ]
+      },
+      { 
+        id: 'reports', 
+        label: 'Reports', 
+        description: 'Build professional white-label client reports, customize the period and included sections, and export everything as PDF.',
+        icon: TrendingUp, 
+        path: '/workspace/reports',
+        subItems: [
+          { label: 'Report Builder', path: '/workspace/reports' },
+          { label: 'Period Selection', path: '/workspace/reports?tab=period' },
+          { label: 'Included Sections', path: '/workspace/reports?tab=sections' },
+          { label: 'Preview & Notes', path: '/workspace/reports?tab=preview' },
+          { label: 'Export PDF', path: '/workspace/reports?tab=export' }
         ]
       },
       { 

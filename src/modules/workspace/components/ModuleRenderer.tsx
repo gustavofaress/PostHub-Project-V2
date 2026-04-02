@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { useApp } from '../../../app/context/AppContext';
+
 import { Dashboard } from '../../dashboard/Dashboard';
 import { Onboarding } from '../../onboarding/Onboarding';
 import { Consultant } from '../../consultant/Consultant';
@@ -17,6 +18,9 @@ import { AccountArea } from '../../account/AccountArea';
 import { SettingsArea } from '../../settings/SettingsArea';
 import { Support } from '../../support/Support';
 
+// ✅ NOVO IMPORT
+import { ReportsModule } from '../../reports/ReportsModule';
+
 export const ModuleRenderer = () => {
   const { activeModule } = useApp();
 
@@ -31,6 +35,10 @@ export const ModuleRenderer = () => {
     case 'kanban': return <KanbanBoard />;
     case 'scheduler': return <Scheduler />;
     case 'performance': return <Performance />;
+
+    // ✅ NOVO CASE
+    case 'reports': return <ReportsModule />;
+
     case 'references': return <References />;
     case 'integrations': return <Integrations />;
     case 'settings': return <SettingsArea />;
