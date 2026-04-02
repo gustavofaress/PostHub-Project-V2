@@ -1,7 +1,6 @@
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../shared/utils/supabase';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 interface User {
   id: string;
@@ -12,7 +11,12 @@ interface User {
 interface AuthContextType {
   user: User | null;
   login: (email: string, password?: string) => Promise<void>;
-  signup: (name: string, email: string, password?: string) => Promise<void>;
+  signup: (
+    name: string,
+    email: string,
+    password?: string,
+    profileName?: string
+  ) => Promise<void>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -25,11 +29,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = React.useState(true);
   const navigate = useNavigate();
 
+  const mapSessionUser = React.useCallback((sessionUser: any): User => {
+    return {
+      id: sessionUser.id,
+      name: sessionUser.user_metadata?.full_name || 'User',
+      email: sessionUser.email || '',
+    };
+  }, []);
+
   React.useEffect(() => {
-    // Check active sessions and sets the user
     const initializeAuth = async () => {
       if (!supabase) {
-        // Fallback to localStorage if no Supabase
         const storedUser = localStorage.getItem('posthub_user');
         if (storedUser) {
           setUser(JSON.parse(storedUser));
@@ -39,33 +49,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
         if (session?.user) {
-          setUser({
-            id: session.user.id,
-            name: session.user.user_metadata?.full_name || 'User',
-            email: session.user.email || '',
-          });
+          setUser(mapSessionUser(session.user));
+        } else {
+          setUser(null);
         }
       } catch (error) {
         console.error('Error checking auth session:', error);
+        setUser(null);
       } finally {
         setIsLoading(false);
       }
     };
 
-    initializeAuth();
+    void initializeAuth();
 
     if (!supabase) return;
 
-    // Listen for changes on auth state (logged in, signed out, etc.)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        setUser({
-          id: session.user.id,
-          name: session.user.user_metadata?.full_name || 'User',
-          email: session.user.email || '',
-        });
+        setUser(mapSessionUser(session.user));
       } else {
         setUser(null);
       }
@@ -73,11 +82,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [mapSessionUser]);
 
   const login = async (email: string, password?: string) => {
     if (!supabase) {
-      // Fallback to mock behavior if Supabase is not configured
       const mockUser = { id: '1', name: 'User', email };
       setUser(mockUser);
       localStorage.setItem('posthub_user', JSON.stringify(mockUser));
@@ -86,7 +94,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      let error;
+      let error: any = null;
+
       if (password) {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
@@ -98,13 +107,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           email,
           options: {
             emailRedirectTo: window.location.origin + '/workspace/dashboard',
-          }
+          },
         });
         error = otpError;
       }
-      
+
       if (error) throw error;
-      
+
       if (!password) {
         alert('Check your email for the login link!');
       } else {
@@ -116,9 +125,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signup = async (name: string, email: string, password?: string) => {
+  const signup = async (
+    name: string,
+    email: string,
+    password?: string,
+    profileName?: string
+  ) => {
     if (!supabase) {
-      // Fallback to mock behavior
       const mockUser = { id: '1', name, email };
       setUser(mockUser);
       localStorage.setItem('posthub_user', JSON.stringify(mockUser));
@@ -127,28 +140,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      let error;
+      let error: any = null;
+
+      const sanitizedName = name.trim();
+      const sanitizedProfileName = (profileName || name).trim();
+
       if (password) {
         const { error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            data: { full_name: name },
+            data: {
+              full_name: sanitizedName,
+              initial_profile_name: sanitizedProfileName,
+            },
             emailRedirectTo: window.location.origin + '/workspace/onboarding',
-          }
+          },
         });
         error = signUpError;
       } else {
         const { error: otpError } = await supabase.auth.signInWithOtp({
           email,
           options: {
-            data: { full_name: name },
+            data: {
+              full_name: sanitizedName,
+              initial_profile_name: sanitizedProfileName,
+            },
             emailRedirectTo: window.location.origin + '/workspace/onboarding',
-          }
+          },
         });
         error = otpError;
       }
-      
+
       if (error) throw error;
 
       if (!password) {
@@ -177,7 +200,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, signup, logout, isAuthenticated: !!user, isLoading }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        login,
+        signup,
+        logout,
+        isAuthenticated: !!user,
+        isLoading,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
