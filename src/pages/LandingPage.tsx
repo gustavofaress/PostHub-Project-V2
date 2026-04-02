@@ -108,8 +108,8 @@ export const LandingPage = () => {
       </nav>
 
       <main>
-        <section className="mx-auto grid max-w-7xl gap-8 px-6 pb-20 pt-14 lg:grid-cols-[1fr_0.95fr] lg:items-center lg:px-8 lg:pt-20 xl:gap-10">
-          <div>
+        <section className="mx-auto grid max-w-7xl gap-8 px-6 pb-20 pt-14 lg:grid-cols-[1fr_0.98fr] lg:items-start lg:px-8 lg:pt-16 xl:gap-10">
+          <div className="lg:pt-6">
             <HeroBadge>
               <Sparkles className="h-3.5 w-3.5" />
               Organização, estratégia e execução no mesmo sistema
@@ -175,12 +175,12 @@ export const LandingPage = () => {
             </div>
           </div>
 
-          <div className="relative lg:pl-0">
-            <div className="overflow-hidden rounded-[32px] border border-white/10 bg-transparent shadow-[0_20px_120px_rgba(0,0,0,0.25)]">
+          <div className="relative lg:-mt-6 xl:-mt-10">
+            <div className="overflow-hidden rounded-[32px] border border-white/10 bg-transparent shadow-[0_20px_120px_rgba(0,0,0,0.22)]">
               <img
                 src="/hero.png"
                 alt="Visão principal da plataforma PostHub"
-                className="block h-auto w-full object-contain"
+                className="block w-full object-contain object-top"
               />
             </div>
           </div>
