@@ -7,7 +7,6 @@ import {
   Calendar,
   Lightbulb,
   BarChart3,
-  LayoutDashboard,
   KanbanSquare,
   ShieldCheck,
   BrainCircuit,
@@ -117,23 +116,22 @@ export const LandingPage = () => {
             </HeroBadge>
 
             <h1 className="mt-6 max-w-4xl text-4xl font-extrabold leading-[1.02] tracking-tight text-white sm:text-5xl lg:text-7xl">
-              A plataforma para
+              Pare de criar conteúdo no improviso.
               <span className="bg-gradient-to-r from-white via-cyan-200 to-brand bg-clip-text text-transparent">
-                {' '}gestão de redes sociais
+                {' '}Transforme sua operação em um processo.
               </span>
-              {' '}e estratégia de conteúdo de forma profissional.
             </h1>
 
             <p className="mt-6 max-w-2xl text-base leading-7 text-white/70 sm:text-lg">
-              A PostHub foi criada para quem quer parar de operar conteúdo no improviso.
-              Planeje ideias, organize a produção, gere roteiros, acompanhe o calendário e visualize
-              a performance em um só lugar.
+              Planeje ideias, gere roteiros, organize o calendário, acompanhe a produção
+              e visualize a performance em um só lugar. A PostHub foi criada para quem
+              quer operar conteúdo com mais clareza, consistência e profissionalismo.
             </p>
 
             <div className="mt-8 flex flex-col gap-4 sm:flex-row">
               <a href={STRIPE_CHECKOUT_URL} target="_blank" rel="noreferrer">
                 <Button size="lg" className="w-full rounded-2xl px-8 py-6 text-base sm:w-auto">
-                  Assinar por R$ 147,90
+                  Começar agora
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </a>
@@ -148,6 +146,10 @@ export const LandingPage = () => {
                 </Button>
               </Link>
             </div>
+
+            <p className="mt-4 text-sm text-white/45">
+              Assinatura mensal de R$ 147,90
+            </p>
 
             <div className="mt-8 flex flex-wrap items-center gap-3 text-sm text-white/60">
               <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2">
@@ -176,57 +178,12 @@ export const LandingPage = () => {
           <div className="relative">
             <div className="absolute inset-0 rounded-[32px] bg-gradient-to-br from-brand/20 via-cyan-400/10 to-transparent blur-3xl" />
             <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-white/[0.04] p-3 shadow-[0_20px_120px_rgba(0,0,0,0.45)]">
-              <div className="rounded-[28px] border border-white/10 bg-[#0b1023] p-4">
-                <div className="mb-4 flex items-center gap-2">
-                  <div className="h-3 w-3 rounded-full bg-red-400/80" />
-                  <div className="h-3 w-3 rounded-full bg-yellow-400/80" />
-                  <div className="h-3 w-3 rounded-full bg-green-400/80" />
-                </div>
-
-                <div className="grid gap-4 lg:grid-cols-[220px_1fr]">
-                  <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
-                    <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-white/90">
-                      <LayoutDashboard className="h-4 w-4 text-brand" />
-                      Workspace
-                    </div>
-                    <div className="space-y-2">
-                      {['Dashboard', 'Ideias', 'Roteiros', 'Calendário', 'Kanban', 'Performance'].map((item) => (
-                        <div
-                          key={item}
-                          className={`rounded-xl px-3 py-2 text-sm ${
-                            item === 'Calendário'
-                              ? 'bg-brand/20 text-white'
-                              : 'text-white/55'
-                          }`}
-                        >
-                          {item}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="rounded-3xl border border-dashed border-white/15 bg-gradient-to-br from-white/[0.05] to-white/[0.02] p-6">
-                    <div className="mb-4 flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-semibold text-white/90">Visão do sistema</p>
-                        <p className="text-sm text-white/50">
-                          Calendário editorial da PostHub
-                        </p>
-                      </div>
-                      <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/60">
-                        Hero Preview
-                      </div>
-                    </div>
-
-                    <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[#0f152b] shadow-[0_10px_40px_rgba(0,0,0,0.25)]">
-                      <img
-                        src="/calendario-editorial.png"
-                        alt="Calendário Editorial da PostHub"
-                        className="h-full min-h-[420px] w-full object-cover object-top"
-                      />
-                    </div>
-                  </div>
-                </div>
+              <div className="overflow-hidden rounded-[28px] border border-white/10 bg-[#0b1023]">
+                <img
+                  src="/hero.png"
+                  alt="Visão principal da plataforma PostHub"
+                  className="h-full w-full object-cover object-center"
+                />
               </div>
             </div>
           </div>
@@ -349,7 +306,8 @@ export const LandingPage = () => {
               Uma ferramenta para estruturar a sua operação de conteúdo.
             </h2>
             <p className="mt-5 text-lg leading-8 text-white/65">
-              Pare de depender de vários apps desconectados. Tenha planejamento, produção, organização e acompanhamento em um sistema só.
+              Pare de depender de vários apps desconectados. Tenha planejamento, produção,
+              organização e acompanhamento em um sistema só.
             </p>
           </div>
 
@@ -363,7 +321,8 @@ export const LandingPage = () => {
                     </div>
                     <h3 className="mt-5 text-3xl font-bold text-white">PostHub</h3>
                     <p className="mt-3 max-w-xl text-base leading-7 text-white/65">
-                      Ideal para social medias, criadores, freelancers e operações que querem organizar a gestão de redes sociais de forma profissional.
+                      Ideal para social medias, criadores, freelancers e operações que querem
+                      organizar a gestão de redes sociais de forma profissional.
                     </p>
                   </div>
 
@@ -432,7 +391,8 @@ export const LandingPage = () => {
               Se conteúdo é parte da sua operação, ele precisa de processo.
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-white/65">
-              A PostHub foi pensada para transformar redes sociais em algo mais organizado, previsível e estratégico.
+              A PostHub foi pensada para transformar redes sociais em algo mais organizado,
+              previsível e estratégico.
             </p>
 
             <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
