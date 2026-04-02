@@ -32,6 +32,7 @@ import { Avatar } from '../../shared/components/Avatar';
 import { Dropdown, DropdownItem } from '../../shared/components/Dropdown';
 import { cn } from '../../shared/utils/cn';
 import { useProfile } from '../../app/context/ProfileContext';
+import { useAuth } from '../../app/context/AuthContext';
 import { approvalService } from './services/approvalService';
 import { InternalPreview } from './InternalPreview';
 
@@ -79,7 +80,8 @@ const INITIAL_APPROVALS: ApprovalPost[] = [
   {
     id: '1',
     title: 'Reel de lançamento do produto',
-    caption: 'Vem coisa grande por aí! 🚀 Nossa nova coleção chega nesta sexta. Quem está pronto? #lancamento #novacolecao #acme',
+    caption:
+      'Vem coisa grande por aí! 🚀 Nossa nova coleção chega nesta sexta. Quem está pronto? #lancamento #novacolecao #acme',
     platform: 'Instagram',
     contentType: 'vertical_video',
     status: 'pending',
@@ -174,7 +176,8 @@ const INITIAL_COMMENTS: ApprovalComment[] = [
     approvalItemId: '1',
     authorType: 'external',
     authorName: 'John Doe (Cliente)',
-    content: 'Podemos deixar o logo um pouco maior nos 3 primeiros segundos? Além disso, a música parece um pouco lenta demais.',
+    content:
+      'Podemos deixar o logo um pouco maior nos 3 primeiros segundos? Além disso, a música parece um pouco lenta demais.',
     createdAt: new Date(Date.now() - 86400000).toISOString()
   },
   {
@@ -206,9 +209,7 @@ export const loadApprovals = (): ApprovalPost[] => {
               previewUrl: typeof post.media === 'string' ? post.media : post.media.previewUrl,
               fileName: 'legacy_media',
               mimeType:
-                post.postType === 'video' || post.contentType?.includes('video')
-                  ? 'video/mp4'
-                  : 'image/jpeg',
+                post.postType === 'video' || post.contentType?.includes('video') ? 'video/mp4' : 'image/jpeg',
               uploadStatus: 'ready',
               order: 0
             }
@@ -255,7 +256,9 @@ export const loadApprovals = (): ApprovalPost[] => {
 export const loadComments = (): ApprovalComment[] => {
   try {
     const stored = localStorage.getItem(STORAGE_KEY_COMMENTS);
-    if (stored) return JSON.parse(stored);
+    if (stored) {
+      return JSON.parse(stored);
+    }
   } catch (e) {
     console.error('Failed to load comments from localStorage:', e);
   }
@@ -264,6 +267,7 @@ export const loadComments = (): ApprovalComment[] => {
 
 export const ApprovalModule = () => {
   const { activeProfile } = useProfile();
+  const { user } = useAuth();
 
   const [view, setView] = React.useState<'list' | 'create' | 'edit' | 'preview'>('list');
   const [approvals, setApprovals] = React.useState<ApprovalPost[]>([]);
@@ -282,6 +286,7 @@ export const ApprovalModule = () => {
   const [internalComment, setInternalComment] = React.useState('');
   const [postToDelete, setPostToDelete] = React.useState<string | null>(null);
   const [alertMessage, setAlertMessage] = React.useState<string | null>(null);
+
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const normalizePostsMedia = React.useCallback((posts: ApprovalPost[]) => {
@@ -303,17 +308,14 @@ export const ApprovalModule = () => {
     });
   }, []);
 
-  const applyFeedbackCountToPosts = React.useCallback(
-    (posts: ApprovalPost[], allComments: ApprovalComment[]) => {
-      return posts.map((post) => ({
-        ...post,
-        feedbackCount: allComments.filter((comment) => comment.approvalItemId === post.id).length
-      }));
-    },
-    []
-  );
+  const applyFeedbackCountToPosts = React.useCallback((posts: ApprovalPost[], allComments: ApprovalComment[]) => {
+    return posts.map((post) => ({
+      ...post,
+      feedbackCount: allComments.filter((comment) => comment.approvalItemId === post.id).length
+    }));
+  }, []);
 
-  const refreshApprovals = React.useCallback(async () => {
+  const refreshApprovals = React.useCallback(async (): Promise<ApprovalPost[]> => {
     if (!activeProfile?.id) {
       setApprovals([]);
       return [];
@@ -323,26 +325,20 @@ export const ApprovalModule = () => {
       const posts = await approvalService.listApprovalPosts(activeProfile.id);
       const processedPosts = normalizePostsMedia(posts);
 
-      try {
-        const commentsByPost = await Promise.all(
-          processedPosts.map(async (post) => {
-            try {
-              const feedback = await approvalService.listApprovalFeedback(post.id);
-              return feedback;
-            } catch {
-              return [];
-            }
-          })
-        );
+      const commentsByPost = await Promise.all(
+        processedPosts.map(async (post) => {
+          try {
+            return await approvalService.listApprovalFeedback(post.id);
+          } catch {
+            return [];
+          }
+        })
+      );
 
-        const allComments = commentsByPost.flat();
-        const postsWithCounts = applyFeedbackCountToPosts(processedPosts, allComments);
-        setApprovals(postsWithCounts);
-        return postsWithCounts;
-      } catch {
-        setApprovals(processedPosts);
-        return processedPosts;
-      }
+      const allComments = commentsByPost.flat();
+      const postsWithCounts = applyFeedbackCountToPosts(processedPosts, allComments);
+      setApprovals(postsWithCounts);
+      return postsWithCounts;
     } catch (e) {
       console.error('Failed to load approvals from Supabase:', e);
       const fallbackPosts = normalizePostsMedia(loadApprovals());
@@ -353,15 +349,13 @@ export const ApprovalModule = () => {
     }
   }, [activeProfile?.id, normalizePostsMedia, applyFeedbackCountToPosts]);
 
-  const refreshCommentsForPost = React.useCallback(async (postId: string) => {
+  const refreshCommentsForPost = React.useCallback(async (postId: string): Promise<ApprovalComment[]> => {
     try {
       const feedback = await approvalService.listApprovalFeedback(postId);
       setComments(feedback);
 
       setApprovals((prev) =>
-        prev.map((post) =>
-          post.id === postId ? { ...post, feedbackCount: feedback.length } : post
-        )
+        prev.map((post) => (post.id === postId ? { ...post, feedbackCount: feedback.length } : post))
       );
 
       setSelectedPostHistory((prev) =>
@@ -375,9 +369,7 @@ export const ApprovalModule = () => {
       setComments(fallback);
 
       setApprovals((prev) =>
-        prev.map((post) =>
-          post.id === postId ? { ...post, feedbackCount: fallback.length } : post
-        )
+        prev.map((post) => (post.id === postId ? { ...post, feedbackCount: fallback.length } : post))
       );
 
       setSelectedPostHistory((prev) =>
@@ -391,8 +383,13 @@ export const ApprovalModule = () => {
   const openHistoryModal = React.useCallback(
     async (postId: string) => {
       const refreshedPosts = await refreshApprovals();
-      const refreshedPost = refreshedPosts.find((post) => post.id === postId) || approvals.find((post) => post.id === postId) || null;
+      const refreshedPost =
+        refreshedPosts.find((post) => post.id === postId) ||
+        approvals.find((post) => post.id === postId) ||
+        null;
+
       setSelectedPostHistory(refreshedPost);
+
       if (refreshedPost) {
         await refreshCommentsForPost(refreshedPost.id);
       }
@@ -515,7 +512,7 @@ export const ApprovalModule = () => {
       await refreshApprovals();
       setIsLoading(false);
     };
-    loadData();
+    void loadData();
   }, [activeProfile?.id, refreshApprovals]);
 
   React.useEffect(() => {
@@ -536,7 +533,7 @@ export const ApprovalModule = () => {
       setApprovals(updatedApprovals);
 
       try {
-        await approvalService.updateApprovalPost(id, { publicToken: token }, activeProfile.id);
+        await approvalService.updateApprovalPost(id, { publicToken: token }, activeProfile!.id);
       } catch (e) {
         console.error('Failed to save token to Supabase:', e);
         setApprovals(previousApprovals);
@@ -656,7 +653,7 @@ export const ApprovalModule = () => {
     setComments(comments.filter((c) => c.approvalItemId !== postToDelete));
 
     try {
-      await approvalService.deleteApprovalPost(postToDelete, activeProfile.id);
+      await approvalService.deleteApprovalPost(postToDelete, activeProfile!.id);
       if (selectedPostHistory?.id === postToDelete) {
         setSelectedPostHistory(null);
       }
@@ -675,7 +672,7 @@ export const ApprovalModule = () => {
   };
 
   const handleSendInternalComment = async () => {
-    if (!internalComment.trim() || !selectedPostHistory) return;
+    if (!internalComment.trim() || !selectedPostHistory || !activeProfile?.id || !user?.id) return;
 
     const newCommentData: Partial<ApprovalComment> = {
       approvalItemId: selectedPostHistory.id,
@@ -691,26 +688,35 @@ export const ApprovalModule = () => {
       createdAt: new Date().toISOString()
     } as ApprovalComment;
 
-    const commentText = internalComment;
     const previousComments = [...comments];
     const previousApprovals = [...approvals];
+    const commentText = internalComment;
 
     const nextComments = [...comments, optimisticComment];
     setComments(nextComments);
+
     setApprovals((prev) =>
       prev.map((p) =>
-        p.id === selectedPostHistory.id ? { ...p, feedbackCount: nextComments.filter((c) => c.approvalItemId === p.id).length } : p
+        p.id === selectedPostHistory.id
+          ? { ...p, feedbackCount: nextComments.filter((c) => c.approvalItemId === p.id).length }
+          : p
       )
     );
+
     setSelectedPostHistory((prev) =>
       prev
         ? { ...prev, feedbackCount: nextComments.filter((c) => c.approvalItemId === prev.id).length }
         : prev
     );
+
     setInternalComment('');
 
     try {
-      const createdComment = await approvalService.addApprovalFeedback(newCommentData);
+      const createdComment = await approvalService.addApprovalFeedback(newCommentData, {
+        profileId: activeProfile.id,
+        userId: user.id
+      });
+
       setComments((current) => current.map((c) => (c.id === tempId ? createdComment : c)));
       await refreshCommentsForPost(selectedPostHistory.id);
       await refreshApprovals();
@@ -846,7 +852,9 @@ export const ApprovalModule = () => {
                     <Check className="h-8 w-8 text-green-500" />
                   </div>
                   <p className="relative z-10 text-base font-bold text-text-primary bg-white/80 px-4 py-1 rounded-full">
-                    {newMediaItems.length} {newMediaItems.length === 1 ? 'arquivo anexado' : 'arquivos anexados'} (clique para adicionar/trocar)
+                    {newMediaItems.length}{' '}
+                    {newMediaItems.length === 1 ? 'arquivo anexado' : 'arquivos anexados'} (clique para
+                    adicionar/trocar)
                   </p>
                 </>
               ) : (
@@ -904,6 +912,11 @@ export const ApprovalModule = () => {
             setPreviewPostId(null);
           }}
           onStatusChange={async (status, comment) => {
+            if (!activeProfile?.id || !user?.id) {
+              setAlertMessage('Usuário ou perfil não identificado.');
+              return;
+            }
+
             const previousApprovals = [...approvals];
             const previousComments = [...comments];
 
@@ -919,8 +932,8 @@ export const ApprovalModule = () => {
               if (comment.trim()) {
                 const newCommentData: Partial<ApprovalComment> = {
                   approvalItemId: post.id,
-                  authorType: 'external',
-                  authorName: 'Revisor interno',
+                  authorType: 'internal',
+                  authorName: 'Você',
                   content: comment
                 };
 
@@ -935,11 +948,17 @@ export const ApprovalModule = () => {
                 setComments(nextComments);
 
                 updatedApprovals = updatedApprovals.map((p) =>
-                  p.id === post.id ? { ...p, feedbackCount: nextComments.filter((c) => c.approvalItemId === p.id).length } : p
+                  p.id === post.id
+                    ? { ...p, feedbackCount: nextComments.filter((c) => c.approvalItemId === p.id).length }
+                    : p
                 );
                 setApprovals(updatedApprovals);
 
-                const createdComment = await approvalService.addApprovalFeedback(newCommentData);
+                const createdComment = await approvalService.addApprovalFeedback(newCommentData, {
+                  profileId: activeProfile.id,
+                  userId: user.id
+                });
+
                 setComments((current) => current.map((c) => (c.id === tempId ? createdComment : c)));
               }
 
@@ -953,13 +972,18 @@ export const ApprovalModule = () => {
             }
           }}
           onCommentSubmit={async (comment) => {
+            if (!activeProfile?.id || !user?.id) {
+              setAlertMessage('Usuário ou perfil não identificado.');
+              return;
+            }
+
             const previousComments = [...comments];
             const previousApprovals = [...approvals];
 
             const newCommentData: Partial<ApprovalComment> = {
               approvalItemId: post.id,
-              authorType: 'external',
-              authorName: 'Revisor interno',
+              authorType: 'internal',
+              authorName: 'Você',
               content: comment
             };
 
@@ -974,12 +998,18 @@ export const ApprovalModule = () => {
             setComments(nextComments);
 
             const updatedApprovals = approvals.map((p) =>
-              p.id === post.id ? { ...p, feedbackCount: nextComments.filter((c) => c.approvalItemId === p.id).length } : p
+              p.id === post.id
+                ? { ...p, feedbackCount: nextComments.filter((c) => c.approvalItemId === p.id).length }
+                : p
             );
             setApprovals(updatedApprovals);
 
             try {
-              const createdComment = await approvalService.addApprovalFeedback(newCommentData);
+              const createdComment = await approvalService.addApprovalFeedback(newCommentData, {
+                profileId: activeProfile.id,
+                userId: user.id
+              });
+
               setComments((current) => current.map((c) => (c.id === tempId ? createdComment : c)));
               await refreshCommentsForPost(post.id);
               await refreshApprovals();
@@ -1025,9 +1055,19 @@ export const ApprovalModule = () => {
     return (
       <>
         {isVideo ? (
-          <video src={url} className="h-full w-full object-cover transition-transform group-hover:scale-105" muted playsInline />
+          <video
+            src={url}
+            className="h-full w-full object-cover transition-transform group-hover:scale-105"
+            muted
+            playsInline
+          />
         ) : (
-          <img src={url} alt={post.title} className="h-full w-full object-cover transition-transform group-hover:scale-105" referrerPolicy="no-referrer" />
+          <img
+            src={url}
+            alt={post.title}
+            className="h-full w-full object-cover transition-transform group-hover:scale-105"
+            referrerPolicy="no-referrer"
+          />
         )}
         {(isVideo || isLostVideo || post.contentType?.includes('video')) && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -1039,7 +1079,10 @@ export const ApprovalModule = () => {
         {isCarousel && (
           <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5 z-10 pointer-events-none">
             {post.mediaItems?.map((_, idx) => (
-              <div key={idx} className={cn('h-1.5 rounded-full shadow-sm', idx === 0 ? 'w-4 bg-white' : 'w-1.5 bg-white/70')} />
+              <div
+                key={idx}
+                className={cn('h-1.5 rounded-full shadow-sm', idx === 0 ? 'w-4 bg-white' : 'w-1.5 bg-white/70')}
+              />
             ))}
           </div>
         )}
