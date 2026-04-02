@@ -194,25 +194,25 @@ function calculateMetrics(rows: InstagramMetricRow[]) {
 
   const metrics: MetricCard[] = [
     {
-      label: 'Likes',
+      label: 'Curtidas',
       value: formatCompactNumber(totalLikes),
       change: `${currentRows.length} registros`,
       trend: 'up',
     },
     {
-      label: 'Comments',
+      label: 'Comentários',
       value: formatCompactNumber(totalComments),
       change: `${currentRows.length} registros`,
       trend: 'up',
     },
     {
-      label: 'Accounts Engaged',
+      label: 'Contas Engajadas',
       value: formatCompactNumber(totalAccountsEngaged),
       change: `${currentRows.length} registros`,
       trend: 'up',
     },
     {
-      label: 'Saves + Shares',
+      label: 'Salvamentos + Compartilhamentos',
       value: formatCompactNumber(totalSavesAndShares),
       change: `${currentRows.length} registros`,
       trend: 'up',
@@ -296,9 +296,9 @@ export const Performance = () => {
         <div>
           <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
             <BarChart3 className="h-6 w-6 text-brand" />
-            Performance Analytics
+            Análise de Performance
           </h1>
-          <p className="text-text-secondary">Track your content impact and audience growth.</p>
+          <p className="text-text-secondary">Acompanhe o impacto do seu conteúdo e o crescimento da sua audiência.</p>
           {activeProfile && (
             <p className="text-sm text-text-secondary mt-1">
               Perfil ativo: <span className="font-medium">{activeProfile.name}</span>
@@ -306,8 +306,8 @@ export const Performance = () => {
           )}
         </div>
         <div className="flex gap-3">
-          <Button variant="secondary">Last 30 Days</Button>
-          <Button onClick={() => void loadMetrics()}>Refresh Data</Button>
+          <Button variant="secondary">Últimos 30 Dias</Button>
+          <Button onClick={() => void loadMetrics()}>Atualizar Dados</Button>
         </div>
       </div>
 
@@ -339,7 +339,7 @@ export const Performance = () => {
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
         <Card className="h-80 flex flex-col">
-          <CardTitle className="mb-4">Audience Growth</CardTitle>
+          <CardTitle className="mb-4">Crescimento de Audiência</CardTitle>
           <div className="flex-1 flex items-center justify-center bg-gray-50 rounded-lg border border-dashed border-gray-200">
             {isLoading ? (
               <p className="text-text-secondary">Carregando métricas...</p>
@@ -347,20 +347,20 @@ export const Performance = () => {
               <div className="w-full h-full p-6 flex flex-col justify-center">
                 <div className="space-y-4">
                   <div>
-                    <p className="text-sm text-text-secondary">Follower Growth</p>
+                    <p className="text-sm text-text-secondary">Crescimento de Seguidores</p>
                     <p className="text-3xl font-bold text-text-primary">
                       {followerGrowth >= 0 ? '+' : ''}
                       {formatCompactNumber(followerGrowth)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm text-text-secondary">Total Reach</p>
+                    <p className="text-sm text-text-secondary">Alcance Total</p>
                     <p className="text-2xl font-semibold text-text-primary">
                       {formatCompactNumber(summary.reach)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm text-text-secondary">Profile Views</p>
+                    <p className="text-sm text-text-secondary">Visualizações de Perfil</p>
                     <p className="text-2xl font-semibold text-text-primary">
                       {formatCompactNumber(summary.profileViews)}
                     </p>
@@ -369,17 +369,17 @@ export const Performance = () => {
               </div>
             ) : (
               <EmptyState
-                title="No data available yet"
-                description="Connect your Instagram account and sync metrics to see audience growth over time."
+                title="Ainda não há dados disponíveis"
+                description="Conecte sua conta do Instagram e sincronize as métricas para visualizar o crescimento da audiência ao longo do tempo."
                 icon={Activity}
-                action={<Button variant="outline" size="sm">Connect Accounts</Button>}
+                action={<Button variant="outline" size="sm">Conectar Contas</Button>}
               />
             )}
           </div>
         </Card>
 
         <Card className="h-80 flex flex-col">
-          <CardTitle className="mb-4">Engagement Summary</CardTitle>
+          <CardTitle className="mb-4">Resumo de Engajamento</CardTitle>
           <div className="flex-1 flex items-center justify-center bg-gray-50 rounded-lg border border-dashed border-gray-200">
             {isLoading ? (
               <p className="text-text-secondary">Carregando métricas...</p>
@@ -387,32 +387,32 @@ export const Performance = () => {
               <div className="w-full h-full p-6 flex flex-col justify-center">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-text-secondary">Impressions</span>
+                    <span className="text-text-secondary">Impressões</span>
                     <span className="font-semibold text-text-primary">
                       {formatCompactNumber(summary.impressions)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-text-secondary">Average Engagement Rate</span>
+                    <span className="text-text-secondary">Taxa Média de Engajamento</span>
                     <span className="font-semibold text-text-primary">
                       {formatPercent(summary.engagementRate)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-text-secondary">Profile Views</span>
+                    <span className="text-text-secondary">Visualizações de Perfil</span>
                     <span className="font-semibold text-text-primary">
                       {formatCompactNumber(summary.profileViews)}
                     </span>
                   </div>
                   <div className="pt-3">
-                    <Badge variant="brand">Instagram Metrics</Badge>
+                    <Badge variant="brand">Métricas do Instagram</Badge>
                   </div>
                 </div>
               </div>
             ) : (
               <EmptyState
-                title="Not enough data"
-                description="Publish more content and sync your Instagram metrics to generate insights."
+                title="Dados insuficientes"
+                description="Publique mais conteúdo e sincronize suas métricas do Instagram para gerar insights."
                 icon={BarChart3}
               />
             )}
@@ -421,12 +421,12 @@ export const Performance = () => {
       </div>
 
       <Card>
-        <CardTitle className="mb-6">Top Performing Posts</CardTitle>
+        <CardTitle className="mb-6">Posts com Melhor Performance</CardTitle>
 
         {!isLoading && !hasData ? (
           <EmptyState
-            title="No post metrics found"
-            description="When Instagram metrics are available for this profile, your top posts will appear here."
+            title="Nenhuma métrica de post encontrada"
+            description="Quando houver métricas do Instagram disponíveis para este perfil, seus melhores posts aparecerão aqui."
             icon={Activity}
           />
         ) : isLoading ? (
@@ -436,10 +436,10 @@ export const Performance = () => {
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-gray-100 text-text-secondary">
-                  <th className="pb-4 font-medium">Content</th>
-                  <th className="pb-4 font-medium">Platform</th>
-                  <th className="pb-4 font-medium">Reach</th>
-                  <th className="pb-4 font-medium">Engagement</th>
+                  <th className="pb-4 font-medium">Conteúdo</th>
+                  <th className="pb-4 font-medium">Plataforma</th>
+                  <th className="pb-4 font-medium">Alcance</th>
+                  <th className="pb-4 font-medium">Engajamento</th>
                   <th className="pb-4 font-medium">Status</th>
                 </tr>
               </thead>
@@ -463,7 +463,7 @@ export const Performance = () => {
                     <td className="py-4">{formatCompactNumber(post.reach)}</td>
                     <td className="py-4">{formatPercent(post.engagement)}</td>
                     <td className="py-4">
-                      <Badge variant="success">Active</Badge>
+                      <Badge variant="success">Ativo</Badge>
                     </td>
                   </tr>
                 ))}
