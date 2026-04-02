@@ -19,29 +19,29 @@ import { useApp } from '../../app/context/AppContext';
 const STEPS = [
   {
     id: 'profile',
-    title: 'Complete your profile',
-    description: 'Add your brand details and social media handles to personalize your experience.',
+    title: 'Complete seu perfil',
+    description: 'Adicione os detalhes da sua marca e os @ das suas redes sociais para personalizar sua experiência.',
     icon: Zap,
     completed: true,
   },
   {
     id: 'integrations',
-    title: 'Connect your accounts',
-    description: 'Link your Instagram, TikTok, and YouTube accounts to start managing content.',
+    title: 'Conecte suas contas',
+    description: 'Vincule suas contas do Instagram, TikTok e YouTube para começar a gerenciar conteúdo.',
     icon: Zap,
     completed: false,
   },
   {
     id: 'first-script',
-    title: 'Generate your first script',
-    description: 'Use our AI Script Generator to create high-converting content in seconds.',
+    title: 'Gere seu primeiro roteiro',
+    description: 'Use nosso Gerador de Roteiros com IA para criar conteúdos de alta conversão em segundos.',
     icon: FileText,
     completed: false,
   },
   {
     id: 'approval',
-    title: 'Set up approval workflow',
-    description: 'Invite your clients or team members to review and approve your content.',
+    title: 'Configure o fluxo de aprovação',
+    description: 'Convide seus clientes ou membros da equipe para revisar e aprovar seu conteúdo.',
     icon: CheckCircle,
     completed: false,
   },
@@ -68,9 +68,9 @@ export const Onboarding = () => {
         <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-brand/10 text-brand mb-4">
           <Rocket className="h-8 w-8" />
         </div>
-        <h1 className="text-4xl font-bold tracking-tight text-text-primary">Welcome to PostHub!</h1>
+        <h1 className="text-4xl font-bold tracking-tight text-text-primary">Bem-vindo ao PostHub!</h1>
         <p className="text-lg text-text-secondary max-w-2xl mx-auto">
-          Let's get you set up for success. Complete these steps to unlock the full power of your social media workspace.
+          Vamos configurar tudo para o seu sucesso. Complete estas etapas para liberar todo o potencial do seu workspace de redes sociais.
         </p>
       </div>
 
@@ -80,7 +80,7 @@ export const Onboarding = () => {
           <Card className="p-6">
             <h3 className="font-bold text-text-primary mb-6 flex items-center gap-2">
               <Zap className="h-4 w-4 text-brand" />
-              Your Progress
+              Seu Progresso
             </h3>
             <div className="space-y-6">
               {STEPS.map((step, index) => (
@@ -112,10 +112,10 @@ export const Onboarding = () => {
           </Card>
 
           <Card className="bg-brand/5 border-brand/10 p-6">
-            <h4 className="font-bold text-brand mb-2">Need help?</h4>
-            <p className="text-xs text-text-secondary mb-4">Our support team is available 24/7 to help you get started.</p>
+            <h4 className="font-bold text-brand mb-2">Precisa de ajuda?</h4>
+            <p className="text-xs text-text-secondary mb-4">Nosso time de suporte está disponível 24/7 para ajudar você a começar.</p>
             <Button variant="outline" size="sm" className="w-full text-brand border-brand hover:bg-brand hover:text-white">
-              Talk to Support
+              Falar com o Suporte
             </Button>
           </Card>
         </div>
@@ -145,7 +145,7 @@ export const Onboarding = () => {
                       {['Instagram', 'TikTok', 'YouTube', 'LinkedIn'].map(p => (
                         <div key={p} className="flex items-center justify-between p-4 rounded-xl border border-gray-100 hover:border-brand hover:bg-brand/5 transition-all cursor-pointer group">
                           <span className="font-medium text-text-primary">{p}</span>
-                          <Button variant="ghost" size="sm" className="text-brand group-hover:bg-brand group-hover:text-white">Connect</Button>
+                          <Button variant="ghost" size="sm" className="text-brand group-hover:bg-brand group-hover:text-white">Conectar</Button>
                         </div>
                       ))}
                     </div>
@@ -158,21 +158,21 @@ export const Onboarding = () => {
                           <FileText className="h-5 w-5 text-brand" />
                         </div>
                         <div>
-                          <p className="text-sm font-bold text-text-primary">AI Script Generator</p>
-                          <p className="text-xs text-text-secondary">Create scripts for any platform</p>
+                          <p className="text-sm font-bold text-text-primary">Gerador de Roteiros com IA</p>
+                          <p className="text-xs text-text-secondary">Crie roteiros para qualquer plataforma</p>
                         </div>
                       </div>
-                      <Button className="w-full" onClick={handleOpenGenerator}>Open Generator</Button>
+                      <Button className="w-full" onClick={handleOpenGenerator}>Abrir Gerador</Button>
                     </div>
                   )}
                 </div>
 
                 <div className="flex items-center justify-between pt-8 border-t border-gray-100">
                   <Button variant="ghost" onClick={() => setActiveStep(Math.max(0, activeStep - 1))} disabled={activeStep === 0}>
-                    Previous
+                    Anterior
                   </Button>
                   <Button className="gap-2" onClick={() => activeStep === STEPS.length - 1 ? handleFinish() : setActiveStep(Math.min(STEPS.length - 1, activeStep + 1))}>
-                    {activeStep === STEPS.length - 1 ? 'Finish Setup' : 'Continue'}
+                    {activeStep === STEPS.length - 1 ? 'Finalizar Configuração' : 'Continuar'}
                     <ArrowRight className="h-4 w-4" />
                   </Button>
                 </div>

@@ -108,8 +108,8 @@ export const PublicApprovalPage = () => {
       <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
         <Card className="max-w-md w-full p-8 text-center space-y-4">
           <XCircle className="h-12 w-12 text-red-500 mx-auto" />
-          <h1 className="text-xl font-bold text-text-primary">Approval Link Not Found</h1>
-          <p className="text-text-secondary">This link may be invalid or has expired.</p>
+          <h1 className="text-xl font-bold text-text-primary">Link de Aprovação Não Encontrado</h1>
+          <p className="text-text-secondary">Este link pode ser inválido ou ter expirado.</p>
         </Card>
       </div>
     );
@@ -119,12 +119,12 @@ export const PublicApprovalPage = () => {
     ...post,
     handle: '@acme_corp',
     avatar: 'https://picsum.photos/seed/acme/100/100',
-    audio: 'Original Audio - Acme Corp'
+    audio: 'Áudio Original - Acme Corp'
   };
 
   const handleStatusChange = async (newStatus: 'approved' | 'changes_requested' | 'rejected') => {
     if ((newStatus === 'changes_requested' || newStatus === 'rejected') && !comment.trim()) {
-      setAlertMessage('A comment is required when requesting changes or rejecting content.');
+      setAlertMessage('Um comentário é obrigatório ao solicitar alterações ou rejeitar o conteúdo.');
       document.getElementById('feedback-input')?.focus();
       return;
     }
@@ -138,7 +138,7 @@ export const PublicApprovalPage = () => {
         const newCommentData: Partial<ApprovalComment> = {
           approvalItemId: post.id,
           authorType: 'external',
-          authorName: 'Client Reviewer',
+          authorName: 'Revisor do Cliente',
           content: comment,
         };
         
@@ -152,7 +152,7 @@ export const PublicApprovalPage = () => {
       setPost(updatedPost as ApprovalPost);
     } catch (e) {
       console.error('Failed to update status:', e);
-      setAlertMessage('Failed to update status. Please try again.');
+      setAlertMessage('Não foi possível atualizar o status. Tente novamente.');
     }
   };
 
@@ -163,7 +163,7 @@ export const PublicApprovalPage = () => {
       const newCommentData: Partial<ApprovalComment> = {
         approvalItemId: post.id,
         authorType: 'external',
-        authorName: 'Client Reviewer',
+        authorName: 'Revisor do Cliente',
         content: comment,
       };
       
@@ -176,7 +176,7 @@ export const PublicApprovalPage = () => {
       setComment('');
     } catch (e) {
       console.error('Failed to submit feedback:', e);
-      setAlertMessage('Failed to submit feedback. Please try again.');
+      setAlertMessage('Não foi possível enviar o feedback. Tente novamente.');
     }
   };
 
@@ -216,21 +216,21 @@ export const PublicApprovalPage = () => {
         loop 
         playsInline
       >
-        <p>Your browser does not support HTML video.</p>
+        <p>Seu navegador não suporta vídeo HTML.</p>
       </video>
     ) : (
       <div className="relative h-full w-full">
         <img 
           src={url} 
-          alt="Preview" 
+          alt="Prévia" 
           className={className} 
           referrerPolicy="no-referrer" 
         />
         {isLostVideo && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white p-4 text-center">
             <Video className="h-12 w-12 mb-2 opacity-80" />
-            <p className="text-sm font-medium">Video preview unavailable after refresh.</p>
-            <p className="text-xs opacity-70 mt-1">Reattach the file to play it again.</p>
+            <p className="text-sm font-medium">Prévia do vídeo indisponível após atualizar a página.</p>
+            <p className="text-xs opacity-70 mt-1">Anexe o arquivo novamente para reproduzi-lo.</p>
           </div>
         )}
       </div>
@@ -297,7 +297,7 @@ export const PublicApprovalPage = () => {
           </div>
           <Bookmark className="h-6 w-6 text-gray-900" />
         </div>
-        <p className="text-sm font-bold text-gray-900 mb-1">1,234 likes</p>
+        <p className="text-sm font-bold text-gray-900 mb-1">1.234 curtidas</p>
         <p className="text-sm text-gray-900">
           <span className="font-bold mr-2">{displayPost.handle}</span>
           {displayPost.caption}
@@ -321,7 +321,7 @@ export const PublicApprovalPage = () => {
         <div className="flex items-center gap-2 mb-3">
           <Avatar src={displayPost.avatar} fallback="AC" size="sm" className="border-white" />
           <span className="text-sm font-bold">{displayPost.handle}</span>
-          <button className="text-xs font-bold border border-white rounded px-2 py-0.5">Follow</button>
+          <button className="text-xs font-bold border border-white rounded px-2 py-0.5">Seguir</button>
         </div>
         <p className="text-sm mb-3 line-clamp-2">{displayPost.caption}</p>
         <div className="flex items-center gap-2 text-xs">
@@ -368,7 +368,7 @@ export const PublicApprovalPage = () => {
         <div className="flex flex-col items-center"><Heart className="h-8 w-8" /><span className="text-xs font-medium">1.2k</span></div>
         <div className="flex flex-col items-center"><MessageCircle className="h-8 w-8" /><span className="text-xs font-medium">84</span></div>
         <div className="flex flex-col items-center"><Bookmark className="h-8 w-8" /><span className="text-xs font-medium">12</span></div>
-        <div className="flex flex-col items-center"><Share className="h-8 w-8" /><span className="text-xs font-medium">Share</span></div>
+        <div className="flex flex-col items-center"><Share className="h-8 w-8" /><span className="text-xs font-medium">Compartilhar</span></div>
         <div className="h-10 w-10 rounded-full bg-gray-800 border-[10px] border-gray-900 animate-spin-slow flex items-center justify-center">
           <Music2 className="h-3 w-3" />
         </div>
@@ -391,9 +391,9 @@ export const PublicApprovalPage = () => {
             <Avatar src={displayPost.avatar} fallback="AC" size="md" />
             <div>
               <p className="font-bold text-sm text-gray-900">{displayPost.handle.replace('@', '')}</p>
-              <p className="text-xs text-gray-500">1.2M subscribers</p>
+              <p className="text-xs text-gray-500">1.2M inscritos</p>
             </div>
-            <button className="ml-2 bg-black text-white text-sm font-bold px-4 py-2 rounded-full">Subscribe</button>
+            <button className="ml-2 bg-black text-white text-sm font-bold px-4 py-2 rounded-full">Inscrever-se</button>
           </div>
           <div className="flex items-center gap-2">
             <div className="flex items-center bg-gray-100 rounded-full">
@@ -405,12 +405,12 @@ export const PublicApprovalPage = () => {
               </button>
             </div>
             <button className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-full text-sm font-medium">
-              <Share2 className="h-4 w-4" /> Share
+              <Share2 className="h-4 w-4" /> Compartilhar
             </button>
           </div>
         </div>
         <div className="bg-gray-100 rounded-xl p-3 text-sm">
-          <p className="font-medium mb-1">124K views  •  2 hours ago</p>
+          <p className="font-medium mb-1">124K visualizações  •  há 2 horas</p>
           <p className="text-gray-800 whitespace-pre-wrap">{displayPost.caption}</p>
         </div>
       </div>
@@ -427,8 +427,8 @@ export const PublicApprovalPage = () => {
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-lg bg-brand flex items-center justify-center text-white font-bold">P</div>
               <div>
-                <h1 className="font-bold text-text-primary">PostHub Approval</h1>
-                <p className="text-xs text-text-secondary">Reviewing content for {displayPost.handle}</p>
+                <h1 className="font-bold text-text-primary">Aprovação PostHub</h1>
+                <p className="text-xs text-text-secondary">Revisando conteúdo para {displayPost.handle}</p>
               </div>
             </div>
             <Badge variant={post.status === 'approved' ? 'success' : post.status === 'changes_requested' ? 'warning' : post.status === 'rejected' ? 'error' : 'default'}>
@@ -451,14 +451,14 @@ export const PublicApprovalPage = () => {
             return renderFeedMockup();
           })()}
           
-          <p className="mt-6 text-xs text-text-secondary">This is a high-fidelity preview of how your post will look on {post.platform}.</p>
+          <p className="mt-6 text-xs text-text-secondary">Esta é uma prévia de alta fidelidade de como seu post ficará no {post.platform}.</p>
         </div>
 
         {/* Right Side: Actions & Feedback */}
         <div className="lg:col-span-5 space-y-6">
           <Card className="p-8">
-            <h2 className="text-xl font-bold text-text-primary mb-2">Review Content</h2>
-            <p className="text-sm text-text-secondary mb-8">Please review the preview and provide your feedback below.</p>
+            <h2 className="text-xl font-bold text-text-primary mb-2">Revisar Conteúdo</h2>
+            <p className="text-sm text-text-secondary mb-8">Revise a prévia e deixe seu feedback abaixo.</p>
 
             <div className="space-y-4 mb-8">
               <Button 
@@ -466,7 +466,7 @@ export const PublicApprovalPage = () => {
                 onClick={() => handleStatusChange('approved')}
               >
                 <CheckCircle className="h-6 w-6" />
-                Approve Content
+                Aprovar Conteúdo
               </Button>
               <div className="grid grid-cols-3 gap-3">
                 <Button 
@@ -475,7 +475,7 @@ export const PublicApprovalPage = () => {
                   onClick={() => handleStatusChange('changes_requested')}
                 >
                   <MessageSquare className="h-5 w-5" />
-                  Request Changes
+                  Solicitar Alterações
                 </Button>
                 <Button 
                   variant="secondary" 
@@ -483,22 +483,22 @@ export const PublicApprovalPage = () => {
                   onClick={() => handleStatusChange('rejected')}
                 >
                   <XCircle className="h-5 w-5" />
-                  Reject
+                  Rejeitar
                 </Button>
                 <Button variant="outline" className="gap-2 h-12" onClick={() => document.getElementById('feedback-input')?.focus()}>
                   <MessageSquare className="h-5 w-5" />
-                  Leave Comment
+                  Deixar Comentário
                 </Button>
               </div>
             </div>
 
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-text-primary">Feedback / Comments</label>
+                <label className="text-sm font-medium text-text-primary">Feedback / Comentários</label>
                 <textarea 
                   id="feedback-input"
                   className="w-full min-h-[120px] rounded-xl border border-gray-200 p-4 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
-                  placeholder="Write your feedback here..."
+                  placeholder="Escreva seu feedback aqui..."
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                   onKeyDown={(e) => {
@@ -511,7 +511,7 @@ export const PublicApprovalPage = () => {
               </div>
               <Button variant="secondary" className="w-full gap-2" disabled={!comment.trim()} onClick={handleSubmitFeedback}>
                 <Send className="h-4 w-4" />
-                Submit Feedback
+                Enviar Feedback
               </Button>
             </div>
           </Card>
@@ -519,7 +519,7 @@ export const PublicApprovalPage = () => {
           <Card>
             <h3 className="font-bold text-text-primary mb-4 flex items-center gap-2">
               <History className="h-4 w-4 text-brand" />
-              Review History
+              Histórico de Revisão
             </h3>
             <div className="space-y-6 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
               {comments.filter(c => c.approvalItemId === post.id).length > 0 ? (
@@ -560,7 +560,7 @@ export const PublicApprovalPage = () => {
                   ))
               ) : (
                 <div className="text-center py-8 text-text-secondary text-sm">
-                  No feedback or comments yet.
+                  Ainda não há feedbacks ou comentários.
                 </div>
               )}
             </div>
@@ -572,7 +572,7 @@ export const PublicApprovalPage = () => {
       <Modal
         isOpen={!!alertMessage}
         onClose={() => setAlertMessage(null)}
-        title="Notice"
+        title="Aviso"
       >
         <div className="space-y-4">
           <p className="text-sm text-text-secondary">{alertMessage}</p>

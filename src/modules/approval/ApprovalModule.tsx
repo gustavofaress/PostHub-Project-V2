@@ -75,10 +75,10 @@ export interface ApprovalComment {
 }
 
 const INITIAL_APPROVALS: ApprovalPost[] = [
-  { id: '1', title: 'Product Launch Reel', caption: 'Big things are coming! 🚀 Our new collection drops this Friday. Who is ready? #launch #newcollection #acme', platform: 'Instagram', contentType: 'vertical_video', status: 'pending', thumbnail: 'https://picsum.photos/seed/post1/400/600', media: 'https://picsum.photos/seed/post1/800/1200', createdAt: new Date(Date.now() - 86400000 * 2).toISOString(), updatedAt: new Date(Date.now() - 86400000 * 2).toISOString(), feedbackCount: 2, publicToken: 'mock-token-1' },
-  { id: '2', title: 'Behind the Scenes Vlog', caption: 'A sneak peek into our daily routine.', platform: 'TikTok', contentType: 'vertical_video', status: 'approved', thumbnail: 'https://picsum.photos/seed/post2/400/600', media: 'https://picsum.photos/seed/post2/800/1200', createdAt: new Date(Date.now() - 86400000 * 3).toISOString(), updatedAt: new Date(Date.now() - 86400000 * 3).toISOString(), feedbackCount: 0, publicToken: 'mock-token-2' },
-  { id: '3', title: 'Tutorial: How to use PostHub', caption: 'Learn how to master PostHub in 5 minutes.', platform: 'YouTube', contentType: 'horizontal_video', status: 'changes_requested', thumbnail: 'https://picsum.photos/seed/post3/600/400', media: 'https://picsum.photos/seed/post3/800/1200', createdAt: new Date(Date.now() - 86400000 * 4).toISOString(), updatedAt: new Date(Date.now() - 86400000 * 4).toISOString(), feedbackCount: 5, publicToken: 'mock-token-3' },
-  { id: '4', title: 'Summer Collection Carousel', caption: 'Swipe to see our new summer collection! ☀️🌴', platform: 'Instagram', contentType: 'carousel', status: 'pending', thumbnail: 'https://picsum.photos/seed/carousel1/400/600', mediaItems: [
+  { id: '1', title: 'Reel de lançamento do produto', caption: 'Vem coisa grande por aí! 🚀 Nossa nova coleção chega nesta sexta. Quem está pronto? #lancamento #novacolecao #acme', platform: 'Instagram', contentType: 'vertical_video', status: 'pending', thumbnail: 'https://picsum.photos/seed/post1/400/600', media: 'https://picsum.photos/seed/post1/800/1200', createdAt: new Date(Date.now() - 86400000 * 2).toISOString(), updatedAt: new Date(Date.now() - 86400000 * 2).toISOString(), feedbackCount: 2, publicToken: 'mock-token-1' },
+  { id: '2', title: 'Vlog de bastidores', caption: 'Uma prévia da nossa rotina diária.', platform: 'TikTok', contentType: 'vertical_video', status: 'approved', thumbnail: 'https://picsum.photos/seed/post2/400/600', media: 'https://picsum.photos/seed/post2/800/1200', createdAt: new Date(Date.now() - 86400000 * 3).toISOString(), updatedAt: new Date(Date.now() - 86400000 * 3).toISOString(), feedbackCount: 0, publicToken: 'mock-token-2' },
+  { id: '3', title: 'Tutorial: como usar o PostHub', caption: 'Aprenda a dominar o PostHub em 5 minutos.', platform: 'YouTube', contentType: 'horizontal_video', status: 'changes_requested', thumbnail: 'https://picsum.photos/seed/post3/600/400', media: 'https://picsum.photos/seed/post3/800/1200', createdAt: new Date(Date.now() - 86400000 * 4).toISOString(), updatedAt: new Date(Date.now() - 86400000 * 4).toISOString(), feedbackCount: 5, publicToken: 'mock-token-3' },
+  { id: '4', title: 'Carrossel da coleção de verão', caption: 'Arraste para ver nossa nova coleção de verão! ☀️🌴', platform: 'Instagram', contentType: 'carousel', status: 'pending', thumbnail: 'https://picsum.photos/seed/carousel1/400/600', mediaItems: [
     { id: 'm1', type: 'image', fileName: 'summer1.jpg', fileSize: 1024, mimeType: 'image/jpeg', previewUrl: 'https://picsum.photos/seed/carousel1/800/1200', persistedPreview: 'https://picsum.photos/seed/carousel1/800/1200', uploadStatus: 'ready', order: 0 },
     { id: 'm2', type: 'image', fileName: 'summer2.jpg', fileSize: 1024, mimeType: 'image/jpeg', previewUrl: 'https://picsum.photos/seed/carousel2/800/1200', persistedPreview: 'https://picsum.photos/seed/carousel2/800/1200', uploadStatus: 'ready', order: 1 },
     { id: 'm3', type: 'image', fileName: 'summer3.jpg', fileSize: 1024, mimeType: 'image/jpeg', previewUrl: 'https://picsum.photos/seed/carousel3/800/1200', persistedPreview: 'https://picsum.photos/seed/carousel3/800/1200', uploadStatus: 'ready', order: 2 }
@@ -86,8 +86,8 @@ const INITIAL_APPROVALS: ApprovalPost[] = [
 ];
 
 const INITIAL_COMMENTS: ApprovalComment[] = [
-  { id: 'c1', approvalItemId: '1', authorType: 'external', authorName: 'John Doe (Client)', content: 'Can we make the logo a bit bigger in the first 3 seconds? Also, the music feels a bit too slow.', createdAt: new Date(Date.now() - 86400000).toISOString() },
-  { id: 'c2', approvalItemId: '1', authorType: 'internal', authorName: 'You', content: 'Sure, I\'ll update the video and send a new version for approval.', createdAt: new Date(Date.now() - 82800000).toISOString() },
+  { id: 'c1', approvalItemId: '1', authorType: 'external', authorName: 'John Doe (Cliente)', content: 'Podemos deixar o logo um pouco maior nos 3 primeiros segundos? Além disso, a música parece um pouco lenta demais.', createdAt: new Date(Date.now() - 86400000).toISOString() },
+  { id: 'c2', approvalItemId: '1', authorType: 'internal', authorName: 'Você', content: 'Claro, vou atualizar o vídeo e enviar uma nova versão para aprovação.', createdAt: new Date(Date.now() - 82800000).toISOString() },
 ];
 
 export const STORAGE_KEY_ITEMS = 'mockApprovalItems';
@@ -197,7 +197,7 @@ export const ApprovalModule = () => {
     const validFiles = files.filter(f => f.size <= MAX_SIZE && (f.type.startsWith('image/') || f.type.startsWith('video/')));
     
     if (validFiles.length === 0) {
-      setAlertMessage('Invalid files or size exceeded');
+      setAlertMessage('Arquivos inválidos ou tamanho excedido');
       return;
     }
 
@@ -357,7 +357,7 @@ export const ApprovalModule = () => {
       } catch (e) {
         console.error('Failed to save token to Supabase:', e);
         setApprovals(previousApprovals);
-        setAlertMessage('Failed to generate link. Please try again.');
+        setAlertMessage('Não foi possível gerar o link. Tente novamente.');
         return; // Don't set the generated link if it failed
       }
     }
@@ -406,7 +406,7 @@ export const ApprovalModule = () => {
       } catch (e) {
         console.error('Failed to update post in Supabase:', e);
         setApprovals(previousApprovals);
-        setAlertMessage('Failed to save changes. Please try again.');
+        setAlertMessage('Não foi possível salvar as alterações. Tente novamente.');
       }
     } else {
       const newPostData: Partial<ApprovalPost> = {
@@ -440,7 +440,7 @@ export const ApprovalModule = () => {
       } catch (e) {
         console.error('Failed to create post in Supabase:', e);
         setApprovals(previousApprovals);
-        setAlertMessage('Failed to create request. Please try again.');
+        setAlertMessage('Não foi possível criar a solicitação. Tente novamente.');
       }
     }
   };
@@ -475,7 +475,7 @@ export const ApprovalModule = () => {
         // Revert
         setApprovals(previousApprovals);
         setComments(previousComments);
-        setAlertMessage('Failed to delete request. Please try again.');
+        setAlertMessage('Não foi possível excluir a solicitação. Tente novamente.');
       }
       
       setPostToDelete(null);
@@ -488,7 +488,7 @@ export const ApprovalModule = () => {
     const newCommentData: Partial<ApprovalComment> = {
       approvalItemId: selectedPostHistory.id,
       authorType: 'internal',
-      authorName: 'You',
+      authorName: 'Você',
       content: internalComment,
     };
     
@@ -525,7 +525,7 @@ export const ApprovalModule = () => {
       setComments(previousComments);
       setApprovals(previousApprovals);
       setInternalComment(internalComment); // Restore the typed comment
-      setAlertMessage('Failed to send comment. Please try again.');
+      setAlertMessage('Não foi possível enviar o comentário. Tente novamente.');
     }
   };
 
@@ -541,19 +541,19 @@ export const ApprovalModule = () => {
           </button>
           <div>
             <h1 className="text-2xl font-bold text-text-primary">
-              {view === 'edit' ? 'Edit Approval Request' : 'Create Approval Request'}
+              {view === 'edit' ? 'Editar solicitação de aprovação' : 'Criar solicitação de aprovação'}
             </h1>
             <p className="text-text-secondary">
-              {view === 'edit' ? 'Update the content for client review.' : 'Set up a new post for client review.'}
+              {view === 'edit' ? 'Atualize o conteúdo para revisão do cliente.' : 'Configure um novo post para revisão do cliente.'}
             </p>
           </div>
         </div>
 
         <Card className="p-8 space-y-8">
           <div className="space-y-2">
-            <label className="text-sm font-bold text-text-primary">Content Title</label>
+            <label className="text-sm font-bold text-text-primary">Título do conteúdo</label>
             <Input 
-              placeholder="e.g. Summer Collection Reel" 
+              placeholder="Ex.: Reel da coleção de verão" 
               className="text-lg py-6" 
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
@@ -561,13 +561,13 @@ export const ApprovalModule = () => {
           </div>
           
           <div className="space-y-3">
-            <label className="text-sm font-bold text-text-primary">Content Type</label>
+            <label className="text-sm font-bold text-text-primary">Tipo de conteúdo</label>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
-                { id: 'static', label: 'Static Image', icon: ImageIcon },
-                { id: 'carousel', label: 'Carousel', icon: Layers },
-                { id: 'vertical_video', label: 'Vertical Video', icon: Smartphone },
-                { id: 'horizontal_video', label: 'Horizontal Video', icon: MonitorPlay }
+                { id: 'static', label: 'Imagem estática', icon: ImageIcon },
+                { id: 'carousel', label: 'Carrossel', icon: Layers },
+                { id: 'vertical_video', label: 'Vídeo vertical', icon: Smartphone },
+                { id: 'horizontal_video', label: 'Vídeo horizontal', icon: MonitorPlay }
               ].map(type => (
                 <button 
                   key={type.id} 
@@ -591,7 +591,7 @@ export const ApprovalModule = () => {
           </div>
 
           <div className="space-y-3">
-            <label className="text-sm font-bold text-text-primary">Platform</label>
+            <label className="text-sm font-bold text-text-primary">Plataforma</label>
             <div className="grid grid-cols-3 gap-4">
               {(['Instagram', 'TikTok', 'YouTube'] as const).map(p => (
                 <button 
@@ -615,7 +615,7 @@ export const ApprovalModule = () => {
           </div>
 
           <div className="space-y-3">
-            <label className="text-sm font-bold text-text-primary">Media Upload {newContentType === 'carousel' ? '(Select multiple)' : ''}</label>
+            <label className="text-sm font-bold text-text-primary">Upload de mídia {newContentType === 'carousel' ? '(Selecione múltiplos arquivos)' : ''}</label>
             <div 
               className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-300 p-12 bg-gray-50 hover:bg-gray-100 hover:border-brand/50 transition-all cursor-pointer group relative overflow-hidden"
               onClick={() => fileInputRef.current?.click()}
@@ -631,7 +631,7 @@ export const ApprovalModule = () => {
               {newMediaItems.length > 0 ? (
                 <>
                   {newMediaItems[0].type === 'image' ? (
-                    <img src={newMediaItems[0].previewUrl} alt="Selected media" className="absolute inset-0 w-full h-full object-cover opacity-50" />
+                    <img src={newMediaItems[0].previewUrl} alt="Mídia selecionada" className="absolute inset-0 w-full h-full object-cover opacity-50" />
                   ) : (
                     <div className="absolute inset-0 w-full h-full bg-gray-900 flex items-center justify-center opacity-50">
                       <Video className="h-16 w-16 text-white" />
@@ -641,7 +641,7 @@ export const ApprovalModule = () => {
                     <Check className="h-8 w-8 text-green-500" />
                   </div>
                   <p className="relative z-10 text-base font-bold text-text-primary bg-white/80 px-4 py-1 rounded-full">
-                    {newMediaItems.length} {newMediaItems.length === 1 ? 'file' : 'files'} attached (click to add/change)
+                    {newMediaItems.length} {newMediaItems.length === 1 ? 'arquivo anexado' : 'arquivos anexados'} (clique para adicionar/trocar)
                   </p>
                 </>
               ) : (
@@ -649,27 +649,27 @@ export const ApprovalModule = () => {
                   <div className="rounded-full bg-white p-4 shadow-sm mb-4 group-hover:scale-110 transition-transform">
                     <Plus className="h-8 w-8 text-brand" />
                   </div>
-                  <p className="text-base font-bold text-text-primary">Click to upload or drag and drop</p>
-                  <p className="text-sm text-text-secondary mt-2">MP4, MOV, JPG or PNG (max. 1.5GB)</p>
+                  <p className="text-base font-bold text-text-primary">Clique para enviar ou arraste e solte</p>
+                  <p className="text-sm text-text-secondary mt-2">MP4, MOV, JPG ou PNG (máx. 1,5 GB)</p>
                 </>
               )}
             </div>
           </div>
 
           <div className="space-y-3">
-            <label className="text-sm font-bold text-text-primary">Caption</label>
+            <label className="text-sm font-bold text-text-primary">Legenda</label>
             <textarea 
               className="w-full min-h-[150px] rounded-xl border-2 border-gray-200 p-4 text-base focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10 transition-all resize-y"
-              placeholder="Write the post caption here... Include hashtags and mentions."
+              placeholder="Escreva a legenda do post aqui... Inclua hashtags e menções."
               value={newCaption}
               onChange={(e) => setNewCaption(e.target.value)}
             />
           </div>
 
           <div className="pt-6 border-t border-gray-100 flex justify-end gap-4">
-            <Button variant="ghost" size="lg" onClick={() => { setView('list'); resetForm(); }}>Cancel</Button>
+            <Button variant="ghost" size="lg" onClick={() => { setView('list'); resetForm(); }}>Cancelar</Button>
             <Button size="lg" onClick={handleSaveRequest} className="px-8" disabled={!newTitle.trim()}>
-              {view === 'edit' ? 'Save Changes' : 'Create Request'}
+              {view === 'edit' ? 'Salvar alterações' : 'Criar solicitação'}
             </Button>
           </div>
         </Card>
@@ -707,7 +707,7 @@ export const ApprovalModule = () => {
                 const newCommentData: Partial<ApprovalComment> = {
                   approvalItemId: post.id,
                   authorType: 'external',
-                  authorName: 'Internal Reviewer',
+                  authorName: 'Revisor interno',
                   content: comment,
                 };
                 
@@ -733,7 +733,7 @@ export const ApprovalModule = () => {
               // Revert
               setApprovals(previousApprovals);
               setComments(previousComments);
-              setAlertMessage('Failed to update status. Please try again.');
+              setAlertMessage('Não foi possível atualizar o status. Tente novamente.');
             }
           }}
           onCommentSubmit={async (comment) => {
@@ -743,7 +743,7 @@ export const ApprovalModule = () => {
             const newCommentData: Partial<ApprovalComment> = {
               approvalItemId: post.id,
               authorType: 'external',
-              authorName: 'Internal Reviewer',
+              authorName: 'Revisor interno',
               content: comment,
             };
 
@@ -769,7 +769,7 @@ export const ApprovalModule = () => {
               // Revert
               setComments(previousComments);
               setApprovals(previousApprovals);
-              setAlertMessage('Failed to submit comment. Please try again.');
+              setAlertMessage('Não foi possível enviar o comentário. Tente novamente.');
             }
           }}
         />
@@ -845,13 +845,13 @@ export const ApprovalModule = () => {
         <div>
           <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
             <CheckCircle className="h-6 w-6 text-brand" />
-            Content Approvals
+            Aprovações de Conteúdo
           </h1>
-          <p className="text-text-secondary">Manage content reviews and client feedback.</p>
+          <p className="text-text-secondary">Gerencie revisões de conteúdo e feedbacks dos clientes.</p>
         </div>
         <Button onClick={() => setView('create')} className="gap-2">
           <Plus className="h-4 w-4" />
-          Create Approval Request
+          Criar solicitação de aprovação
         </Button>
       </div>
 
@@ -866,7 +866,13 @@ export const ApprovalModule = () => {
                   post.status === 'changes_requested' ? 'warning' :
                   post.status === 'rejected' ? 'error' : 'default'
                 } className="shadow-sm">
-                  {post.status.replace('_', ' ').toUpperCase()}
+                  {post.status === 'approved'
+                    ? 'APROVADO'
+                    : post.status === 'changes_requested'
+                    ? 'AJUSTES SOLICITADOS'
+                    : post.status === 'rejected'
+                    ? 'REJEITADO'
+                    : 'PENDENTE'}
                 </Badge>
               </div>
               <div className="absolute top-3 right-3">
@@ -890,15 +896,15 @@ export const ApprovalModule = () => {
                 >
                   <DropdownItem onClick={() => { setPreviewPostId(post.id); setView('preview'); }}>
                     <Eye className="h-4 w-4" />
-                    Preview
+                    Visualizar
                   </DropdownItem>
                   <DropdownItem onClick={() => handleEdit(post)}>
                     <Edit2 className="h-4 w-4" />
-                    Edit
+                    Editar
                   </DropdownItem>
                   <DropdownItem onClick={() => handleDelete(post.id)} className="text-red-600 hover:text-red-700 hover:bg-red-50">
                     <Trash className="h-4 w-4" />
-                    Delete
+                    Excluir
                   </DropdownItem>
                 </Dropdown>
               </div>
@@ -910,18 +916,18 @@ export const ApprovalModule = () => {
                 </div>
                 <div className="flex items-center gap-1">
                   <MessageSquare className="h-3 w-3" />
-                  {post.feedbackCount} comments
+                  {post.feedbackCount} comentários
                 </div>
               </div>
 
               <div className="mt-auto pt-4 border-t border-gray-100 flex gap-2">
                 <Button variant="outline" size="sm" className="flex-1 gap-2" onClick={() => generateLink(post.id)}>
                   <LinkIcon className="h-3 w-3" />
-                  Get Link
+                  Obter link
                 </Button>
                 <Button variant="secondary" size="sm" className="flex-1 gap-2" onClick={() => setSelectedPostHistory(post)}>
                   <History className="h-3 w-3" />
-                  History
+                  Histórico
                 </Button>
               </div>
             </div>
@@ -933,21 +939,21 @@ export const ApprovalModule = () => {
       <Modal 
         isOpen={!!generatedLink} 
         onClose={() => setGeneratedLink(null)} 
-        title="Approval Link Generated"
+        title="Link de aprovação gerado"
       >
         <div className="space-y-4">
-          <p className="text-sm text-text-secondary">Share this link with your client or reviewer. They don't need a PostHub account to view and approve.</p>
+          <p className="text-sm text-text-secondary">Compartilhe este link com seu cliente ou revisor. Ele não precisa de uma conta PostHub para visualizar e aprovar.</p>
           <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
             <code className="flex-1 text-xs truncate">{generatedLink}</code>
             <Button size="sm" onClick={() => {
               navigator.clipboard.writeText(generatedLink!);
-              setAlertMessage('Link copied to clipboard!');
-            }}>Copy</Button>
+              setAlertMessage('Link copiado para a área de transferência!');
+            }}>Copiar</Button>
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" className="gap-2" onClick={() => window.open(generatedLink!, '_blank')}>
               <ExternalLink className="h-4 w-4" />
-              Open Public Link
+              Abrir link público
             </Button>
             <Button variant="primary" className="gap-2" onClick={() => {
               const token = generatedLink?.split('/').pop();
@@ -959,7 +965,7 @@ export const ApprovalModule = () => {
               }
             }}>
               <Eye className="h-4 w-4" />
-              Internal Preview
+              Visualização interna
             </Button>
           </div>
         </div>
@@ -969,12 +975,12 @@ export const ApprovalModule = () => {
       <Modal
         isOpen={!!selectedPostHistory}
         onClose={() => setSelectedPostHistory(null)}
-        title="Review History"
+        title="Histórico de revisão"
       >
         {selectedPostHistory && approvals.find(p => p.id === selectedPostHistory.id) && (
           <div className="space-y-6">
             <div className="flex items-center gap-4 border-b border-gray-100 pb-4">
-              <img src={approvals.find(p => p.id === selectedPostHistory.id)!.thumbnail} alt="Thumbnail" className="h-16 w-16 rounded-lg object-cover" />
+              <img src={approvals.find(p => p.id === selectedPostHistory.id)!.thumbnail} alt="Miniatura" className="h-16 w-16 rounded-lg object-cover" />
               <div>
                 <h3 className="font-bold text-text-primary">{approvals.find(p => p.id === selectedPostHistory.id)!.title}</h3>
                 <div className="flex items-center gap-2 text-xs text-text-secondary mt-1">
@@ -985,7 +991,13 @@ export const ApprovalModule = () => {
                     approvals.find(p => p.id === selectedPostHistory.id)!.status === 'changes_requested' ? 'warning' :
                     approvals.find(p => p.id === selectedPostHistory.id)!.status === 'rejected' ? 'error' : 'default'
                   } className="text-[10px] py-0">
-                    {approvals.find(p => p.id === selectedPostHistory.id)!.status.replace('_', ' ').toUpperCase()}
+                    {approvals.find(p => p.id === selectedPostHistory.id)!.status === 'approved'
+                      ? 'APROVADO'
+                      : approvals.find(p => p.id === selectedPostHistory.id)!.status === 'changes_requested'
+                      ? 'AJUSTES SOLICITADOS'
+                      : approvals.find(p => p.id === selectedPostHistory.id)!.status === 'rejected'
+                      ? 'REJEITADO'
+                      : 'PENDENTE'}
                   </Badge>
                 </div>
               </div>
@@ -1030,14 +1042,14 @@ export const ApprovalModule = () => {
                   ))
               ) : (
                 <div className="text-center py-8 text-text-secondary text-sm">
-                  No feedback or comments yet.
+                  Ainda não há feedbacks ou comentários.
                 </div>
               )}
             </div>
 
             <div className="flex gap-2 pt-4 border-t border-gray-100">
               <Input 
-                placeholder="Reply to feedback..." 
+                placeholder="Responder ao feedback..." 
                 className="flex-1" 
                 value={internalComment}
                 onChange={(e) => setInternalComment(e.target.value)}
@@ -1047,7 +1059,7 @@ export const ApprovalModule = () => {
               />
               <Button className="gap-2 shrink-0" onClick={handleSendInternalComment} disabled={!internalComment.trim()}>
                 <Send className="h-4 w-4" />
-                Send
+                Enviar
               </Button>
             </div>
           </div>
@@ -1058,13 +1070,13 @@ export const ApprovalModule = () => {
       <Modal
         isOpen={!!postToDelete}
         onClose={() => setPostToDelete(null)}
-        title="Delete Approval Request"
+        title="Excluir solicitação de aprovação"
       >
         <div className="space-y-4">
-          <p className="text-sm text-text-secondary">Are you sure you want to delete this approval request? This action cannot be undone.</p>
+          <p className="text-sm text-text-secondary">Tem certeza de que deseja excluir esta solicitação de aprovação? Esta ação não pode ser desfeita.</p>
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setPostToDelete(null)}>Cancel</Button>
-            <Button variant="primary" className="bg-red-600 hover:bg-red-700 text-white" onClick={confirmDelete}>Delete</Button>
+            <Button variant="ghost" onClick={() => setPostToDelete(null)}>Cancelar</Button>
+            <Button variant="primary" className="bg-red-600 hover:bg-red-700 text-white" onClick={confirmDelete}>Excluir</Button>
           </div>
         </div>
       </Modal>
@@ -1073,7 +1085,7 @@ export const ApprovalModule = () => {
       <Modal
         isOpen={!!alertMessage}
         onClose={() => setAlertMessage(null)}
-        title="Notice"
+        title="Aviso"
       >
         <div className="space-y-4">
           <p className="text-sm text-text-secondary">{alertMessage}</p>

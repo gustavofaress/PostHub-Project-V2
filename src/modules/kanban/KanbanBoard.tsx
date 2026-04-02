@@ -245,7 +245,7 @@ export const KanbanBoard = () => {
         .insert([
           {
             profile_id: activeProfile.id,
-            name: 'New Column',
+            name: 'Nova Coluna',
             position: columns.length,
             created_at: now,
             updated_at: now,
@@ -328,7 +328,7 @@ export const KanbanBoard = () => {
   const handleDeleteColumn = async (columnId: string) => {
     const hasCards = cards.some((c) => c.columnId === columnId);
     if (hasCards) {
-      alert('Cannot delete column with cards. Please move or delete the cards first.');
+      alert('Não é possível excluir uma coluna com cards. Mova ou exclua os cards primeiro.');
       return;
     }
 
@@ -601,9 +601,9 @@ export const KanbanBoard = () => {
         <div>
           <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
             <Trello className="h-6 w-6 text-brand" />
-            Kanban Board
+            Kanban Editorial
           </h1>
-          <p className="text-text-secondary">Manage your content production workflow.</p>
+          <p className="text-text-secondary">Gerencie seu fluxo de produção de conteúdo.</p>
           {activeProfile && (
             <p className="text-sm text-text-secondary mt-1">
               Perfil ativo: <span className="font-medium">{activeProfile.name}</span>
@@ -618,11 +618,11 @@ export const KanbanBoard = () => {
             isLoading={isSavingColumn}
           >
             <Plus className="h-4 w-4" />
-            Add Column
+            Adicionar Coluna
           </Button>
           <Button className="gap-2" onClick={() => openAddModal()} disabled={columns.length === 0}>
             <Plus className="h-4 w-4" />
-            Add Task
+            Adicionar Tarefa
           </Button>
         </div>
       </div>
@@ -668,7 +668,7 @@ export const KanbanBoard = () => {
                         setEditingColumnId(column.id);
                         setEditingColumnName(column.name);
                       }}
-                      title="Click to rename"
+                      title="Clique para renomear"
                     >
                       {column.name}
                     </h3>
@@ -686,18 +686,18 @@ export const KanbanBoard = () => {
                   }
                 >
                   <DropdownItem icon={Plus} onClick={() => openAddModal(column.id)}>
-                    Add Card
+                    Adicionar Card
                   </DropdownItem>
 
                   {colIdx > 0 && (
                     <DropdownItem icon={ArrowLeft} onClick={() => void moveColumn(column.id, 'left')}>
-                      Move Column Left
+                      Mover Coluna para a Esquerda
                     </DropdownItem>
                   )}
 
                   {colIdx < columns.length - 1 && (
                     <DropdownItem icon={ArrowRight} onClick={() => void moveColumn(column.id, 'right')}>
-                      Move Column Right
+                      Mover Coluna para a Direita
                     </DropdownItem>
                   )}
 
@@ -706,7 +706,7 @@ export const KanbanBoard = () => {
                     onClick={() => void handleDeleteColumn(column.id)}
                     className="text-red-500 hover:text-red-600 hover:bg-red-50"
                   >
-                    Delete Column
+                    Excluir Coluna
                   </DropdownItem>
                 </Dropdown>
               </div>
@@ -727,7 +727,11 @@ export const KanbanBoard = () => {
                           variant={task.priority === 'High' ? 'error' : 'default'}
                           className="text-[10px]"
                         >
-                          {task.priority}
+                          {task.priority === 'High'
+                            ? 'Alta'
+                            : task.priority === 'Medium'
+                            ? 'Média'
+                            : 'Baixa'}
                         </Badge>
 
                         <Dropdown
@@ -738,18 +742,18 @@ export const KanbanBoard = () => {
                           }
                         >
                           <DropdownItem icon={Edit2} onClick={() => openEditModal(task)}>
-                            Edit Task
+                            Editar Tarefa
                           </DropdownItem>
 
                           {colIdx > 0 && (
                             <DropdownItem icon={ArrowLeft} onClick={() => void moveTask(task.id, 'left')}>
-                              Move Left
+                              Mover para a Esquerda
                             </DropdownItem>
                           )}
 
                           {colIdx < columns.length - 1 && (
                             <DropdownItem icon={ArrowRight} onClick={() => void moveTask(task.id, 'right')}>
-                              Move Right
+                              Mover para a Direita
                             </DropdownItem>
                           )}
 
@@ -758,7 +762,7 @@ export const KanbanBoard = () => {
                             onClick={() => void deleteTask(task.id)}
                             className="text-red-500 hover:text-red-600 hover:bg-red-50"
                           >
-                            Delete Task
+                            Excluir Tarefa
                           </DropdownItem>
                         </Dropdown>
                       </div>
@@ -767,9 +771,19 @@ export const KanbanBoard = () => {
 
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] font-medium text-text-secondary bg-gray-100 px-1.5 py-0.5 rounded">
-                          {task.type}
+                          {task.type === 'Video'
+                            ? 'Vídeo'
+                            : task.type === 'Design'
+                            ? 'Design'
+                            : task.type === 'Script'
+                            ? 'Roteiro'
+                            : task.type === 'Research'
+                            ? 'Pesquisa'
+                            : task.type === 'Email'
+                            ? 'E-mail'
+                            : task.type}
                         </span>
-                        <Avatar fallback="User" size="sm" className="h-6 w-6" />
+                        <Avatar fallback="Usuário" size="sm" className="h-6 w-6" />
                       </div>
                     </Card>
                   ))}
@@ -778,7 +792,7 @@ export const KanbanBoard = () => {
                   onClick={() => openAddModal(column.id)}
                   className="w-full py-2 border-2 border-dashed border-gray-200 rounded-xl text-xs font-medium text-gray-400 hover:border-brand hover:text-brand transition-all"
                 >
-                  + Add Card
+                  + Adicionar Card
                 </button>
               </div>
             </div>
@@ -789,12 +803,12 @@ export const KanbanBoard = () => {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingCardId ? 'Edit Task' : 'Add New Task'}
+        title={editingCardId ? 'Editar Tarefa' : 'Adicionar Nova Tarefa'}
       >
         <form onSubmit={(e) => void handleSaveTask(e)} className="space-y-4">
           <Input
-            label="Task Title"
-            placeholder="What needs to be done?"
+            label="Título da Tarefa"
+            placeholder="O que precisa ser feito?"
             value={newTaskTitle}
             onChange={(e) => setNewTaskTitle(e.target.value)}
             required
@@ -802,22 +816,22 @@ export const KanbanBoard = () => {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-text-primary">Type</label>
+              <label className="text-sm font-medium text-text-primary">Tipo</label>
               <select
                 className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
                 value={newTaskType}
                 onChange={(e) => setNewTaskType(e.target.value)}
               >
-                <option value="Video">Video</option>
+                <option value="Video">Vídeo</option>
                 <option value="Design">Design</option>
-                <option value="Script">Script</option>
-                <option value="Research">Research</option>
-                <option value="Email">Email</option>
+                <option value="Script">Roteiro</option>
+                <option value="Research">Pesquisa</option>
+                <option value="Email">E-mail</option>
               </select>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-text-primary">Date</label>
+              <label className="text-sm font-medium text-text-primary">Data</label>
               <input
                 type="date"
                 className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
@@ -829,7 +843,7 @@ export const KanbanBoard = () => {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-text-primary">Column</label>
+            <label className="text-sm font-medium text-text-primary">Coluna</label>
             <select
               className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
               value={newTaskColumn}
@@ -855,7 +869,7 @@ export const KanbanBoard = () => {
                 className="text-red-600 hover:text-red-700 hover:bg-red-50"
                 isLoading={isDeletingTask}
               >
-                Delete
+                Excluir
               </Button>
             ) : (
               <div />
@@ -863,10 +877,10 @@ export const KanbanBoard = () => {
 
             <div className="flex gap-3">
               <Button variant="secondary" onClick={() => setIsModalOpen(false)} type="button">
-                Cancel
+                Cancelar
               </Button>
               <Button type="submit" isLoading={isSavingTask}>
-                {editingCardId ? 'Save Changes' : 'Add Task'}
+                {editingCardId ? 'Salvar Alterações' : 'Adicionar Tarefa'}
               </Button>
             </div>
           </div>

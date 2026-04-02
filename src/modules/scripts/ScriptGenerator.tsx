@@ -19,10 +19,10 @@ import { useAuth } from '../../app/context/AuthContext';
 import { supabase } from '../../shared/utils/supabase';
 
 const STEPS = [
-  { id: 1, title: 'Context', description: 'What is this about?' },
-  { id: 2, title: 'Details', description: 'Format and audience' },
-  { id: 3, title: 'Tone', description: 'How should it sound?' },
-  { id: 4, title: 'Preview', description: 'Review and copy' },
+  { id: 1, title: 'Contexto', description: 'Sobre o que é isso?' },
+  { id: 2, title: 'Detalhes', description: 'Formato e público' },
+  { id: 3, title: 'Tom', description: 'Como deve soar?' },
+  { id: 4, title: 'Prévia', description: 'Revise e copie' },
 ];
 
 interface ScriptDraft {
@@ -280,12 +280,12 @@ export const ScriptGenerator = () => {
     const newErrors: Record<string, string> = {};
 
     if (step === 1) {
-      if (!formData.topic.trim()) newErrors.topic = 'Topic is required';
+      if (!formData.topic.trim()) newErrors.topic = 'O tema é obrigatório';
     } else if (step === 2) {
-      if (!formData.audience.trim()) newErrors.audience = 'Audience is required';
-      if (!formData.niche.trim()) newErrors.niche = 'Niche is required';
+      if (!formData.audience.trim()) newErrors.audience = 'O público é obrigatório';
+      if (!formData.niche.trim()) newErrors.niche = 'O nicho é obrigatório';
     } else if (step === 3) {
-      if (!formData.tone) newErrors.tone = 'Please select a tone';
+      if (!formData.tone) newErrors.tone = 'Selecione um tom';
     }
 
     setErrors(newErrors);
@@ -598,12 +598,12 @@ export const ScriptGenerator = () => {
 
   const buildContextText = () => {
     return [
-      `Goal: ${formData.goal}`,
-      `Format: ${formData.format}`,
-      `Audience: ${formData.audience}`,
-      `Niche: ${formData.niche}`,
-      `Tone: ${formData.tone}`,
-      `Keywords: ${formData.keywords || '-'}`,
+      `Objetivo: ${formData.goal}`,
+      `Formato: ${formData.format}`,
+      `Público: ${formData.audience}`,
+      `Nicho: ${formData.niche}`,
+      `Tom: ${formData.tone}`,
+      `Palavras-chave: ${formData.keywords || '-'}`,
     ].join('\n');
   };
 
@@ -732,7 +732,7 @@ export const ScriptGenerator = () => {
     const payload = {
       user_id: user.id,
       profile_id: activeProfile.id,
-      title: formData.topic.trim() || 'Untitled Script',
+      title: formData.topic.trim() || 'Roteiro sem título',
       hook: generatedScript.hook,
       context: buildContextText(),
       main_tips: generatedScript.content,
@@ -845,10 +845,10 @@ export const ScriptGenerator = () => {
         <div>
           <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
             <FileText className="h-6 w-6 text-brand" />
-            Saved Scripts
+            Roteiros Salvos
           </h1>
           <p className="text-text-secondary">
-            Manage and edit your previously generated scripts.
+            Gerencie e edite seus roteiros gerados anteriormente.
           </p>
           {activeProfile && (
             <p className="text-sm text-text-secondary mt-1">
@@ -873,13 +873,13 @@ export const ScriptGenerator = () => {
               <Wand2 className="h-6 w-6 text-brand" />
             </div>
             <h3 className="text-lg font-semibold text-text-primary mb-2">
-              No saved scripts yet
+              Ainda não há roteiros salvos
             </h3>
             <p className="text-text-secondary max-w-sm mb-6">
-              Generate your first script and save it as a draft to see it here.
+              Gere seu primeiro roteiro e salve-o como rascunho para vê-lo aqui.
             </p>
             <Button onClick={() => setSearchParams({ tab: 'ai' })}>
-              Create New Script
+              Criar Novo Roteiro
             </Button>
           </Card>
         ) : (
@@ -891,14 +891,14 @@ export const ScriptGenerator = () => {
                 onClick={() => loadDraft(draft)}
               >
                 <div className="flex justify-between items-start mb-3 gap-3">
-                  <Badge variant="brand">Draft</Badge>
+                  <Badge variant="brand">Rascunho</Badge>
                   <span className="text-xs text-text-secondary">
                     {new Date(draft.updated_at || draft.created_at).toLocaleDateString()}
                   </span>
                 </div>
 
                 <h3 className="font-semibold text-text-primary mb-2 line-clamp-1">
-                  {draft.title || 'Untitled Script'}
+                  {draft.title || 'Roteiro sem título'}
                 </h3>
 
                 <p className="text-sm text-text-secondary line-clamp-3 flex-1">
@@ -914,7 +914,7 @@ export const ScriptGenerator = () => {
                       loadDraft(draft);
                     }}
                   >
-                    Open
+                    Abrir
                   </Button>
 
                   <Button
@@ -925,7 +925,7 @@ export const ScriptGenerator = () => {
                       void handleDeleteDraft(draft.id);
                     }}
                   >
-                    Delete
+                    Excluir
                   </Button>
                 </div>
               </Card>
@@ -942,10 +942,10 @@ export const ScriptGenerator = () => {
         <div>
           <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
             <Wand2 className="h-6 w-6 text-brand" />
-            Script Generator
+            Gerador de Roteiros
           </h1>
           <p className="text-text-secondary">
-            Generate high-converting scripts for your social media content.
+            Gere roteiros de alta conversão para o seu conteúdo nas redes sociais.
           </p>
           {activeProfile && (
             <p className="text-sm text-text-secondary mt-1">
@@ -956,7 +956,7 @@ export const ScriptGenerator = () => {
 
         {currentStep > 1 && (
           <Button variant="outline" size="sm" onClick={handleReset}>
-            Start Over
+            Começar de Novo
           </Button>
         )}
       </div>
@@ -1009,11 +1009,11 @@ export const ScriptGenerator = () => {
         <div className="flex-1">
           {currentStep === 1 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <CardTitle>Context & Objective</CardTitle>
+              <CardTitle>Contexto e Objetivo</CardTitle>
               <div className="space-y-4">
                 <Input
-                  label="Main Topic"
-                  placeholder="e.g. 5 tips for better productivity"
+                  label="Tema Principal"
+                  placeholder="Ex.: 5 dicas para melhorar a produtividade"
                   value={formData.topic}
                   onChange={(e) => setFormData({ ...formData, topic: e.target.value })}
                   error={errors.topic}
@@ -1021,7 +1021,7 @@ export const ScriptGenerator = () => {
 
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-text-primary">
-                    What is the main goal?
+                    Qual é o objetivo principal?
                   </label>
                   <select
                     className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
@@ -1040,11 +1040,11 @@ export const ScriptGenerator = () => {
 
           {currentStep === 2 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <CardTitle>Format & Audience</CardTitle>
+              <CardTitle>Formato e Público</CardTitle>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-text-primary">
-                    Content Format
+                    Formato do Conteúdo
                   </label>
                   <select
                     className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
@@ -1059,8 +1059,8 @@ export const ScriptGenerator = () => {
                 </div>
 
                 <Input
-                  label="Target Audience"
-                  placeholder="e.g. Young entrepreneurs"
+                  label="Público-Alvo"
+                  placeholder="Ex.: Jovens empreendedores"
                   value={formData.audience}
                   onChange={(e) => setFormData({ ...formData, audience: e.target.value })}
                   error={errors.audience}
@@ -1068,8 +1068,8 @@ export const ScriptGenerator = () => {
               </div>
 
               <Input
-                label="Niche"
-                placeholder="e.g. Digital Marketing"
+                label="Nicho"
+                placeholder="Ex.: Marketing Digital"
                 value={formData.niche}
                 onChange={(e) => setFormData({ ...formData, niche: e.target.value })}
                 error={errors.niche}
@@ -1079,7 +1079,7 @@ export const ScriptGenerator = () => {
 
           {currentStep === 3 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <CardTitle>Tone & Style</CardTitle>
+              <CardTitle>Tom e Estilo</CardTitle>
 
               <div className="grid grid-cols-3 gap-3">
                 {[
@@ -1100,7 +1100,17 @@ export const ScriptGenerator = () => {
                         : 'border-gray-200 hover:border-brand hover:bg-brand/5'
                     )}
                   >
-                    {tone}
+                    {tone === 'Professional'
+                      ? 'Profissional'
+                      : tone === 'Casual'
+                      ? 'Casual'
+                      : tone === 'Energetic'
+                      ? 'Energético'
+                      : tone === 'Humorous'
+                      ? 'Humorístico'
+                      : tone === 'Empathetic'
+                      ? 'Empático'
+                      : 'Autoritativo'}
                   </button>
                 ))}
               </div>
@@ -1108,8 +1118,8 @@ export const ScriptGenerator = () => {
               {errors.tone && <p className="text-xs text-red-500">{errors.tone}</p>}
 
               <Input
-                label="Specific Keywords to Include"
-                placeholder="e.g. productivity, hacks, time-management"
+                label="Palavras-chave específicas para incluir"
+                placeholder="Ex.: produtividade, hacks, gestão do tempo"
                 value={formData.keywords}
                 onChange={(e) => setFormData({ ...formData, keywords: e.target.value })}
               />
@@ -1119,7 +1129,7 @@ export const ScriptGenerator = () => {
           {currentStep === 4 && generatedScript && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="flex items-center justify-between">
-                <CardTitle>Generated Script</CardTitle>
+                <CardTitle>Roteiro Gerado</CardTitle>
 
                 <div className="flex items-center gap-2">
                   <Button
@@ -1136,7 +1146,7 @@ export const ScriptGenerator = () => {
                     isLoading={isGenerating}
                   >
                     {!isGenerating && <Sparkles className="h-4 w-4" />}
-                    Regenerate
+                    Regenerar
                   </Button>
 
                   <Button
@@ -1146,12 +1156,12 @@ export const ScriptGenerator = () => {
                     className="gap-2"
                   >
                     {isSaved ? <Check className="h-4 w-4" /> : null}
-                    {isSaved ? 'Saved!' : 'Save Draft'}
+                    {isSaved ? 'Salvo!' : 'Salvar Rascunho'}
                   </Button>
 
                   <Button variant="outline" size="sm" onClick={handleCopy} className="gap-2">
                     {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                    {copied ? 'Copied!' : 'Copy Script'}
+                    {copied ? 'Copiado!' : 'Copiar Roteiro'}
                   </Button>
                 </div>
               </div>
@@ -1163,7 +1173,7 @@ export const ScriptGenerator = () => {
                   onChange={(e) =>
                     setGeneratedScript({ ...generatedScript, hook: e.target.value })
                   }
-                  placeholder="Hook"
+                  placeholder="Gancho"
                 />
 
                 <textarea
@@ -1172,7 +1182,7 @@ export const ScriptGenerator = () => {
                   onChange={(e) =>
                     setGeneratedScript({ ...generatedScript, content: e.target.value })
                   }
-                  placeholder="Body Content"
+                  placeholder="Desenvolvimento"
                 />
 
                 <textarea
@@ -1181,7 +1191,7 @@ export const ScriptGenerator = () => {
                   onChange={(e) =>
                     setGeneratedScript({ ...generatedScript, examples: e.target.value })
                   }
-                  placeholder="Examples"
+                  placeholder="Exemplos"
                 />
 
                 <textarea
@@ -1190,7 +1200,7 @@ export const ScriptGenerator = () => {
                   onChange={(e) =>
                     setGeneratedScript({ ...generatedScript, cta: e.target.value })
                   }
-                  placeholder="Call to Action"
+                  placeholder="Chamada para ação"
                 />
               </div>
             </div>
@@ -1205,20 +1215,20 @@ export const ScriptGenerator = () => {
             className="gap-2"
           >
             <ChevronLeft className="h-4 w-4" />
-            Back
+            Voltar
           </Button>
 
           <Button onClick={handleNext} isLoading={isGenerating} className="gap-2">
             {currentStep === 3 ? (
               <>
                 {!generatedScript && <Sparkles className="h-4 w-4" />}
-                {generatedScript ? 'Next' : 'Generate Script'}
+                {generatedScript ? 'Próximo' : 'Gerar Roteiro'}
               </>
             ) : currentStep === 4 ? (
-              'Finish'
+              'Finalizar'
             ) : (
               <>
-                Next
+                Próximo
                 <ChevronRight className="h-4 w-4" />
               </>
             )}

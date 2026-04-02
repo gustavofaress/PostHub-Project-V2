@@ -84,18 +84,18 @@ function formatRelativeDate(dateString: string): string {
 
   if (diffMs < hour) {
     const minutes = Math.max(1, Math.floor(diffMs / (1000 * 60)));
-    return `${minutes} min ago`;
+    return `${minutes} min atrás`;
   }
 
   if (diffMs < day) {
     const hours = Math.floor(diffMs / hour);
-    return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+    return `${hours} hora${hours > 1 ? 's' : ''} atrás`;
   }
 
-  if (diffMs < day * 2) return 'Yesterday';
+  if (diffMs < day * 2) return 'Ontem';
 
   const days = Math.floor(diffMs / day);
-  return `${days} days ago`;
+  return `${days} dias atrás`;
 }
 
 export const Dashboard = () => {
@@ -108,10 +108,10 @@ export const Dashboard = () => {
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
   const [stats, setStats] = React.useState<StatCard[]>([
-    { label: 'Ideas', value: '--', change: 'system', trend: 'up', icon: Lightbulb },
-    { label: 'Scripts', value: '--', change: 'system', trend: 'up', icon: FileText },
-    { label: 'Scheduled Posts', value: '--', change: 'system', trend: 'up', icon: CalendarDays },
-    { label: 'Pending Reviews', value: '--', change: 'system', trend: 'up', icon: MessageSquare },
+    { label: 'Ideias', value: '--', change: 'sistema', trend: 'up', icon: Lightbulb },
+    { label: 'Roteiros', value: '--', change: 'sistema', trend: 'up', icon: FileText },
+    { label: 'Posts Agendados', value: '--', change: 'sistema', trend: 'up', icon: CalendarDays },
+    { label: 'Revisões Pendentes', value: '--', change: 'sistema', trend: 'up', icon: MessageSquare },
   ]);
 
   const [recentActivity, setRecentActivity] = React.useState<DashboardActivityItem[]>([]);
@@ -192,30 +192,30 @@ export const Dashboard = () => {
 
       setStats([
         {
-          label: 'Ideas',
+          label: 'Ideias',
           value: String(ideasResult.count ?? ideas.length),
-          change: 'active',
+          change: 'ativas',
           trend: 'up',
           icon: Lightbulb,
         },
         {
-          label: 'Scripts',
+          label: 'Roteiros',
           value: String(scriptsResult.count ?? scripts.length),
-          change: 'saved',
+          change: 'salvos',
           trend: 'up',
           icon: FileText,
         },
         {
-          label: 'Scheduled Posts',
+          label: 'Posts Agendados',
           value: String(scheduledPostsCount),
-          change: 'calendar',
+          change: 'calendário',
           trend: 'up',
           icon: CalendarDays,
         },
         {
-          label: 'Pending Reviews',
+          label: 'Revisões Pendentes',
           value: String(pendingReviewsCount),
-          change: 'attention',
+          change: 'atenção',
           trend: pendingReviewsCount > 0 ? 'down' : 'up',
           icon: MessageSquare,
         },
@@ -234,8 +234,8 @@ export const Dashboard = () => {
       ideas.slice(0, 3).forEach((item) => {
         activity.push({
           id: `idea-${item.id}`,
-          type: 'idea',
-          title: `New idea added: "${item.title}"`,
+          type: 'ideia',
+          title: `Nova ideia adicionada: "${item.title}"`,
           time: formatRelativeDate(item.updated_at),
           status: 'info',
           createdAt: item.updated_at,
@@ -245,8 +245,8 @@ export const Dashboard = () => {
       scripts.slice(0, 3).forEach((item) => {
         activity.push({
           id: `script-${item.id}`,
-          type: 'script',
-          title: `Script updated: "${item.title}"`,
+          type: 'roteiro',
+          title: `Roteiro atualizado: "${item.title}"`,
           time: formatRelativeDate(item.updated_at),
           status: 'info',
           createdAt: item.updated_at,
@@ -259,8 +259,8 @@ export const Dashboard = () => {
           type: 'post',
           title:
             item.status === 'Published'
-              ? `${item.title} was published`
-              : `${item.title} updated in calendar`,
+              ? `${item.title} foi publicado`
+              : `${item.title} atualizado no calendário`,
           time: formatRelativeDate(item.updated_at),
           status:
             item.status === 'Published'
@@ -275,11 +275,11 @@ export const Dashboard = () => {
       approvals.slice(0, 3).forEach((item) => {
         activity.push({
           id: `approval-${item.id}`,
-          type: 'review',
+          type: 'revisão',
           title:
             item.status === 'changes_requested'
-              ? `Changes requested for "${item.title}"`
-              : `Approval updated: "${item.title}"`,
+              ? `Alterações solicitadas para "${item.title}"`
+              : `Aprovação atualizada: "${item.title}"`,
           time: formatRelativeDate(item.updated_at),
           status: item.status === 'changes_requested' ? 'warning' : 'success',
           createdAt: item.updated_at,
@@ -308,13 +308,13 @@ export const Dashboard = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-text-primary">
-            Welcome back{activeProfile ? `, ${activeProfile.name}` : ''}!
+            Bem-vindo de volta{activeProfile ? `, ${activeProfile.name}` : ''}!
           </h1>
-          <p className="text-text-secondary">Here's what's happening with your content today.</p>
+          <p className="text-text-secondary">Veja o que está acontecendo com o seu conteúdo hoje.</p>
         </div>
         <div className="flex gap-3">
-          <Button variant="secondary">Download Report</Button>
-          <Button onClick={() => handleNavigate('ideas')}>Create Content</Button>
+          <Button variant="secondary">Baixar Relatório</Button>
+          <Button onClick={() => handleNavigate('ideas')}>Criar Conteúdo</Button>
         </div>
       </div>
 
@@ -358,18 +358,18 @@ export const Dashboard = () => {
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <div className="mb-6 flex items-center justify-between">
-            <CardTitle>Recent Activity</CardTitle>
+            <CardTitle>Atividade Recente</CardTitle>
             <Button variant="ghost" size="sm" onClick={() => handleNavigate('calendar')}>
-              View All
+              Ver Tudo
             </Button>
           </div>
 
           {isLoading ? (
-            <div className="py-8 text-sm text-text-secondary">Loading activity...</div>
+            <div className="py-8 text-sm text-text-secondary">Carregando atividade...</div>
           ) : recentActivity.length === 0 ? (
             <EmptyState
-              title="No recent activity"
-              description="As you create ideas, scripts, posts and approvals, activity will appear here."
+              title="Nenhuma atividade recente"
+              description="Conforme você criar ideias, roteiros, posts e aprovações, a atividade aparecerá aqui."
               icon={Activity}
             />
           ) : (
@@ -399,12 +399,12 @@ export const Dashboard = () => {
 
         <div className="space-y-6">
           <Card>
-            <CardTitle className="mb-4">Content Status</CardTitle>
+            <CardTitle className="mb-4">Status do Conteúdo</CardTitle>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm text-text-secondary">
                   <Clock className="h-4 w-4" />
-                  <span>In Production</span>
+                  <span>Em Produção</span>
                 </div>
                 <span className="font-semibold">
                   {isLoading ? '...' : contentStatus.inProduction}
@@ -413,7 +413,7 @@ export const Dashboard = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm text-text-secondary">
                   <AlertCircle className="h-4 w-4" />
-                  <span>Pending Review</span>
+                  <span>Revisão Pendente</span>
                 </div>
                 <span className="font-semibold">
                   {isLoading ? '...' : contentStatus.pendingReview}
@@ -422,7 +422,7 @@ export const Dashboard = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm text-text-secondary">
                   <CheckCircle2 className="h-4 w-4" />
-                  <span>Published</span>
+                  <span>Publicado</span>
                 </div>
                 <span className="font-semibold">
                   {isLoading ? '...' : contentStatus.published}
@@ -434,14 +434,14 @@ export const Dashboard = () => {
               className="mt-6 w-full"
               onClick={() => handleNavigate('calendar')}
             >
-              Go to Calendar
+              Ir para o Calendário
             </Button>
           </Card>
 
           <Card className="bg-brand text-white border-none">
-            <h3 className="text-lg font-bold mb-2">Pro Tip</h3>
+            <h3 className="text-lg font-bold mb-2">Dica Pro</h3>
             <p className="text-sm text-white/80 mb-4">
-              Keep your workflow moving: turn ideas into scripts, scripts into scheduled posts, and scheduled posts into published content.
+              Mantenha seu fluxo em movimento: transforme ideias em roteiros, roteiros em posts agendados e posts agendados em conteúdo publicado.
             </p>
             <Button
               variant="secondary"
@@ -449,7 +449,7 @@ export const Dashboard = () => {
               className="w-full bg-white text-brand hover:bg-white/90"
               onClick={() => handleNavigate('scripts')}
             >
-              Try it now
+              Testar Agora
             </Button>
           </Card>
         </div>

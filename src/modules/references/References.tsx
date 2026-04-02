@@ -19,12 +19,12 @@ import { Badge } from '../../shared/components/Badge';
 import { cn } from '../../shared/utils/cn';
 
 const REFERENCES = [
-  { id: '1', title: 'Minimalist Interior Design', type: 'Visual', source: 'Pinterest', tags: ['aesthetic', 'interior'], thumbnail: 'https://picsum.photos/seed/ref1/400/400' },
-  { id: '2', title: 'Viral Hook Examples', type: 'Script', source: 'TikTok', tags: ['hooks', 'viral'], thumbnail: 'https://picsum.photos/seed/ref2/400/400' },
-  { id: '3', title: 'Color Palette: Ocean Breeze', type: 'Visual', source: 'Dribbble', tags: ['colors', 'branding'], thumbnail: 'https://picsum.photos/seed/ref3/400/400' },
-  { id: '4', title: 'B2B Content Strategy', type: 'Article', source: 'LinkedIn', tags: ['strategy', 'b2b'], thumbnail: 'https://picsum.photos/seed/ref4/400/400' },
-  { id: '5', title: 'Dynamic Transition Tutorial', type: 'Video', source: 'YouTube', tags: ['editing', 'transitions'], thumbnail: 'https://picsum.photos/seed/ref5/400/400' },
-  { id: '6', title: 'Typography Trends 2024', type: 'Article', source: 'Medium', tags: ['fonts', 'design'], thumbnail: 'https://picsum.photos/seed/ref6/400/400' },
+  { id: '1', title: 'Design de interiores minimalista', type: 'Visual', source: 'Pinterest', tags: ['estética', 'interiores'], thumbnail: 'https://picsum.photos/seed/ref1/400/400' },
+  { id: '2', title: 'Exemplos de ganchos virais', type: 'Roteiro', source: 'TikTok', tags: ['ganchos', 'viral'], thumbnail: 'https://picsum.photos/seed/ref2/400/400' },
+  { id: '3', title: 'Paleta de cores: Brisa do Oceano', type: 'Visual', source: 'Dribbble', tags: ['cores', 'branding'], thumbnail: 'https://picsum.photos/seed/ref3/400/400' },
+  { id: '4', title: 'Estratégia de conteúdo B2B', type: 'Artigo', source: 'LinkedIn', tags: ['estratégia', 'b2b'], thumbnail: 'https://picsum.photos/seed/ref4/400/400' },
+  { id: '5', title: 'Tutorial de transição dinâmica', type: 'Vídeo', source: 'YouTube', tags: ['edição', 'transições'], thumbnail: 'https://picsum.photos/seed/ref5/400/400' },
+  { id: '6', title: 'Tendências de tipografia 2024', type: 'Artigo', source: 'Medium', tags: ['fontes', 'design'], thumbnail: 'https://picsum.photos/seed/ref6/400/400' },
 ];
 
 export const References = () => {
@@ -34,24 +34,24 @@ export const References = () => {
         <div>
           <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
             <BookOpen className="h-6 w-6 text-brand" />
-            References Bank
+            Banco de Referências
           </h1>
-          <p className="text-text-secondary">Save and organize your visual and creative inspirations.</p>
+          <p className="text-text-secondary">Salve e organize suas inspirações visuais e criativas.</p>
         </div>
         <Button className="gap-2">
           <Plus className="h-4 w-4" />
-          Add Reference
+          Adicionar Referência
         </Button>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="w-full md:w-96">
-          <Input placeholder="Search references..." icon={<Search className="h-4 w-4" />} />
+          <Input placeholder="Buscar referências..." icon={<Search className="h-4 w-4" />} />
         </div>
         <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
           <Button variant="outline" size="sm" className="gap-2 shrink-0">
             <Filter className="h-4 w-4" />
-            Filter
+            Filtrar
           </Button>
           <div className="h-8 w-px bg-gray-200 shrink-0" />
           <div className="flex bg-gray-100 p-1 rounded-lg shrink-0">
@@ -122,16 +122,16 @@ export const References = () => {
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold text-text-primary flex items-center gap-2">
             <Folder className="h-5 w-5 text-brand" />
-            Your Collections
+            Suas Coleções
           </h2>
-          <Button variant="ghost" size="sm" className="text-brand">View All</Button>
+          <Button variant="ghost" size="sm" className="text-brand">Ver Tudo</Button>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[
-            { name: 'Summer Campaign 2024', count: 24, color: 'bg-orange-100 text-orange-600' },
-            { name: 'Client: Acme Corp', count: 12, color: 'bg-blue-100 text-blue-600' },
-            { name: 'Reels Inspiration', count: 48, color: 'bg-pink-100 text-pink-600' },
+            { name: 'Campanha de Verão 2024', count: 24, color: 'bg-orange-100 text-orange-600' },
+            { name: 'Cliente: Acme Corp', count: 12, color: 'bg-blue-100 text-blue-600' },
+            { name: 'Inspiração para Reels', count: 48, color: 'bg-pink-100 text-pink-600' },
           ].map(folder => (
             <Card key={folder.name} className="flex items-center gap-4 hover:bg-gray-50 transition-colors cursor-pointer">
               <div className={cn("h-12 w-12 rounded-xl flex items-center justify-center", folder.color)}>
@@ -139,7 +139,7 @@ export const References = () => {
               </div>
               <div>
                 <h3 className="font-bold text-text-primary text-sm">{folder.name}</h3>
-                <p className="text-xs text-text-secondary">{folder.count} items</p>
+                <p className="text-xs text-text-secondary">{folder.count} itens</p>
               </div>
             </Card>
           ))}
