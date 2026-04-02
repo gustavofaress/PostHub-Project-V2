@@ -41,7 +41,7 @@ const modules = [
     icon: BrainCircuit,
     topics: [
       'Estruture vídeos com mais rapidez',
-      'Use roteiros com lógica mais estratégica',
+      'Use roteiros com mais lógica estratégica',
       'Ganhe consistência na criação de conteúdo',
       'Acelere a produção sem depender do improviso',
     ],
@@ -117,12 +117,12 @@ export const LandingPage = () => {
   const ActiveIcon = activeModule.icon;
 
   return (
-    <div className="min-h-screen bg-[#050816] text-white">
-      <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,rgba(55,93,255,0.16),transparent_35%),radial-gradient(circle_at_80%_20%,rgba(0,229,255,0.10),transparent_25%),linear-gradient(180deg,#050816_0%,#070b1d_40%,#050816_100%)]" />
+    <div className="min-h-screen overflow-x-hidden bg-[#050816] text-white">
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,rgba(55,93,255,0.16),transparent_35%),radial-gradient(circle_at_80%_20%,rgba(0,229,255,0.10),transparent_25%),linear-gradient(180deg,#050816_0%,#070b1d_40%,#050816_100%)]" />
 
       <nav className="sticky top-0 z-30 border-b border-white/10 bg-[#050816]/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 lg:px-8">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center">
             <img
               src="/logo-full-white.png"
               alt="PostHub"
@@ -131,16 +131,28 @@ export const LandingPage = () => {
           </div>
 
           <div className="hidden items-center gap-8 md:flex">
-            <a href="#recursos" className="text-sm text-white/70 transition hover:text-white">
+            <a
+              href="#recursos"
+              className="text-sm text-white/70 transition hover:text-white"
+            >
               Recursos
             </a>
-            <a href="#como-funciona" className="text-sm text-white/70 transition hover:text-white">
+            <a
+              href="#como-funciona"
+              className="text-sm text-white/70 transition hover:text-white"
+            >
               Como funciona
             </a>
-            <a href="#preco" className="text-sm text-white/70 transition hover:text-white">
+            <a
+              href="#preco"
+              className="text-sm text-white/70 transition hover:text-white"
+            >
               Preço
             </a>
-            <Link to="/login" className="text-sm font-medium text-white/80 transition hover:text-white">
+            <Link
+              to="/login"
+              className="text-sm font-medium text-white/80 transition hover:text-white"
+            >
               Login
             </Link>
             <a href={STRIPE_CHECKOUT_URL} target="_blank" rel="noreferrer">
@@ -153,7 +165,7 @@ export const LandingPage = () => {
       </nav>
 
       <main>
-        <section className="mx-auto grid max-w-7xl gap-8 px-6 pb-16 pt-14 lg:grid-cols-[1fr_0.98fr] lg:items-start lg:px-8 lg:pt-16 xl:gap-10">
+        <section className="mx-auto grid max-w-7xl gap-8 px-6 pb-18 pt-14 lg:grid-cols-[1fr_0.98fr] lg:items-start lg:px-8 lg:pt-16 xl:gap-12">
           <div className="lg:pt-6">
             <HeroBadge>
               <Sparkles className="h-3.5 w-3.5" />
@@ -163,19 +175,24 @@ export const LandingPage = () => {
             <h1 className="mt-6 max-w-4xl text-4xl font-extrabold leading-[0.98] tracking-tight text-white sm:text-5xl lg:text-7xl">
               Pare de criar conteúdo no improviso.
               <span className="bg-gradient-to-r from-white via-cyan-200 to-brand bg-clip-text text-transparent">
-                {' '}Transforme sua operação em um processo.
+                {' '}
+                Transforme sua operação em um processo.
               </span>
             </h1>
 
             <p className="mt-6 max-w-2xl text-base leading-7 text-white/70 sm:text-lg">
-              Planeje ideias, gere roteiros, organize o calendário, acompanhe a produção
-              e visualize a performance em um só lugar. A PostHub foi criada para quem
-              quer operar conteúdo com mais clareza, consistência e profissionalismo.
+              Planeje ideias, gere roteiros, organize o calendário, acompanhe a
+              produção e visualize a performance em um só lugar. A PostHub foi
+              criada para quem quer operar conteúdo com mais clareza,
+              consistência e profissionalismo.
             </p>
 
             <div className="mt-8 flex flex-col gap-4 sm:flex-row">
               <a href={STRIPE_CHECKOUT_URL} target="_blank" rel="noreferrer">
-                <Button size="lg" className="w-full rounded-2xl px-8 py-6 text-base sm:w-auto">
+                <Button
+                  size="lg"
+                  className="w-full rounded-2xl px-8 py-6 text-base sm:w-auto"
+                >
                   Começar agora
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
@@ -198,7 +215,7 @@ export const LandingPage = () => {
           </div>
 
           <div className="relative lg:-mt-12 xl:-mt-16">
-            <div className="overflow-hidden rounded-[32px] border border-white/10 bg-transparent shadow-[0_20px_120px_rgba(0,0,0,0.22)]">
+            <div className="overflow-hidden rounded-[32px] border border-white/10 bg-transparent shadow-[0_20px_80px_rgba(0,0,0,0.35)]">
               <img
                 src="/hero.png"
                 alt="Visão principal da plataforma PostHub"
@@ -208,76 +225,81 @@ export const LandingPage = () => {
           </div>
         </section>
 
-        <section id="recursos" className="mx-auto max-w-7xl px-6 py-24 lg:px-8">
-          <div className="max-w-3xl">
-            <HeroBadge>Principais ferramentas da PostHub</HeroBadge>
-            <h2 className="mt-5 text-3xl font-bold tracking-tight text-white sm:text-5xl">
-              Uma plataforma para organizar toda a sua operação de conteúdo.
-            </h2>
-            <p className="mt-5 text-lg leading-8 text-white/65">
-              Explore os principais módulos da PostHub e veja como cada parte da
-              plataforma contribui para uma operação mais organizada, estratégica e previsível.
-            </p>
-          </div>
+        <section id="recursos" className="bg-[#0A1023]/55 py-24">
+          <div className="mx-auto max-w-7xl px-6 lg:px-8">
+            <div className="max-w-3xl">
+              <HeroBadge>Principais ferramentas da PostHub</HeroBadge>
+              <h2 className="mt-5 text-3xl font-bold tracking-tight text-white sm:text-5xl">
+                Uma plataforma para organizar toda a sua operação de conteúdo.
+              </h2>
+              <p className="mt-5 text-lg leading-8 text-white/65">
+                Explore os principais módulos da PostHub e veja como cada parte
+                da plataforma contribui para uma operação mais organizada,
+                estratégica e previsível.
+              </p>
+            </div>
 
-          <div className="mt-10 flex flex-wrap gap-3">
-            {modules.map((module) => {
-              const isActive = module.id === activeModuleId;
+            <div className="mt-10 flex flex-wrap gap-3">
+              {modules.map((module) => {
+                const isActive = module.id === activeModuleId;
 
-              return (
-                <button
-                  key={module.id}
-                  type="button"
-                  onClick={() => setActiveModuleId(module.id)}
-                  className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
-                    isActive
-                      ? 'border-brand bg-brand/15 text-white shadow-[0_0_0_1px_rgba(56,182,255,0.2)]'
-                      : 'border-white/10 bg-white/[0.04] text-white/65 hover:border-white/20 hover:bg-white/[0.06] hover:text-white'
-                  }`}
-                >
-                  {module.label}
-                </button>
-              );
-            })}
-          </div>
+                return (
+                  <button
+                    key={module.id}
+                    type="button"
+                    onClick={() => setActiveModuleId(module.id)}
+                    className={`rounded-full border px-4 py-2.5 text-sm font-medium transition-all duration-200 ${
+                      isActive
+                        ? 'border-brand bg-brand text-[#050816] shadow-[0_0_20px_rgba(56,182,255,0.28)]'
+                        : 'border-white/10 bg-white/[0.04] text-white/65 hover:border-white/20 hover:bg-white/[0.06] hover:text-white'
+                    }`}
+                  >
+                    {module.label}
+                  </button>
+                );
+              })}
+            </div>
 
-          <div className="mt-10 overflow-hidden rounded-[32px] border border-white/10 bg-white/[0.04]">
-            <div className="grid lg:grid-cols-[1.05fr_0.95fr]">
-              <div className="border-b border-white/10 p-6 lg:border-b-0 lg:border-r lg:p-8">
-                <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[#0f152b] shadow-[0_10px_40px_rgba(0,0,0,0.25)]">
-                  <img
-                    src={activeModule.image}
-                    alt={`Tela do módulo ${activeModule.title}`}
-                    className="block h-full min-h-[320px] w-full object-cover object-top"
-                  />
-                </div>
-              </div>
-
-              <div className="p-8 lg:p-10">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand/15 text-brand">
-                  <ActiveIcon className="h-6 w-6" />
+            <div className="mt-10 overflow-hidden rounded-[32px] border border-white/10 bg-[#0B1023]/90 shadow-[0_20px_60px_rgba(0,0,0,0.28)]">
+              <div className="grid lg:grid-cols-[1.08fr_0.92fr]">
+                <div className="border-b border-white/10 p-6 lg:border-b-0 lg:border-r lg:p-8">
+                  <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[#0f152b] shadow-[0_10px_40px_rgba(0,0,0,0.28)]">
+                    <img
+                      src={activeModule.image}
+                      alt={`Tela do módulo ${activeModule.title}`}
+                      className="block h-full min-h-[340px] w-full object-cover object-top"
+                    />
+                  </div>
                 </div>
 
-                <div className="mt-6 inline-flex rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white/60">
-                  Módulo ativo
-                </div>
+                <div className="p-8 lg:p-10">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-brand/20 bg-brand/10 text-brand">
+                    <ActiveIcon className="h-6 w-6" />
+                  </div>
 
-                <h3 className="mt-5 text-3xl font-bold text-white">{activeModule.title}</h3>
+                  <div className="mt-6 inline-flex rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white/60">
+                    Módulo ativo
+                  </div>
 
-                <p className="mt-4 max-w-xl text-base leading-7 text-white/65">
-                  {activeModule.description}
-                </p>
+                  <h3 className="mt-5 text-3xl font-bold tracking-tight text-white">
+                    {activeModule.title}
+                  </h3>
 
-                <div className="mt-8 grid gap-3 sm:grid-cols-2">
-                  {activeModule.topics.map((topic) => (
-                    <div
-                      key={topic}
-                      className="flex items-start gap-3 rounded-2xl border border-white/10 bg-black/10 px-4 py-4 text-sm text-white/75"
-                    >
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
-                      <span>{topic}</span>
-                    </div>
-                  ))}
+                  <p className="mt-4 max-w-xl text-base leading-7 text-white/65">
+                    {activeModule.description}
+                  </p>
+
+                  <div className="mt-8 grid gap-3 sm:grid-cols-2">
+                    {activeModule.topics.map((topic) => (
+                      <div
+                        key={topic}
+                        className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 text-sm text-white/75"
+                      >
+                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
+                        <span>{topic}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -285,28 +307,50 @@ export const LandingPage = () => {
         </section>
 
         <section id="como-funciona" className="mx-auto max-w-7xl px-6 py-24 lg:px-8">
-          <div className="rounded-[32px] border border-white/10 bg-white/[0.04] p-8 lg:p-12">
+          <div className="rounded-[32px] border border-white/10 bg-[#0B1023]/70 p-8 shadow-[0_20px_50px_rgba(0,0,0,0.22)] lg:p-12">
             <div className="max-w-3xl">
               <HeroBadge>Como funciona</HeroBadge>
               <h2 className="mt-5 text-3xl font-bold tracking-tight text-white sm:text-5xl">
                 Uma operação simples para quem quer crescer com conteúdo.
               </h2>
               <p className="mt-5 text-lg leading-8 text-white/65">
-                A lógica da PostHub é transformar a criação de conteúdo em um processo claro:
-                pensar, estruturar, produzir, acompanhar e melhorar.
+                A lógica da PostHub é transformar a criação de conteúdo em um
+                processo claro: pensar, estruturar, produzir, acompanhar e
+                melhorar.
               </p>
             </div>
 
             <div className="mt-12 grid gap-6 lg:grid-cols-4">
               {[
-                ['01', 'Capture ideias', 'Registre oportunidades de conteúdo e organize referências.'],
-                ['02', 'Monte a estratégia', 'Transforme ideias em roteiros, calendário e fluxo de produção.'],
-                ['03', 'Execute com clareza', 'Acompanhe as tarefas no Kanban e reduza o retrabalho.'],
-                ['04', 'Ajuste com dados', 'Olhe para performance e refine a tomada de decisão.'],
+                [
+                  '01',
+                  'Capture ideias',
+                  'Registre oportunidades de conteúdo e organize referências.',
+                ],
+                [
+                  '02',
+                  'Monte a estratégia',
+                  'Transforme ideias em roteiros, calendário e fluxo de produção.',
+                ],
+                [
+                  '03',
+                  'Execute com clareza',
+                  'Acompanhe as tarefas no Kanban e reduza o retrabalho.',
+                ],
+                [
+                  '04',
+                  'Ajuste com dados',
+                  'Olhe para performance e refine a tomada de decisão.',
+                ],
               ].map(([step, title, desc]) => (
-                <div key={step} className="rounded-[24px] border border-white/10 bg-black/10 p-6">
+                <div
+                  key={step}
+                  className="rounded-[24px] border border-white/10 bg-white/[0.03] p-6 transition hover:border-brand/30 hover:bg-white/[0.05]"
+                >
                   <div className="text-sm font-bold text-brand">{step}</div>
-                  <h3 className="mt-4 text-xl font-semibold text-white">{title}</h3>
+                  <h3 className="mt-4 text-xl font-semibold text-white">
+                    {title}
+                  </h3>
                   <p className="mt-3 text-sm leading-6 text-white/60">{desc}</p>
                 </div>
               ))}
@@ -321,34 +365,42 @@ export const LandingPage = () => {
               Uma ferramenta para estruturar a sua operação de conteúdo.
             </h2>
             <p className="mt-5 text-lg leading-8 text-white/65">
-              Pare de depender de vários apps desconectados. Tenha planejamento, produção,
-              organização e acompanhamento em um sistema só.
+              Pare de depender de vários apps desconectados. Tenha planejamento,
+              produção, organização e acompanhamento em um sistema só.
             </p>
           </div>
 
           <div className="mx-auto mt-14 max-w-3xl">
-            <div className="relative overflow-hidden rounded-[32px] border border-brand/30 bg-[linear-gradient(180deg,rgba(59,130,246,0.12),rgba(255,255,255,0.04))] p-[1px] shadow-[0_20px_100px_rgba(59,130,246,0.18)]">
-              <div className="rounded-[31px] bg-[#0a1023] p-8 lg:p-10">
+            <div className="relative overflow-hidden rounded-[32px] border border-brand/30 bg-[linear-gradient(180deg,rgba(59,130,246,0.14),rgba(255,255,255,0.04))] p-[1px] shadow-[0_20px_100px_rgba(59,130,246,0.16)]">
+              <div className="rounded-[31px] bg-[#0A1023] p-8 lg:p-10">
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
                   <div>
                     <div className="inline-flex items-center rounded-full border border-brand/20 bg-brand/10 px-3 py-1 text-xs font-bold text-brand">
                       PLANO PRINCIPAL
                     </div>
-                    <h3 className="mt-5 text-3xl font-bold text-white">PostHub</h3>
+                    <h3 className="mt-5 text-3xl font-bold text-white">
+                      PostHub
+                    </h3>
                     <p className="mt-3 max-w-xl text-base leading-7 text-white/65">
-                      Ideal para social medias, criadores, freelancers e operações que querem
-                      organizar a gestão de redes sociais de forma profissional.
+                      Ideal para social medias, criadores, freelancers e
+                      operações que querem organizar a gestão de redes sociais de
+                      forma profissional.
                     </p>
                   </div>
 
                   <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-6 lg:min-w-[280px]">
-                    <div className="text-sm text-white/55">Assinatura mensal</div>
+                    <div className="text-sm text-white/55">
+                      Assinatura mensal
+                    </div>
                     <div className="mt-2 flex items-end gap-2">
-                      <span className="text-5xl font-extrabold tracking-tight text-white">R$ 147,90</span>
+                      <span className="text-5xl font-extrabold tracking-tight text-white">
+                        R$ 147,90
+                      </span>
                       <span className="pb-1 text-sm text-white/50">/mês</span>
                     </div>
                     <p className="mt-3 text-sm text-white/50">
-                      Acesso à plataforma para organizar e operar seu conteúdo em um só lugar.
+                      Acesso à plataforma para organizar e operar seu conteúdo em
+                      um só lugar.
                     </p>
 
                     <a
@@ -380,9 +432,9 @@ export const LandingPage = () => {
                   ].map((item) => (
                     <div
                       key={item}
-                      className="flex items-start gap-3 rounded-2xl border border-white/10 bg-black/10 px-4 py-4 text-sm text-white/75"
+                      className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 text-sm text-white/75"
                     >
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
                       <span>{item}</span>
                     </div>
                   ))}
@@ -393,7 +445,7 @@ export const LandingPage = () => {
         </section>
 
         <section className="mx-auto max-w-7xl px-6 pb-24 lg:px-8">
-          <div className="rounded-[32px] border border-white/10 bg-white/[0.04] px-8 py-12 text-center">
+          <div className="rounded-[32px] border border-white/10 bg-[#0B1023]/75 px-8 py-12 text-center shadow-[0_20px_60px_rgba(0,0,0,0.22)]">
             <div className="mx-auto mb-5 flex justify-center">
               <img
                 src="/logo-full-white.png"
@@ -406,8 +458,8 @@ export const LandingPage = () => {
               Se conteúdo é parte da sua operação, ele precisa de processo.
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-white/65">
-              A PostHub foi pensada para transformar redes sociais em algo mais organizado,
-              previsível e estratégico.
+              A PostHub foi pensada para transformar redes sociais em algo mais
+              organizado, previsível e estratégico.
             </p>
 
             <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
