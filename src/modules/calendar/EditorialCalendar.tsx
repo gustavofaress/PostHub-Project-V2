@@ -60,7 +60,7 @@ function mapRowToPost(row: EditorialCalendarRow): CalendarPost {
     title: row.title,
     description: row.description ?? '',
     scheduledDate: new Date(row.scheduled_date),
-    platform: 'Content',
+    platform: 'Conteúdo',
     status: row.status ?? 'Planned',
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
@@ -343,7 +343,7 @@ export const EditorialCalendar = () => {
 
       const oldPost = previousPosts.find((post) => post.id === postId);
       const updatedPost = mapRowToPost(data as EditorialCalendarRow);
-      updatedPost.platform = oldPost?.platform || 'Content';
+      updatedPost.platform = oldPost?.platform || 'Conteúdo';
 
       setPosts((prev) =>
         prev.map((post) => (post.id === postId ? updatedPost : post))
@@ -361,9 +361,9 @@ export const EditorialCalendar = () => {
         <div>
           <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
             <CalendarIcon className="h-6 w-6 text-brand" />
-            Editorial Calendar
+            Calendário Editorial
           </h1>
-          <p className="text-text-secondary">Plan and visualize your content schedule.</p>
+          <p className="text-text-secondary">Planeje e visualize sua agenda de conteúdo.</p>
           {activeProfile && (
             <p className="text-sm text-text-secondary mt-1">
               Perfil ativo: <span className="font-medium">{activeProfile.name}</span>
@@ -374,11 +374,11 @@ export const EditorialCalendar = () => {
         <div className="flex gap-3">
           <Button variant="secondary" className="gap-2">
             <Filter className="h-4 w-4" />
-            Filter
+            Filtrar
           </Button>
           <Button className="gap-2" onClick={() => openAddModal()}>
             <Plus className="h-4 w-4" />
-            Schedule Post
+            Agendar Post
           </Button>
         </div>
       </div>
@@ -402,7 +402,7 @@ export const EditorialCalendar = () => {
               onClick={() => setCurrentDate(new Date())}
               className="px-3 py-1 text-sm font-medium hover:bg-gray-100 rounded-lg transition-colors"
             >
-              Today
+              Hoje
             </button>
             <button onClick={nextMonth} className="rounded-lg p-2 hover:bg-gray-100 transition-colors">
               <ChevronRight className="h-5 w-5" />
@@ -411,7 +411,7 @@ export const EditorialCalendar = () => {
         </div>
 
         <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-50">
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+          {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((day) => (
             <div
               key={day}
               className="py-2 text-center text-xs font-bold uppercase tracking-wider text-gray-400"
@@ -485,7 +485,7 @@ export const EditorialCalendar = () => {
 
                         <div className="mt-1 flex items-center justify-between">
                           <span className="text-[8px] text-text-secondary">
-                            {post.platform || 'Content'}
+                            {post.platform || 'Conteúdo'}
                           </span>
                           <div
                             className={cn(
@@ -511,22 +511,22 @@ export const EditorialCalendar = () => {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingPostId ? 'Edit Post' : 'Schedule Post'}
+        title={editingPostId ? 'Editar Post' : 'Agendar Post'}
       >
         <form onSubmit={(e) => void handleSavePost(e)} className="space-y-4">
           <Input
-            label="Post Title"
-            placeholder="What is this post about?"
+            label="Título do Post"
+            placeholder="Sobre o que é este post?"
             value={newPostTitle}
             onChange={(e) => setNewPostTitle(e.target.value)}
             required
           />
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-text-primary">Description</label>
+            <label className="text-sm font-medium text-text-primary">Descrição</label>
             <textarea
               className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 min-h-[80px] resize-y"
-              placeholder="Add notes or description..."
+              placeholder="Adicione observações ou uma descrição..."
               value={newPostDescription}
               onChange={(e) => setNewPostDescription(e.target.value)}
             />
@@ -534,7 +534,7 @@ export const EditorialCalendar = () => {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-text-primary">Date</label>
+              <label className="text-sm font-medium text-text-primary">Data</label>
               <input
                 type="date"
                 className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
@@ -545,7 +545,7 @@ export const EditorialCalendar = () => {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-text-primary">Platform</label>
+              <label className="text-sm font-medium text-text-primary">Plataforma</label>
               <select
                 className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
                 value={newPostPlatform}
@@ -567,10 +567,10 @@ export const EditorialCalendar = () => {
               value={newPostStatus}
               onChange={(e) => setNewPostStatus(e.target.value)}
             >
-              <option value="Draft">Draft</option>
-              <option value="Planned">Planned</option>
-              <option value="Review">Review</option>
-              <option value="Published">Published</option>
+              <option value="Draft">Rascunho</option>
+              <option value="Planned">Planejado</option>
+              <option value="Review">Revisão</option>
+              <option value="Published">Publicado</option>
             </select>
           </div>
 
@@ -583,7 +583,7 @@ export const EditorialCalendar = () => {
                 className="text-red-600 hover:text-red-700 hover:bg-red-50"
                 isLoading={isDeletingPost}
               >
-                Delete
+                Excluir
               </Button>
             ) : (
               <div />
@@ -591,10 +591,10 @@ export const EditorialCalendar = () => {
 
             <div className="flex gap-3">
               <Button variant="secondary" onClick={() => setIsModalOpen(false)} type="button">
-                Cancel
+                Cancelar
               </Button>
               <Button type="submit" isLoading={isSavingPost}>
-                {editingPostId ? 'Save Changes' : 'Schedule'}
+                {editingPostId ? 'Salvar Alterações' : 'Agendar'}
               </Button>
             </div>
           </div>
