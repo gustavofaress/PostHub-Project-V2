@@ -108,14 +108,14 @@ export const LandingPage = () => {
       </nav>
 
       <main>
-        <section className="mx-auto grid max-w-7xl gap-14 px-6 pb-20 pt-14 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:px-8 lg:pt-20">
+        <section className="mx-auto grid max-w-7xl gap-8 px-6 pb-20 pt-14 lg:grid-cols-[1fr_0.95fr] lg:items-center lg:px-8 lg:pt-20 xl:gap-10">
           <div>
             <HeroBadge>
               <Sparkles className="h-3.5 w-3.5" />
               Organização, estratégia e execução no mesmo sistema
             </HeroBadge>
 
-            <h1 className="mt-6 max-w-4xl text-4xl font-extrabold leading-[1.02] tracking-tight text-white sm:text-5xl lg:text-7xl">
+            <h1 className="mt-6 max-w-4xl text-4xl font-extrabold leading-[0.98] tracking-tight text-white sm:text-5xl lg:text-7xl">
               Pare de criar conteúdo no improviso.
               <span className="bg-gradient-to-r from-white via-cyan-200 to-brand bg-clip-text text-transparent">
                 {' '}Transforme sua operação em um processo.
@@ -175,16 +175,13 @@ export const LandingPage = () => {
             </div>
           </div>
 
-          <div className="relative">
-            <div className="absolute inset-0 rounded-[32px] bg-gradient-to-br from-brand/20 via-cyan-400/10 to-transparent blur-3xl" />
-            <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-white/[0.04] p-3 shadow-[0_20px_120px_rgba(0,0,0,0.45)]">
-              <div className="overflow-hidden rounded-[28px] border border-white/10 bg-[#0b1023]">
-                <img
-                  src="/hero.png"
-                  alt="Visão principal da plataforma PostHub"
-                  className="h-full w-full object-cover object-center"
-                />
-              </div>
+          <div className="relative lg:pl-0">
+            <div className="overflow-hidden rounded-[32px] border border-white/10 bg-transparent shadow-[0_20px_120px_rgba(0,0,0,0.25)]">
+              <img
+                src="/hero.png"
+                alt="Visão principal da plataforma PostHub"
+                className="block h-auto w-full object-contain"
+              />
             </div>
           </div>
         </section>
