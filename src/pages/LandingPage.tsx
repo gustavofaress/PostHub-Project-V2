@@ -15,7 +15,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { Button } from '../shared/components/Button';
 
-const STRIPE_CHECKOUT_URL = 'https://buy.stripe.com/SEU_LINK_AQUI';
+const STRIPE_CHECKOUT_URL = 'https://buy.stripe.com/4gMcN671V9YHgknapodMI02';
 
 const modules = [
   {
@@ -415,11 +415,11 @@ export const LandingPage = () => {
                   </div>
 
                   <div className="order-1 lg:order-2 lg:col-span-7">
-                    <div className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-white/10 bg-[#050816] shadow-2xl md:aspect-[16/10]">
+                    <div className="relative flex items-center justify-center rounded-2xl border border-white/10 bg-[#050816] p-4 shadow-2xl md:p-6">
                       <img
                         src={activeModule.image}
                         alt={activeModule.title}
-                        className="h-full w-full object-cover"
+                        className="h-auto w-full object-contain max-h-[420px] md:max-h-[520px]"
                       />
                       <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10" />
                     </div>
