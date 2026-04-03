@@ -7,8 +7,6 @@ import {
   Trello,
   Settings,
   User,
-  LogOut,
-  Plus,
   CheckCircle,
   BarChart3,
   MessageSquare,
@@ -18,7 +16,8 @@ import {
   HelpCircle,
   CreditCard,
   Rocket,
-  TrendingUp
+  TrendingUp,
+  ShieldAlert,
 } from 'lucide-react';
 
 export type WorkspaceModule =
@@ -38,7 +37,8 @@ export type WorkspaceModule =
   | 'settings'
   | 'account'
   | 'credits'
-  | 'support';
+  | 'support'
+  | 'admin';
 
 export interface Profile {
   id: string;
@@ -48,9 +48,24 @@ export interface Profile {
 }
 
 export const MOCK_PROFILES: Profile[] = [
-  { id: '1', name: 'Acme Corp', handle: '@acme_corp', image: 'https://picsum.photos/seed/acme/100/100' },
-  { id: '2', name: 'Personal Brand', handle: '@gustavo_fares', image: 'https://picsum.photos/seed/gustavo/100/100' },
-  { id: '3', name: 'Tech Agency', handle: '@tech_agency', image: 'https://picsum.photos/seed/tech/100/100' },
+  {
+    id: '1',
+    name: 'Acme Corp',
+    handle: '@acme_corp',
+    image: 'https://picsum.photos/seed/acme/100/100',
+  },
+  {
+    id: '2',
+    name: 'Personal Brand',
+    handle: '@gustavo_fares',
+    image: 'https://picsum.photos/seed/gustavo/100/100',
+  },
+  {
+    id: '3',
+    name: 'Tech Agency',
+    handle: '@tech_agency',
+    image: 'https://picsum.photos/seed/tech/100/100',
+  },
 ];
 
 export interface NavSubItem {
@@ -86,8 +101,8 @@ export const NAV_GROUPS: NavGroup[] = [
           { label: 'Welcome Tutorial', path: '/workspace/onboarding' },
           { label: 'Connect Accounts', path: '/workspace/onboarding?tab=accounts' },
           { label: 'Invite Team', path: '/workspace/onboarding?tab=team' },
-          { label: 'Brand Kit Setup', path: '/workspace/onboarding?tab=brand' }
-        ]
+          { label: 'Brand Kit Setup', path: '/workspace/onboarding?tab=brand' },
+        ],
       },
       {
         id: 'dashboard',
@@ -99,8 +114,8 @@ export const NAV_GROUPS: NavGroup[] = [
           { label: 'Recent Activity', path: '/workspace/dashboard' },
           { label: 'Upcoming Deadlines', path: '/workspace/dashboard?tab=deadlines' },
           { label: 'Quick Actions', path: '/workspace/dashboard?tab=actions' },
-          { label: 'Team Updates', path: '/workspace/dashboard?tab=updates' }
-        ]
+          { label: 'Team Updates', path: '/workspace/dashboard?tab=updates' },
+        ],
       },
       {
         id: 'consultant',
@@ -112,10 +127,10 @@ export const NAV_GROUPS: NavGroup[] = [
           { label: 'New Strategy Session', path: '/workspace/consultant' },
           { label: 'Chat History', path: '/workspace/consultant?tab=history' },
           { label: 'Saved Prompts', path: '/workspace/consultant?tab=prompts' },
-          { label: 'Brand Voice Settings', path: '/workspace/consultant?tab=voice' }
-        ]
+          { label: 'Brand Voice Settings', path: '/workspace/consultant?tab=voice' },
+        ],
       },
-    ]
+    ],
   },
   {
     label: 'Content Creation',
@@ -131,8 +146,8 @@ export const NAV_GROUPS: NavGroup[] = [
           { label: 'AI Generation', path: '/workspace/scripts?tab=ai' },
           { label: 'Saved Drafts', path: '/workspace/scripts?tab=saved' },
           { label: 'Hook Library', path: '/workspace/scripts?tab=hooks' },
-          { label: 'Templates', path: '/workspace/scripts?tab=templates' }
-        ]
+          { label: 'Templates', path: '/workspace/scripts?tab=templates' },
+        ],
       },
       {
         id: 'ideas',
@@ -144,8 +159,8 @@ export const NAV_GROUPS: NavGroup[] = [
           { label: 'Idea Bank', path: '/workspace/ideas' },
           { label: 'Tags & Priorities', path: '/workspace/ideas?tab=tags' },
           { label: 'Content Inspiration', path: '/workspace/ideas?tab=inspiration' },
-          { label: 'Trend Alerts', path: '/workspace/ideas?tab=trends' }
-        ]
+          { label: 'Trend Alerts', path: '/workspace/ideas?tab=trends' },
+        ],
       },
       {
         id: 'approval',
@@ -157,10 +172,10 @@ export const NAV_GROUPS: NavGroup[] = [
           { label: 'Send Post for Review', path: '/workspace/approval' },
           { label: 'Public Approval Link', path: '/workspace/approval?tab=links' },
           { label: 'Reviewer Feedback', path: '/workspace/approval?tab=feedback' },
-          { label: 'Approval History', path: '/workspace/approval?tab=history' }
-        ]
+          { label: 'Approval History', path: '/workspace/approval?tab=history' },
+        ],
       },
-    ]
+    ],
   },
   {
     label: 'Management',
@@ -175,8 +190,8 @@ export const NAV_GROUPS: NavGroup[] = [
           { label: 'Editorial Planning', path: '/workspace/calendar' },
           { label: 'Monthly View', path: '/workspace/calendar?view=month' },
           { label: 'Content Organization', path: '/workspace/calendar?view=org' },
-          { label: 'Campaigns', path: '/workspace/calendar?view=campaigns' }
-        ]
+          { label: 'Campaigns', path: '/workspace/calendar?view=campaigns' },
+        ],
       },
       {
         id: 'kanban',
@@ -188,8 +203,8 @@ export const NAV_GROUPS: NavGroup[] = [
           { label: 'Active Sprints', path: '/workspace/kanban' },
           { label: 'Review Stage', path: '/workspace/kanban?tab=review' },
           { label: 'Ready to Publish', path: '/workspace/kanban?tab=ready' },
-          { label: 'Archived Tasks', path: '/workspace/kanban?tab=archived' }
-        ]
+          { label: 'Archived Tasks', path: '/workspace/kanban?tab=archived' },
+        ],
       },
       {
         id: 'scheduler',
@@ -201,10 +216,10 @@ export const NAV_GROUPS: NavGroup[] = [
           { label: 'Publishing Queue', path: '/workspace/scheduler' },
           { label: 'Draft Posts', path: '/workspace/scheduler?tab=drafts' },
           { label: 'Time Slots', path: '/workspace/scheduler?tab=slots' },
-          { label: 'Failed Posts', path: '/workspace/scheduler?tab=failed' }
-        ]
+          { label: 'Failed Posts', path: '/workspace/scheduler?tab=failed' },
+        ],
       },
-    ]
+    ],
   },
   {
     label: 'Strategy & Growth',
@@ -219,13 +234,14 @@ export const NAV_GROUPS: NavGroup[] = [
           { label: 'Cross-Platform Overview', path: '/workspace/performance' },
           { label: 'Audience Demographics', path: '/workspace/performance?tab=audience' },
           { label: 'Top Performing Posts', path: '/workspace/performance?tab=top' },
-          { label: 'Custom Reports', path: '/workspace/performance?tab=reports' }
-        ]
+          { label: 'Custom Reports', path: '/workspace/performance?tab=reports' },
+        ],
       },
       {
         id: 'reports',
         label: 'Reports',
-        description: 'Build professional white-label client reports, configure periods, choose sections, preview the report and export it as PDF.',
+        description:
+          'Build professional white-label client reports, configure periods, choose sections, preview the report and export it as PDF.',
         icon: TrendingUp,
         path: '/workspace/reports',
         subItems: [
@@ -233,8 +249,8 @@ export const NAV_GROUPS: NavGroup[] = [
           { label: 'Period Selection', path: '/workspace/reports?tab=period' },
           { label: 'Included Sections', path: '/workspace/reports?tab=sections' },
           { label: 'Preview & Notes', path: '/workspace/reports?tab=preview' },
-          { label: 'Export PDF', path: '/workspace/reports?tab=export' }
-        ]
+          { label: 'Export PDF', path: '/workspace/reports?tab=export' },
+        ],
       },
       {
         id: 'references',
@@ -246,10 +262,10 @@ export const NAV_GROUPS: NavGroup[] = [
           { label: 'Saved Links', path: '/workspace/references' },
           { label: 'Competitor Watchlist', path: '/workspace/references?tab=competitors' },
           { label: 'Audio Library', path: '/workspace/references?tab=audio' },
-          { label: 'Visual Assets', path: '/workspace/references?tab=assets' }
-        ]
+          { label: 'Visual Assets', path: '/workspace/references?tab=assets' },
+        ],
       },
-    ]
+    ],
   },
   {
     label: 'System',
@@ -263,8 +279,8 @@ export const NAV_GROUPS: NavGroup[] = [
         subItems: [
           { label: 'Social Platforms', path: '/workspace/integrations' },
           { label: 'Cloud Storage', path: '/workspace/integrations?tab=storage' },
-          { label: 'API Webhooks', path: '/workspace/integrations?tab=webhooks' }
-        ]
+          { label: 'API Webhooks', path: '/workspace/integrations?tab=webhooks' },
+        ],
       },
       {
         id: 'settings',
@@ -276,8 +292,8 @@ export const NAV_GROUPS: NavGroup[] = [
           { label: 'General Preferences', path: '/workspace/settings' },
           { label: 'Team Management', path: '/workspace/settings?tab=team' },
           { label: 'Billing & Plans', path: '/workspace/settings?tab=billing' },
-          { label: 'Notifications', path: '/workspace/settings?tab=notifications' }
-        ]
+          { label: 'Notifications', path: '/workspace/settings?tab=notifications' },
+        ],
       },
       {
         id: 'account',
@@ -288,8 +304,8 @@ export const NAV_GROUPS: NavGroup[] = [
         subItems: [
           { label: 'Profile Details', path: '/workspace/account' },
           { label: 'Security & Password', path: '/workspace/account?tab=security' },
-          { label: 'Active Sessions', path: '/workspace/account?tab=sessions' }
-        ]
+          { label: 'Active Sessions', path: '/workspace/account?tab=sessions' },
+        ],
       },
       {
         id: 'credits',
@@ -300,8 +316,8 @@ export const NAV_GROUPS: NavGroup[] = [
         subItems: [
           { label: 'Current Balance', path: '/workspace/credits' },
           { label: 'Usage History', path: '/workspace/credits?tab=history' },
-          { label: 'Upgrade Plan', path: '/workspace/credits?tab=upgrade' }
-        ]
+          { label: 'Upgrade Plan', path: '/workspace/credits?tab=upgrade' },
+        ],
       },
       {
         id: 'support',
@@ -313,9 +329,22 @@ export const NAV_GROUPS: NavGroup[] = [
           { label: 'Knowledge Base', path: '/workspace/support' },
           { label: 'Video Tutorials', path: '/workspace/support?tab=videos' },
           { label: 'Contact Support', path: '/workspace/support?tab=contact' },
-          { label: 'Feature Requests', path: '/workspace/support?tab=requests' }
-        ]
+          { label: 'Feature Requests', path: '/workspace/support?tab=requests' },
+        ],
       },
-    ]
-  }
+    ],
+  },
+  {
+    label: 'Admin',
+    items: [
+      {
+        id: 'admin',
+        label: 'Admin Dashboard',
+        description: 'Manage users and monitor onboarding progress.',
+        icon: ShieldAlert,
+        path: '/workspace/admin',
+        subItems: [{ label: 'User Management', path: '/workspace/admin' }],
+      },
+    ],
+  },
 ];

@@ -1,184 +1,462 @@
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Rocket, 
-  CheckCircle2, 
-  ArrowRight, 
-  LayoutDashboard, 
-  FileText, 
-  CheckCircle, 
+import {
+  Rocket,
+  LayoutDashboard,
+  FileText,
   Calendar,
-  Zap
+  Zap,
+  Lightbulb,
+  Check,
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Card } from '../../shared/components/Card';
 import { Button } from '../../shared/components/Button';
 import { cn } from '../../shared/utils/cn';
-import { motion, AnimatePresence } from 'motion/react';
 import { useApp } from '../../app/context/AppContext';
+import { useAuth } from '../../app/context/AuthContext';
+import { onboardingService } from '../../services/onboarding.service';
 
-const STEPS = [
+const QUIZ_QUESTIONS = [
   {
-    id: 'profile',
-    title: 'Complete seu perfil',
-    description: 'Adicione os detalhes da sua marca e os @ das suas redes sociais para personalizar sua experiência.',
-    icon: Zap,
-    completed: true,
+    id: 'work_model',
+    title: 'Qual é seu modelo de trabalho hoje?',
+    options: [
+      'Social Media Autônomo',
+      'Agência de Marketing',
+      'Equipe de marketing interna',
+      'Gestor de empresa',
+      'Criador de Conteúdo Profissional',
+    ],
   },
   {
-    id: 'integrations',
-    title: 'Conecte suas contas',
-    description: 'Vincule suas contas do Instagram, TikTok e YouTube para começar a gerenciar conteúdo.',
-    icon: Zap,
-    completed: false,
+    id: 'operation_size',
+    title: 'Qual o tamanho da sua operação?',
+    options: ['1 a 5 clientes', '6 a 10 clientes', '11 a 20 clientes', '20+ clientes'],
   },
   {
-    id: 'first-script',
-    title: 'Gere seu primeiro roteiro',
-    description: 'Use nosso Gerador de Roteiros com IA para criar conteúdos de alta conversão em segundos.',
+    id: 'current_process',
+    title: 'Como está sua operação de conteúdo hoje?',
+    options: [
+      'Uso algumas ferramentas genéricas',
+      'Uso planilhas para gerir a operação',
+      'Gerencio tudo pelo WhatsApp / mensagens',
+      'Ainda não tenho um processo estruturado',
+    ],
+  },
+] as const;
+
+const CHECKLIST_STEPS = [
+  {
+    id: 'idea',
+    title: 'Criar sua primeira ideia',
+    description: 'Comece registrando uma ideia de conteúdo',
+    cta: 'Criar ideia',
+    icon: Lightbulb,
+    module: 'ideas',
+    path: '/workspace/ideas',
+  },
+  {
+    id: 'structure',
+    title: 'Estruturar seu conteúdo',
+    description: 'Transforme sua ideia em uma peça de conteúdo mais organizada',
+    cta: 'Estruturar conteúdo',
     icon: FileText,
-    completed: false,
+    module: 'scripts',
+    path: '/workspace/scripts',
   },
   {
-    id: 'approval',
-    title: 'Configure o fluxo de aprovação',
-    description: 'Convide seus clientes ou membros da equipe para revisar e aprovar seu conteúdo.',
-    icon: CheckCircle,
-    completed: false,
+    id: 'calendar',
+    title: 'Organizar no calendário',
+    description: 'Leve seu conteúdo para o calendário editorial',
+    cta: 'Abrir calendário',
+    icon: Calendar,
+    module: 'calendar',
+    path: '/workspace/calendar',
   },
-];
+  {
+    id: 'finish',
+    title: 'Finalizar configuração',
+    description: 'Conclua seu primeiro fluxo dentro da plataforma',
+    cta: 'Ir para dashboard',
+    icon: LayoutDashboard,
+    module: 'dashboard',
+    path: '/workspace/dashboard',
+  },
+] as const;
+
+type QuizAnswerKey = (typeof QUIZ_QUESTIONS)[number]['id'];
+
+type QuizAnswers = {
+  work_model: string;
+  operation_size: string;
+  current_process: string;
+};
 
 export const Onboarding = () => {
-  const [activeStep, setActiveStep] = React.useState(1);
   const navigate = useNavigate();
   const { setActiveModule } = useApp();
+  const { user } = useAuth();
 
-  const handleFinish = () => {
-    setActiveModule('dashboard');
-    navigate('/workspace/dashboard');
+  const [showQuiz, setShowQuiz] = React.useState(!user?.onboarding?.quiz_completed);
+  const [isSavingQuiz, setIsSavingQuiz] = React.useState(false);
+  const [quizStep, setQuizStep] = React.useState(-1);
+  const [quizAnswers, setQuizAnswers] = React.useState<QuizAnswers>({
+    work_model: user?.onboarding?.work_model ?? '',
+    operation_size: user?.onboarding?.operation_size ?? '',
+    current_process: user?.onboarding?.current_process ?? '',
+  });
+  const [completedSteps, setCompletedSteps] = React.useState<string[]>([]);
+
+  React.useEffect(() => {
+    setShowQuiz(!user?.onboarding?.quiz_completed);
+  }, [user?.onboarding?.quiz_completed]);
+
+  React.useEffect(() => {
+    setQuizAnswers({
+      work_model: user?.onboarding?.work_model ?? '',
+      operation_size: user?.onboarding?.operation_size ?? '',
+      current_process: user?.onboarding?.current_process ?? '',
+    });
+  }, [
+    user?.onboarding?.work_model,
+    user?.onboarding?.operation_size,
+    user?.onboarding?.current_process,
+  ]);
+
+  const currentQuestion = quizStep >= 0 ? QUIZ_QUESTIONS[quizStep] : null;
+  const selectedOption = currentQuestion
+    ? quizAnswers[currentQuestion.id as QuizAnswerKey]
+    : null;
+
+  const getPersonalizedMessage = React.useCallback(() => {
+    if (
+      quizAnswers.operation_size === '11 a 20 clientes' ||
+      quizAnswers.operation_size === '20+ clientes'
+    ) {
+      return 'Montamos um fluxo pensado para quem gerencia múltiplos clientes.';
+    }
+
+    if (quizAnswers.work_model === 'Criador de Conteúdo Profissional') {
+      return 'Montamos um fluxo focado em acelerar sua produção de conteúdo.';
+    }
+
+    if (quizAnswers.work_model === 'Agência de Marketing') {
+      return 'Montamos um fluxo para dar mais clareza e escala à sua operação com clientes.';
+    }
+
+    return 'Montamos um fluxo passo a passo para estruturar sua operação.';
+  }, [quizAnswers.operation_size, quizAnswers.work_model]);
+
+  const handleOptionSelect = (option: string) => {
+    if (!currentQuestion) return;
+
+    setQuizAnswers((prev) => ({
+      ...prev,
+      [currentQuestion.id]: option,
+    }));
+
+    if (quizStep < QUIZ_QUESTIONS.length - 1) {
+      window.setTimeout(() => {
+        setQuizStep((prev) => prev + 1);
+      }, 250);
+    }
   };
 
-  const handleOpenGenerator = () => {
-    setActiveModule('scripts');
-    navigate('/workspace/scripts');
+  const handleFinishQuiz = async () => {
+    if (!user || isSavingQuiz) return;
+
+    const hasAllAnswers =
+      quizAnswers.work_model && quizAnswers.operation_size && quizAnswers.current_process;
+
+    if (!hasAllAnswers) return;
+
+    try {
+      setIsSavingQuiz(true);
+      await onboardingService.saveQuizAnswers(user.id, quizAnswers);
+      setShowQuiz(false);
+    } catch (error) {
+      console.error('Erro ao salvar quiz:', error);
+    } finally {
+      setIsSavingQuiz(false);
+    }
+  };
+
+  const handleStepAction = async (step: (typeof CHECKLIST_STEPS)[number]) => {
+    if (step.id === 'finish') {
+      try {
+        if (user) {
+          await onboardingService.markSetupCompleted(user.id);
+        }
+      } catch (error) {
+        console.error('Erro ao finalizar setup:', error);
+      }
+
+      setActiveModule('dashboard');
+      navigate('/workspace/dashboard');
+      return;
+    }
+
+    if (!completedSteps.includes(step.id)) {
+      setCompletedSteps((prev) => [...prev, step.id]);
+    }
+
+    setActiveModule(step.module);
+    navigate(step.path);
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-12 py-8">
-      <div className="text-center space-y-4">
-        <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-brand/10 text-brand mb-4">
-          <Rocket className="h-8 w-8" />
-        </div>
-        <h1 className="text-4xl font-bold tracking-tight text-text-primary">Bem-vindo ao PostHub!</h1>
-        <p className="text-lg text-text-secondary max-w-2xl mx-auto">
-          Vamos configurar tudo para o seu sucesso. Complete estas etapas para liberar todo o potencial do seu workspace de redes sociais.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Progress Sidebar */}
-        <div className="lg:col-span-1 space-y-4">
-          <Card className="p-6">
-            <h3 className="font-bold text-text-primary mb-6 flex items-center gap-2">
-              <Zap className="h-4 w-4 text-brand" />
-              Seu Progresso
-            </h3>
-            <div className="space-y-6">
-              {STEPS.map((step, index) => (
-                <div key={step.id} className="relative flex items-start gap-4">
-                  {index !== STEPS.length - 1 && (
-                    <div className="absolute left-2.5 top-6 bottom-[-24px] w-0.5 bg-gray-100" />
-                  )}
-                  <div className={cn(
-                    "relative z-10 flex h-5 w-5 items-center justify-center rounded-full border-2 transition-all duration-300",
-                    step.completed 
-                      ? "bg-brand border-brand text-white" 
-                      : index === activeStep 
-                        ? "border-brand bg-white" 
-                        : "border-gray-200 bg-white"
-                  )}>
-                    {step.completed ? <CheckCircle2 className="h-3 w-3" /> : <div className={cn("h-1.5 w-1.5 rounded-full", index === activeStep ? "bg-brand" : "bg-transparent")} />}
-                  </div>
-                  <div className="flex-1">
-                    <p className={cn(
-                      "text-sm font-bold transition-colors",
-                      step.completed ? "text-text-primary" : index === activeStep ? "text-brand" : "text-gray-400"
-                    )}>
-                      {step.title}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          <Card className="bg-brand/5 border-brand/10 p-6">
-            <h4 className="font-bold text-brand mb-2">Precisa de ajuda?</h4>
-            <p className="text-xs text-text-secondary mb-4">Nosso time de suporte está disponível 24/7 para ajudar você a começar.</p>
-            <Button variant="outline" size="sm" className="w-full text-brand border-brand hover:bg-brand hover:text-white">
-              Falar com o Suporte
-            </Button>
-          </Card>
-        </div>
-
-        {/* Active Step Content */}
-        <div className="lg:col-span-2">
-          <AnimatePresence mode="wait">
+    <div className="min-h-full bg-[#F9FAFB]">
+      <AnimatePresence>
+        {showQuiz && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4"
+          >
             <motion.div
-              key={activeStep}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
+              initial={{ scale: 0.96, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.96, opacity: 0 }}
+              className="w-full max-w-[480px] overflow-hidden rounded-xl bg-white shadow-2xl"
             >
-              <Card className="p-8 min-h-[400px] flex flex-col">
-                <div className="flex-1">
-                  <div className="h-12 w-12 rounded-xl bg-brand/10 text-brand flex items-center justify-center mb-6">
-                    {React.createElement(STEPS[activeStep].icon, { className: "h-6 w-6" })}
+              <div className="h-1.5 w-full bg-gray-100">
+                <div
+                  className="h-full bg-[#38B6FF] transition-all duration-500 ease-out"
+                  style={{
+                    width:
+                      quizStep === -1
+                        ? '0%'
+                        : `${((quizStep + 1) / QUIZ_QUESTIONS.length) * 100}%`,
+                  }}
+                />
+              </div>
+
+              <div className="p-8">
+                {quizStep === -1 ? (
+                  <motion.div
+                    key="intro"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="space-y-6 py-4 text-center"
+                  >
+                    <div className="mx-auto mb-2 inline-flex h-20 w-20 items-center justify-center rounded-full bg-[#38B6FF]/10 text-[#38B6FF]">
+                      <Rocket className="h-10 w-10" />
+                    </div>
+
+                    <div className="space-y-3">
+                      <span className="text-xs font-bold uppercase tracking-wider text-[#38B6FF]">
+                        Configuração inicial
+                      </span>
+                      <h2 className="text-2xl font-bold leading-tight text-[#111827]">
+                        Queremos preparar a melhor experiência para o seu PostHub
+                      </h2>
+                      <p className="text-[#6B7280]">Leva menos de 2 minutos</p>
+                    </div>
+
+                    <Button
+                      className="mt-8 w-full rounded-xl bg-[#38B6FF] py-6 text-lg text-white hover:bg-[#38B6FF]/90"
+                      onClick={() => setQuizStep(0)}
+                    >
+                      Começar
+                    </Button>
+                  </motion.div>
+                ) : (
+                  <motion.div key={`quiz-${quizStep}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                    <div className="mb-6">
+                      <p className="mb-2 text-sm font-medium text-gray-500">
+                        Etapa {quizStep + 1} de {QUIZ_QUESTIONS.length}
+                      </p>
+                      <h2 className="text-2xl font-bold text-[#111827]">
+                        {currentQuestion?.title}
+                      </h2>
+                    </div>
+
+                    <div className="relative min-h-[280px]">
+                      <AnimatePresence mode="wait">
+                        <motion.div
+                          key={quizStep}
+                          initial={{ opacity: 0, x: 10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: -10 }}
+                          transition={{ duration: 0.2 }}
+                          className="absolute inset-0 space-y-3"
+                        >
+                          {currentQuestion?.options.map((option) => {
+                            const isSelected = selectedOption === option;
+
+                            return (
+                              <button
+                                key={option}
+                                type="button"
+                                onClick={() => handleOptionSelect(option)}
+                                className={cn(
+                                  'w-full rounded-lg border px-5 py-4 text-left transition-all duration-200',
+                                  isSelected
+                                    ? 'border-[#38B6FF] bg-[#38B6FF]/5'
+                                    : 'border-gray-200 bg-white hover:border-[#38B6FF]'
+                                )}
+                              >
+                                <span
+                                  className={cn(
+                                    'text-base font-medium',
+                                    isSelected ? 'text-[#38B6FF]' : 'text-gray-700'
+                                  )}
+                                >
+                                  {option}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </motion.div>
+                      </AnimatePresence>
+                    </div>
+
+                    {quizStep === QUIZ_QUESTIONS.length - 1 && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mt-8 border-t border-gray-100 pt-6"
+                      >
+                        <Button
+                          className="w-full rounded-xl bg-[#38B6FF] py-6 text-lg text-white hover:bg-[#38B6FF]/90"
+                          disabled={!selectedOption || isSavingQuiz}
+                          isLoading={isSavingQuiz}
+                          onClick={handleFinishQuiz}
+                        >
+                          Continuar setup
+                        </Button>
+                      </motion.div>
+                    )}
+                  </motion.div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="mx-auto max-w-4xl space-y-8 px-4 py-12">
+        <div className="space-y-4 text-center">
+          <div className="mb-2 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-[#38B6FF]/10 text-[#38B6FF]">
+            <Rocket className="h-8 w-8" />
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">
+            Vamos montar sua operação de conteúdo
+          </h1>
+          <p className="mx-auto max-w-2xl text-lg text-gray-500">
+            Siga estes passos para configurar seu workspace e aprender a usar o PostHub
+          </p>
+        </div>
+
+        {!showQuiz && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-start gap-4 rounded-xl border border-[#38B6FF]/20 bg-[#38B6FF]/5 p-4"
+          >
+            <div className="mt-0.5 shrink-0 rounded-lg bg-[#38B6FF]/10 p-2 text-[#38B6FF]">
+              <Zap className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-900">Personalizado para você</h3>
+              <p className="mt-1 text-sm text-gray-600">{getPersonalizedMessage()}</p>
+            </div>
+          </motion.div>
+        )}
+
+        <Card className="p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-bold text-gray-900">Seu progresso</h2>
+            <span className="text-sm font-medium text-[#38B6FF]">
+              {completedSteps.length}/4 etapas concluídas
+            </span>
+          </div>
+
+          <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
+            <div
+              className="h-full rounded-full bg-[#38B6FF] transition-all duration-500 ease-out"
+              style={{ width: `${(completedSteps.length / CHECKLIST_STEPS.length) * 100}%` }}
+            />
+          </div>
+        </Card>
+
+        <div className="space-y-4">
+          {CHECKLIST_STEPS.map((step, index) => {
+            const isCompleted = completedSteps.includes(step.id);
+            const isNext =
+              !isCompleted &&
+              (index === 0 || completedSteps.includes(CHECKLIST_STEPS[index - 1].id));
+
+            return (
+              <Card
+                key={step.id}
+                className={cn(
+                  'p-6 transition-all duration-300',
+                  isCompleted
+                    ? 'border-gray-200 bg-gray-50/50'
+                    : isNext
+                      ? 'border-[#38B6FF] shadow-md shadow-[#38B6FF]/5'
+                      : 'opacity-75'
+                )}
+              >
+                <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
+                  <div className="flex flex-1 items-center gap-4">
+                    <div
+                      className={cn(
+                        'flex h-12 w-12 shrink-0 items-center justify-center rounded-full transition-colors',
+                        isCompleted
+                          ? 'bg-green-100 text-green-600'
+                          : isNext
+                            ? 'bg-[#38B6FF]/10 text-[#38B6FF]'
+                            : 'bg-gray-100 text-gray-400'
+                      )}
+                    >
+                      {isCompleted ? <Check className="h-6 w-6" /> : <step.icon className="h-6 w-6" />}
+                    </div>
+
+                    <div>
+                      <h3
+                        className={cn(
+                          'text-lg font-bold',
+                          isCompleted ? 'text-gray-500 line-through' : 'text-gray-900'
+                        )}
+                      >
+                        {step.title}
+                      </h3>
+                      <p className="mt-1 text-gray-500">{step.description}</p>
+                    </div>
                   </div>
-                  <h2 className="text-2xl font-bold text-text-primary mb-4">{STEPS[activeStep].title}</h2>
-                  <p className="text-text-secondary mb-8 leading-relaxed">
-                    {STEPS[activeStep].description}
-                  </p>
 
-                  {activeStep === 1 && (
-                    <div className="grid grid-cols-2 gap-4 mb-8">
-                      {['Instagram', 'TikTok', 'YouTube', 'LinkedIn'].map(p => (
-                        <div key={p} className="flex items-center justify-between p-4 rounded-xl border border-gray-100 hover:border-brand hover:bg-brand/5 transition-all cursor-pointer group">
-                          <span className="font-medium text-text-primary">{p}</span>
-                          <Button variant="ghost" size="sm" className="text-brand group-hover:bg-brand group-hover:text-white">Conectar</Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {activeStep === 2 && (
-                    <div className="bg-gray-50 rounded-xl p-6 border border-gray-100 mb-8">
-                      <div className="flex items-center gap-4 mb-4">
-                        <div className="h-10 w-10 rounded-lg bg-white shadow-sm flex items-center justify-center">
-                          <FileText className="h-5 w-5 text-brand" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-text-primary">Gerador de Roteiros com IA</p>
-                          <p className="text-xs text-text-secondary">Crie roteiros para qualquer plataforma</p>
-                        </div>
-                      </div>
-                      <Button className="w-full" onClick={handleOpenGenerator}>Abrir Gerador</Button>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex items-center justify-between pt-8 border-t border-gray-100">
-                  <Button variant="ghost" onClick={() => setActiveStep(Math.max(0, activeStep - 1))} disabled={activeStep === 0}>
-                    Anterior
-                  </Button>
-                  <Button className="gap-2" onClick={() => activeStep === STEPS.length - 1 ? handleFinish() : setActiveStep(Math.min(STEPS.length - 1, activeStep + 1))}>
-                    {activeStep === STEPS.length - 1 ? 'Finalizar Configuração' : 'Continuar'}
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
+                  <div className="sm:shrink-0">
+                    {isCompleted ? (
+                      <Button
+                        variant="outline"
+                        className="w-full border-green-200 text-green-600 hover:bg-green-50 sm:w-auto"
+                        onClick={() => handleStepAction(step)}
+                      >
+                        Refazer etapa
+                      </Button>
+                    ) : (
+                      <Button
+                        className={cn(
+                          'w-full sm:w-auto',
+                          isNext ? 'bg-[#38B6FF] text-white hover:bg-[#38B6FF]/90' : ''
+                        )}
+                        variant={isNext ? 'primary' : 'outline'}
+                        disabled={!isNext}
+                        onClick={() => handleStepAction(step)}
+                      >
+                        {step.cta}
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </Card>
-            </motion.div>
-          </AnimatePresence>
+            );
+          })}
         </div>
       </div>
     </div>
