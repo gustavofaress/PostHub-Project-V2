@@ -1,11 +1,25 @@
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../shared/utils/supabase';
+import { onboardingService } from '../../services/onboarding.service';
+import { userService } from '../../services/user.service';
+
+interface UserOnboardingState {
+  work_model: string | null;
+  operation_size: string | null;
+  current_process: string | null;
+  quiz_completed: boolean;
+  setup_completed: boolean;
+}
 
 interface User {
   id: string;
   name: string;
   email: string;
+  currentPlan?: string | null;
+  isAdmin?: boolean;
+  trialExpiresAt?: string | null;
+  onboarding?: UserOnboardingState | null;
 }
 
 interface AuthContextType {
@@ -37,6 +51,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
+  const buildAppUser = React.useCallback(
+    async (sessionUser: any): Promise<User> => {
+      const baseUser = mapSessionUser(sessionUser);
+
+      if (!supabase) {
+        return baseUser;
+      }
+
+      try {
+        const [usuarioRecord, onboarding] = await Promise.all([
+          userService.getCurrentUserRecord(sessionUser.id),
+          onboardingService.getByUserId(sessionUser.id),
+        ]);
+
+        return {
+          ...baseUser,
+          currentPlan: usuarioRecord?.current_plan ?? null,
+          isAdmin: !!usuarioRecord?.is_admin,
+          trialExpiresAt: usuarioRecord?.trial_expires_at ?? null,
+          onboarding: onboarding
+            ? {
+                work_model: onboarding.work_model,
+                operation_size: onboarding.operation_size,
+                current_process: onboarding.current_process,
+                quiz_completed: onboarding.quiz_completed,
+                setup_completed: onboarding.setup_completed,
+              }
+            : null,
+        };
+      } catch (error) {
+        console.error('Error building app user:', error);
+        return {
+          ...baseUser,
+          currentPlan: null,
+          isAdmin: false,
+          trialExpiresAt: null,
+          onboarding: null,
+        };
+      }
+    },
+    [mapSessionUser]
+  );
+
+  const getPostLoginRoute = React.useCallback((appUser: User) => {
+    const isPro = appUser.currentPlan === 'pro';
+    const quizCompleted = !!appUser.onboarding?.quiz_completed;
+
+    if (isPro) return '/workspace/dashboard';
+    if (!quizCompleted) return '/workspace/onboarding';
+    return '/workspace/dashboard';
+  }, []);
+
   React.useEffect(() => {
     const initializeAuth = async () => {
       if (!supabase) {
@@ -54,7 +120,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } = await supabase.auth.getSession();
 
         if (session?.user) {
-          setUser(mapSessionUser(session.user));
+          const appUser = await buildAppUser(session.user);
+          setUser(appUser);
         } else {
           setUser(null);
         }
@@ -73,35 +140,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        setUser(mapSessionUser(session.user));
-      } else {
-        setUser(null);
-      }
-      setIsLoading(false);
+      void (async () => {
+        try {
+          if (session?.user) {
+            const appUser = await buildAppUser(session.user);
+            setUser(appUser);
+          } else {
+            setUser(null);
+          }
+        } catch (error) {
+          console.error('Error handling auth state change:', error);
+          setUser(null);
+        } finally {
+          setIsLoading(false);
+        }
+      })();
     });
 
     return () => subscription.unsubscribe();
-  }, [mapSessionUser]);
+  }, [buildAppUser]);
 
   const login = async (email: string, password?: string) => {
     if (!supabase) {
-      const mockUser = { id: '1', name: 'User', email };
+      const mockUser: User = {
+        id: '1',
+        name: 'User',
+        email,
+        currentPlan: 'start_7',
+        isAdmin: false,
+        trialExpiresAt: null,
+        onboarding: null,
+      };
       setUser(mockUser);
       localStorage.setItem('posthub_user', JSON.stringify(mockUser));
-      navigate('/workspace/dashboard');
+      navigate('/workspace/onboarding');
       return;
     }
 
     try {
-      let error: any = null;
+      let authError: any = null;
 
       if (password) {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
-        error = signInError;
+        authError = signInError;
       } else {
         const { error: otpError } = await supabase.auth.signInWithOtp({
           email,
@@ -109,16 +193,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             emailRedirectTo: window.location.origin + '/workspace/dashboard',
           },
         });
-        error = otpError;
+        authError = otpError;
       }
 
-      if (error) throw error;
+      if (authError) throw authError;
 
       if (!password) {
         alert('Check your email for the login link!');
-      } else {
-        navigate('/workspace/dashboard');
+        return;
       }
+
+      const {
+        data: { user: signedInUser },
+        error: getUserError,
+      } = await supabase.auth.getUser();
+
+      if (getUserError) {
+        throw getUserError;
+      }
+
+      if (!signedInUser) {
+        navigate('/workspace/dashboard');
+        return;
+      }
+
+      const appUser = await buildAppUser(signedInUser);
+      setUser(appUser);
+      navigate(getPostLoginRoute(appUser));
     } catch (error) {
       console.error('Login error:', error);
       throw error;
@@ -132,7 +233,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     profileName?: string
   ) => {
     if (!supabase) {
-      const mockUser = { id: '1', name, email };
+      const mockUser: User = {
+        id: '1',
+        name,
+        email,
+        currentPlan: 'start_7',
+        isAdmin: false,
+        trialExpiresAt: null,
+        onboarding: null,
+      };
       setUser(mockUser);
       localStorage.setItem('posthub_user', JSON.stringify(mockUser));
       navigate('/workspace/onboarding');
@@ -140,7 +249,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      let error: any = null;
+      let authError: any = null;
 
       const sanitizedName = name.trim();
       const sanitizedProfileName = (profileName || name).trim();
@@ -157,7 +266,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             emailRedirectTo: window.location.origin + '/workspace/onboarding',
           },
         });
-        error = signUpError;
+        authError = signUpError;
       } else {
         const { error: otpError } = await supabase.auth.signInWithOtp({
           email,
@@ -169,16 +278,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             emailRedirectTo: window.location.origin + '/workspace/onboarding',
           },
         });
-        error = otpError;
+        authError = otpError;
       }
 
-      if (error) throw error;
+      if (authError) throw authError;
 
       if (!password) {
         alert('Check your email for the signup link!');
-      } else {
-        navigate('/workspace/onboarding');
+        return;
       }
+
+      const {
+        data: { user: signedUpUser },
+        error: getUserError,
+      } = await supabase.auth.getUser();
+
+      if (getUserError) {
+        throw getUserError;
+      }
+
+      if (!signedUpUser) {
+        navigate('/workspace/onboarding');
+        return;
+      }
+
+      const appUser = await buildAppUser(signedUpUser);
+      setUser(appUser);
+      navigate('/workspace/onboarding');
     } catch (error) {
       console.error('Signup error:', error);
       throw error;
