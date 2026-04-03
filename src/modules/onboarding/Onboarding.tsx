@@ -98,9 +98,12 @@ export const Onboarding = () => {
   const { setActiveModule } = useApp();
   const { user } = useAuth();
 
-  const [showQuiz, setShowQuiz] = React.useState(!user?.onboarding?.quiz_completed);
+  const hasQuizCompleted = !!user?.onboarding?.quiz_completed;
+
+  const [showQuiz, setShowQuiz] = React.useState(() => !hasQuizCompleted);
   const [isSavingQuiz, setIsSavingQuiz] = React.useState(false);
-  const [quizStep, setQuizStep] = React.useState(-1);
+  const [quizError, setQuizError] = React.useState('');
+  const [quizStep, setQuizStep] = React.useState(() => (hasQuizCompleted ? 0 : -1));
   const [quizAnswers, setQuizAnswers] = React.useState<QuizAnswers>({
     work_model: user?.onboarding?.work_model ?? '',
     operation_size: user?.onboarding?.operation_size ?? '',
@@ -109,15 +112,17 @@ export const Onboarding = () => {
   const [completedSteps, setCompletedSteps] = React.useState<string[]>([]);
 
   React.useEffect(() => {
-    setShowQuiz(!user?.onboarding?.quiz_completed);
+    if (user?.onboarding?.quiz_completed) {
+      setShowQuiz(false);
+    }
   }, [user?.onboarding?.quiz_completed]);
 
   React.useEffect(() => {
-    setQuizAnswers({
-      work_model: user?.onboarding?.work_model ?? '',
-      operation_size: user?.onboarding?.operation_size ?? '',
-      current_process: user?.onboarding?.current_process ?? '',
-    });
+    setQuizAnswers((prev) => ({
+      work_model: user?.onboarding?.work_model ?? prev.work_model,
+      operation_size: user?.onboarding?.operation_size ?? prev.operation_size,
+      current_process: user?.onboarding?.current_process ?? prev.current_process,
+    }));
   }, [
     user?.onboarding?.work_model,
     user?.onboarding?.operation_size,
@@ -149,8 +154,9 @@ export const Onboarding = () => {
   }, [quizAnswers.operation_size, quizAnswers.work_model]);
 
   const handleOptionSelect = (option: string) => {
-    if (!currentQuestion) return;
+    if (!currentQuestion || isSavingQuiz) return;
 
+    setQuizError('');
     setQuizAnswers((prev) => ({
       ...prev,
       [currentQuestion.id]: option,
@@ -167,16 +173,26 @@ export const Onboarding = () => {
     if (!user || isSavingQuiz) return;
 
     const hasAllAnswers =
-      quizAnswers.work_model && quizAnswers.operation_size && quizAnswers.current_process;
+      !!quizAnswers.work_model &&
+      !!quizAnswers.operation_size &&
+      !!quizAnswers.current_process;
 
     if (!hasAllAnswers) return;
 
     try {
       setIsSavingQuiz(true);
-      await onboardingService.saveQuizAnswers(user.id, quizAnswers);
+      setQuizError('');
+
+      const saved = await onboardingService.saveQuizAnswers(user.id, quizAnswers);
+      console.log('Quiz salvo com sucesso:', saved);
+
       setShowQuiz(false);
-    } catch (error) {
+      setQuizStep(0);
+    } catch (error: any) {
       console.error('Erro ao salvar quiz:', error);
+      setQuizError(
+        error?.message || 'Não foi possível salvar o quiz. Tente novamente.'
+      );
     } finally {
       setIsSavingQuiz(false);
     }
@@ -190,6 +206,10 @@ export const Onboarding = () => {
         }
       } catch (error) {
         console.error('Erro ao finalizar setup:', error);
+      }
+
+      if (!completedSteps.includes(step.id)) {
+        setCompletedSteps((prev) => [...prev, step.id]);
       }
 
       setActiveModule('dashboard');
@@ -264,7 +284,11 @@ export const Onboarding = () => {
                     </Button>
                   </motion.div>
                 ) : (
-                  <motion.div key={`quiz-${quizStep}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                  <motion.div
+                    key={`quiz-${quizStep}`}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                  >
                     <div className="mb-6">
                       <p className="mb-2 text-sm font-medium text-gray-500">
                         Etapa {quizStep + 1} de {QUIZ_QUESTIONS.length}
@@ -313,6 +337,12 @@ export const Onboarding = () => {
                         </motion.div>
                       </AnimatePresence>
                     </div>
+
+                    {quizError && (
+                      <div className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                        {quizError}
+                      </div>
+                    )}
 
                     {quizStep === QUIZ_QUESTIONS.length - 1 && (
                       <motion.div
@@ -371,7 +401,7 @@ export const Onboarding = () => {
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-lg font-bold text-gray-900">Seu progresso</h2>
             <span className="text-sm font-medium text-[#38B6FF]">
-              {completedSteps.length}/4 etapas concluídas
+              {completedSteps.length}/{CHECKLIST_STEPS.length} etapas concluídas
             </span>
           </div>
 
@@ -414,7 +444,11 @@ export const Onboarding = () => {
                             : 'bg-gray-100 text-gray-400'
                       )}
                     >
-                      {isCompleted ? <Check className="h-6 w-6" /> : <step.icon className="h-6 w-6" />}
+                      {isCompleted ? (
+                        <Check className="h-6 w-6" />
+                      ) : (
+                        <step.icon className="h-6 w-6" />
+                      )}
                     </div>
 
                     <div>
