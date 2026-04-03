@@ -1,3 +1,4 @@
+import { createClient } from '@supabase/supabase-js';
 import { supabase } from '../../../shared/utils/supabase';
 import { ApprovalPost, ApprovalComment } from '../ApprovalModule';
 
@@ -7,100 +8,22 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 type DbApprovalPost = any;
 type DbApprovalComment = any;
 
-async function getAuthHeaders() {
-  const {
-    data: { session }
-  } = await supabase.auth.getSession();
-
-  return {
-    apikey: SUPABASE_ANON_KEY,
-    Authorization: `Bearer ${session?.access_token ?? SUPABASE_ANON_KEY}`,
-    'Content-Type': 'application/json',
-    Prefer: 'return=representation'
-  };
-}
-
-async function getPublicHeaders(token: string) {
-  return {
-    apikey: SUPABASE_ANON_KEY,
-    Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-    'Content-Type': 'application/json',
-    Prefer: 'return=representation',
-    'x-approval-token': token
-  };
-}
-
-async function publicRestSelectPostByToken(token: string): Promise<ApprovalPost | null> {
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/approval_posts?public_token=eq.${encodeURIComponent(token)}&select=*`,
-    {
-      method: 'GET',
-      headers: await getPublicHeaders(token)
-    }
-  );
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Erro ao buscar post público: ${text}`);
-  }
-
-  const rows = await res.json();
-  if (!rows?.length) return null;
-  return mapDbToApprovalPost(rows[0]);
-}
-
-async function publicRestUpdateStatus(postId: string, status: string, token: string): Promise<void> {
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/approval_posts?id=eq.${encodeURIComponent(postId)}`,
-    {
-      method: 'PATCH',
-      headers: await getPublicHeaders(token),
-      body: JSON.stringify({
-        status,
-        updated_at: new Date().toISOString()
-      })
-    }
-  );
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Erro ao atualizar status público: ${text}`);
-  }
-}
-
-async function publicRestInsertFeedback(
-  postId: string,
-  reviewerName: string,
-  comment: string,
-  token: string
-): Promise<ApprovalComment> {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/approval_feedback`, {
-    method: 'POST',
-    headers: await getPublicHeaders(token),
-    body: JSON.stringify([
-      {
-        post_id: postId,
-        reviewer_name: reviewerName,
-        reviewer_email: 'external@example.com',
-        comment,
-        status: 'comment'
+const createPublicApprovalClient = (token: string) =>
+  createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: {
+      headers: {
+        'x-approval-token': token
       }
-    ])
+    },
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false
+    }
   });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Erro ao inserir comentário público: ${text}`);
-  }
-
-  const rows = await res.json();
-  return mapDbToApprovalComment(rows[0]);
-}
 
 export const approvalService = {
   async listApprovalPosts(profileId: string): Promise<ApprovalPost[]> {
-    if (!supabase) return [];
-
     const { data, error } = await supabase
       .from('approval_posts')
       .select('*')
@@ -116,8 +39,6 @@ export const approvalService = {
   },
 
   async createApprovalPost(post: Partial<ApprovalPost>, profileId: string): Promise<ApprovalPost> {
-    if (!supabase) throw new Error('Supabase client not initialized');
-
     const {
       data: { user }
     } = await supabase.auth.getUser();
@@ -128,7 +49,7 @@ export const approvalService = {
     dbPost.user_id = user.id;
 
     if (!dbPost.public_token) {
-      dbPost.public_token = Math.random().toString(36).substring(2, 15);
+      dbPost.public_token = crypto.randomUUID();
     }
 
     const { data, error } = await supabase
@@ -146,8 +67,6 @@ export const approvalService = {
   },
 
   async updateApprovalPost(id: string, post: Partial<ApprovalPost>, profileId: string): Promise<ApprovalPost> {
-    if (!supabase) throw new Error('Supabase client not initialized');
-
     const dbPost = mapApprovalPostToDb(post);
 
     const { data, error } = await supabase
@@ -167,8 +86,6 @@ export const approvalService = {
   },
 
   async deleteApprovalPost(id: string, profileId: string): Promise<void> {
-    if (!supabase) throw new Error('Supabase client not initialized');
-
     const { error } = await supabase
       .from('approval_posts')
       .delete()
@@ -182,15 +99,26 @@ export const approvalService = {
   },
 
   async getApprovalPostByToken(token: string): Promise<ApprovalPost | null> {
-    if (!supabase) return null;
+    const publicClient = createPublicApprovalClient(token);
 
-    return publicRestSelectPostByToken(token);
+    const { data, error } = await publicClient
+      .from('approval_posts')
+      .select('*')
+      .eq('public_token', token)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error fetching public approval post:', error);
+      throw error;
+    }
+
+    return data ? mapDbToApprovalPost(data) : null;
   },
 
-  async listApprovalFeedback(approvalPostId: string): Promise<ApprovalComment[]> {
-    if (!supabase) return [];
+  async listApprovalFeedback(approvalPostId: string, token?: string): Promise<ApprovalComment[]> {
+    const client = token ? createPublicApprovalClient(token) : supabase;
 
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('approval_feedback')
       .select('*')
       .eq('post_id', approvalPostId)
@@ -210,10 +138,10 @@ export const approvalService = {
       token?: string;
       profileId?: string;
       userId?: string;
+      reviewerEmail?: string;
+      status?: 'approved' | 'changes_requested' | 'rejected';
     }
   ): Promise<ApprovalComment> {
-    if (!supabase) throw new Error('Supabase client not initialized');
-
     if (!comment.approvalItemId) {
       throw new Error('approvalItemId is required');
     }
@@ -222,23 +150,17 @@ export const approvalService = {
       throw new Error('comment content is required');
     }
 
-    // Fluxo público
-    if (options?.token) {
-      return publicRestInsertFeedback(
-        comment.approvalItemId,
-        comment.authorName || 'Revisor do Cliente',
-        comment.content,
-        options.token
-      );
-    }
-
-    // Fluxo interno
-    const dbComment = mapApprovalCommentToDb(comment);
+    const dbComment = mapApprovalCommentToDb(comment, {
+      reviewerEmail: options?.reviewerEmail,
+      status: options?.status
+    });
 
     if (options?.profileId) dbComment.profile_id = options.profileId;
     if (options?.userId) dbComment.user_id = options.userId;
 
-    const { data, error } = await supabase
+    const client = options?.token ? createPublicApprovalClient(options.token) : supabase;
+
+    const { data, error } = await client
       .from('approval_feedback')
       .insert([dbComment])
       .select()
@@ -258,21 +180,17 @@ export const approvalService = {
     profileId?: string,
     token?: string
   ): Promise<void> {
-    if (!supabase) throw new Error('Supabase client not initialized');
+    const client = token ? createPublicApprovalClient(token) : supabase;
 
-    // Fluxo público
-    if (token) {
-      await publicRestUpdateStatus(id, status, token);
-      return;
-    }
-
-    // Fluxo interno
-    let query = supabase
+    let query = client
       .from('approval_posts')
-      .update({ status, updated_at: new Date().toISOString() })
+      .update({
+        status,
+        updated_at: new Date().toISOString()
+      })
       .eq('id', id);
 
-    if (profileId) {
+    if (!token && profileId) {
       query = query.eq('profile_id', profileId);
     }
 
@@ -290,7 +208,11 @@ function mapDbToApprovalPost(dbPost: DbApprovalPost): ApprovalPost {
 
   if (dbPost.format === 'carousel') {
     inferredContentType = 'carousel';
-  } else if (dbPost.format === 'single' || dbPost.format === 'static' || dbPost.format === 'video') {
+  } else if (
+    dbPost.format === 'single' ||
+    dbPost.format === 'static' ||
+    dbPost.format === 'video'
+  ) {
     const firstMedia = dbPost.media_urls?.[0];
     if (firstMedia?.type === 'video' || firstMedia?.mimeType?.includes('video')) {
       inferredContentType = 'vertical_video';
@@ -308,7 +230,10 @@ function mapDbToApprovalPost(dbPost: DbApprovalPost): ApprovalPost {
     platform: dbPost.platforms?.[0] || 'Instagram',
     contentType: inferredContentType,
     status: dbPost.status || 'pending',
-    thumbnail: dbPost.media_urls?.[0]?.persistedPreview || dbPost.media_urls?.[0]?.previewUrl || '',
+    thumbnail:
+      dbPost.media_urls?.[0]?.persistedPreview ||
+      dbPost.media_urls?.[0]?.previewUrl ||
+      '',
     mediaItems: dbPost.media_urls || [],
     publicToken: dbPost.public_token,
     createdAt: dbPost.created_at,
@@ -347,7 +272,13 @@ function mapDbToApprovalComment(dbComment: DbApprovalComment): ApprovalComment {
   };
 }
 
-function mapApprovalCommentToDb(comment: Partial<ApprovalComment>): any {
+function mapApprovalCommentToDb(
+  comment: Partial<ApprovalComment>,
+  options?: {
+    reviewerEmail?: string;
+    status?: 'approved' | 'changes_requested' | 'rejected';
+  }
+): any {
   const dbComment: any = {};
 
   if (comment.approvalItemId !== undefined) dbComment.post_id = comment.approvalItemId;
@@ -355,10 +286,10 @@ function mapApprovalCommentToDb(comment: Partial<ApprovalComment>): any {
   if (comment.content !== undefined) dbComment.comment = comment.content;
 
   if (comment.authorType === 'external') {
-    dbComment.reviewer_email = 'external@example.com';
+    dbComment.reviewer_email = options?.reviewerEmail || 'external@example.com';
   }
 
-  dbComment.status = 'comment';
+  dbComment.status = options?.status || 'changes_requested';
 
   return dbComment;
 }
