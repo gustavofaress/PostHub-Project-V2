@@ -21,7 +21,7 @@ import {
   Play,
   Layers,
   Smartphone,
-  MonitorPlay
+  MonitorPlay,
 } from 'lucide-react';
 import { Card } from '../../shared/components/Card';
 import { Button } from '../../shared/components/Button';
@@ -44,7 +44,13 @@ export interface MediaState {
   mimeType: string;
   previewUrl: string;
   persistedPreview?: string;
-  uploadStatus: 'selected' | 'validating' | 'queued_for_processing' | 'processing' | 'ready' | 'failed';
+  uploadStatus:
+    | 'selected'
+    | 'validating'
+    | 'queued_for_processing'
+    | 'processing'
+    | 'ready'
+    | 'failed';
   processingStatus?: string;
   originalFileReference?: string;
   optimizedUrlIfAny?: string;
@@ -90,7 +96,7 @@ const INITIAL_APPROVALS: ApprovalPost[] = [
     createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
     updatedAt: new Date(Date.now() - 86400000 * 2).toISOString(),
     feedbackCount: 2,
-    publicToken: 'mock-token-1'
+    publicToken: 'mock-token-1',
   },
   {
     id: '2',
@@ -104,7 +110,7 @@ const INITIAL_APPROVALS: ApprovalPost[] = [
     createdAt: new Date(Date.now() - 86400000 * 3).toISOString(),
     updatedAt: new Date(Date.now() - 86400000 * 3).toISOString(),
     feedbackCount: 0,
-    publicToken: 'mock-token-2'
+    publicToken: 'mock-token-2',
   },
   {
     id: '3',
@@ -118,7 +124,7 @@ const INITIAL_APPROVALS: ApprovalPost[] = [
     createdAt: new Date(Date.now() - 86400000 * 4).toISOString(),
     updatedAt: new Date(Date.now() - 86400000 * 4).toISOString(),
     feedbackCount: 5,
-    publicToken: 'mock-token-3'
+    publicToken: 'mock-token-3',
   },
   {
     id: '4',
@@ -138,7 +144,7 @@ const INITIAL_APPROVALS: ApprovalPost[] = [
         previewUrl: 'https://picsum.photos/seed/carousel1/800/1200',
         persistedPreview: 'https://picsum.photos/seed/carousel1/800/1200',
         uploadStatus: 'ready',
-        order: 0
+        order: 0,
       },
       {
         id: 'm2',
@@ -149,7 +155,7 @@ const INITIAL_APPROVALS: ApprovalPost[] = [
         previewUrl: 'https://picsum.photos/seed/carousel2/800/1200',
         persistedPreview: 'https://picsum.photos/seed/carousel2/800/1200',
         uploadStatus: 'ready',
-        order: 1
+        order: 1,
       },
       {
         id: 'm3',
@@ -160,14 +166,14 @@ const INITIAL_APPROVALS: ApprovalPost[] = [
         previewUrl: 'https://picsum.photos/seed/carousel3/800/1200',
         persistedPreview: 'https://picsum.photos/seed/carousel3/800/1200',
         uploadStatus: 'ready',
-        order: 2
-      }
+        order: 2,
+      },
     ],
     createdAt: new Date(Date.now() - 86400000 * 1).toISOString(),
     updatedAt: new Date(Date.now() - 86400000 * 1).toISOString(),
     feedbackCount: 0,
-    publicToken: 'mock-token-4'
-  }
+    publicToken: 'mock-token-4',
+  },
 ];
 
 const INITIAL_COMMENTS: ApprovalComment[] = [
@@ -178,7 +184,7 @@ const INITIAL_COMMENTS: ApprovalComment[] = [
     authorName: 'John Doe (Cliente)',
     content:
       'Podemos deixar o logo um pouco maior nos 3 primeiros segundos? Além disso, a música parece um pouco lenta demais.',
-    createdAt: new Date(Date.now() - 86400000).toISOString()
+    createdAt: new Date(Date.now() - 86400000).toISOString(),
   },
   {
     id: 'c2',
@@ -186,8 +192,8 @@ const INITIAL_COMMENTS: ApprovalComment[] = [
     authorType: 'internal',
     authorName: 'Você',
     content: 'Claro, vou atualizar o vídeo e enviar uma nova versão para aprovação.',
-    createdAt: new Date(Date.now() - 82800000).toISOString()
-  }
+    createdAt: new Date(Date.now() - 82800000).toISOString(),
+  },
 ];
 
 export const STORAGE_KEY_ITEMS = 'mockApprovalItems';
@@ -205,14 +211,20 @@ export const loadApprovals = (): ApprovalPost[] => {
           items = [
             {
               id: 'legacy',
-              type: post.postType === 'video' || post.contentType?.includes('video') ? 'video' : 'image',
-              previewUrl: typeof post.media === 'string' ? post.media : post.media.previewUrl,
+              type:
+                post.postType === 'video' || post.contentType?.includes('video')
+                  ? 'video'
+                  : 'image',
+              previewUrl:
+                typeof post.media === 'string' ? post.media : post.media.previewUrl,
               fileName: 'legacy_media',
               mimeType:
-                post.postType === 'video' || post.contentType?.includes('video') ? 'video/mp4' : 'image/jpeg',
+                post.postType === 'video' || post.contentType?.includes('video')
+                  ? 'video/mp4'
+                  : 'image/jpeg',
               uploadStatus: 'ready',
-              order: 0
-            }
+              order: 0,
+            },
           ];
         }
 
@@ -221,10 +233,16 @@ export const loadApprovals = (): ApprovalPost[] => {
             if (item.type === 'video') {
               item.previewUrl = '';
             } else {
-              item.previewUrl = item.persistedPreview || `https://picsum.photos/seed/${post.id}/800/1200`;
+              item.previewUrl =
+                item.persistedPreview || `https://picsum.photos/seed/${post.id}/800/1200`;
             }
-          } else if (item.type === 'video' && item.previewUrl && item.previewUrl.includes('picsum.photos')) {
-            item.previewUrl = 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4';
+          } else if (
+            item.type === 'video' &&
+            item.previewUrl &&
+            item.previewUrl.includes('picsum.photos')
+          ) {
+            item.previewUrl =
+              'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4';
           }
           return item;
         });
@@ -232,7 +250,8 @@ export const loadApprovals = (): ApprovalPost[] => {
         let cType = post.contentType;
         if (!cType) {
           if (post.postType === 'carousel') cType = 'carousel';
-          else if (post.postType === 'video') cType = post.platform === 'YouTube' ? 'horizontal_video' : 'vertical_video';
+          else if (post.postType === 'video')
+            cType = post.platform === 'YouTube' ? 'horizontal_video' : 'vertical_video';
           else cType = 'static';
         }
 
@@ -242,8 +261,9 @@ export const loadApprovals = (): ApprovalPost[] => {
           mediaItems: items,
           thumbnail:
             post.thumbnail && post.thumbnail.startsWith('blob:')
-              ? items[0]?.persistedPreview || `https://picsum.photos/seed/${post.id}/400/600`
-              : post.thumbnail
+              ? items[0]?.persistedPreview ||
+                `https://picsum.photos/seed/${post.id}/400/600`
+              : post.thumbnail,
         };
       });
     }
@@ -280,14 +300,30 @@ export const ApprovalModule = () => {
 
   const [newTitle, setNewTitle] = React.useState('');
   const [newCaption, setNewCaption] = React.useState('');
-  const [selectedPlatform, setSelectedPlatform] = React.useState<'Instagram' | 'TikTok' | 'YouTube'>('Instagram');
-  const [newContentType, setNewContentType] = React.useState<'static' | 'carousel' | 'vertical_video' | 'horizontal_video'>('static');
+  const [selectedPlatform, setSelectedPlatform] = React.useState<
+    'Instagram' | 'TikTok' | 'YouTube'
+  >('Instagram');
+  const [newContentType, setNewContentType] = React.useState<
+    'static' | 'carousel' | 'vertical_video' | 'horizontal_video'
+  >('static');
   const [newMediaItems, setNewMediaItems] = React.useState<MediaState[]>([]);
   const [internalComment, setInternalComment] = React.useState('');
   const [postToDelete, setPostToDelete] = React.useState<string | null>(null);
   const [alertMessage, setAlertMessage] = React.useState<string | null>(null);
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const activeProfileId = activeProfile?.id ?? null;
+
+  const ensureActiveProfile = React.useCallback(() => {
+    if (!activeProfileId) {
+      setAlertMessage(
+        'Nenhum perfil ativo foi encontrado. Recarregue a página ou selecione um perfil antes de continuar.'
+      );
+      return false;
+    }
+    return true;
+  }, [activeProfileId]);
 
   const normalizePostsMedia = React.useCallback((posts: ApprovalPost[]) => {
     return posts.map((post) => {
@@ -297,10 +333,16 @@ export const ApprovalModule = () => {
           if (item.type === 'video') {
             item.previewUrl = '';
           } else {
-            item.previewUrl = item.persistedPreview || `https://picsum.photos/seed/${post.id}/800/1200`;
+            item.previewUrl =
+              item.persistedPreview || `https://picsum.photos/seed/${post.id}/800/1200`;
           }
-        } else if (item.type === 'video' && item.previewUrl && item.previewUrl.includes('picsum.photos')) {
-          item.previewUrl = 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4';
+        } else if (
+          item.type === 'video' &&
+          item.previewUrl &&
+          item.previewUrl.includes('picsum.photos')
+        ) {
+          item.previewUrl =
+            'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4';
         }
         return item;
       });
@@ -308,21 +350,25 @@ export const ApprovalModule = () => {
     });
   }, []);
 
-  const applyFeedbackCountToPosts = React.useCallback((posts: ApprovalPost[], allComments: ApprovalComment[]) => {
-    return posts.map((post) => ({
-      ...post,
-      feedbackCount: allComments.filter((comment) => comment.approvalItemId === post.id).length
-    }));
-  }, []);
+  const applyFeedbackCountToPosts = React.useCallback(
+    (posts: ApprovalPost[], allComments: ApprovalComment[]) => {
+      return posts.map((post) => ({
+        ...post,
+        feedbackCount: allComments.filter((comment) => comment.approvalItemId === post.id)
+          .length,
+      }));
+    },
+    []
+  );
 
   const refreshApprovals = React.useCallback(async (): Promise<ApprovalPost[]> => {
-    if (!activeProfile?.id) {
+    if (!activeProfileId) {
       setApprovals([]);
       return [];
     }
 
     try {
-      const posts = await approvalService.listApprovalPosts(activeProfile.id);
+      const posts = await approvalService.listApprovalPosts(activeProfileId);
       const processedPosts = normalizePostsMedia(posts);
 
       const commentsByPost = await Promise.all(
@@ -347,38 +393,45 @@ export const ApprovalModule = () => {
       setApprovals(postsWithCounts);
       return postsWithCounts;
     }
-  }, [activeProfile?.id, normalizePostsMedia, applyFeedbackCountToPosts]);
+  }, [activeProfileId, normalizePostsMedia, applyFeedbackCountToPosts]);
 
-  const refreshCommentsForPost = React.useCallback(async (postId: string): Promise<ApprovalComment[]> => {
-    try {
-      const feedback = await approvalService.listApprovalFeedback(postId);
-      setComments(feedback);
+  const refreshCommentsForPost = React.useCallback(
+    async (postId: string): Promise<ApprovalComment[]> => {
+      try {
+        const feedback = await approvalService.listApprovalFeedback(postId);
+        setComments(feedback);
 
-      setApprovals((prev) =>
-        prev.map((post) => (post.id === postId ? { ...post, feedbackCount: feedback.length } : post))
-      );
+        setApprovals((prev) =>
+          prev.map((post) =>
+            post.id === postId ? { ...post, feedbackCount: feedback.length } : post
+          )
+        );
 
-      setSelectedPostHistory((prev) =>
-        prev && prev.id === postId ? { ...prev, feedbackCount: feedback.length } : prev
-      );
+        setSelectedPostHistory((prev) =>
+          prev && prev.id === postId ? { ...prev, feedbackCount: feedback.length } : prev
+        );
 
-      return feedback;
-    } catch (e) {
-      console.error('Failed to load comments from Supabase:', e);
-      const fallback = loadComments().filter((c) => c.approvalItemId === postId);
-      setComments(fallback);
+        return feedback;
+      } catch (e) {
+        console.error('Failed to load comments from Supabase:', e);
+        const fallback = loadComments().filter((c) => c.approvalItemId === postId);
+        setComments(fallback);
 
-      setApprovals((prev) =>
-        prev.map((post) => (post.id === postId ? { ...post, feedbackCount: fallback.length } : post))
-      );
+        setApprovals((prev) =>
+          prev.map((post) =>
+            post.id === postId ? { ...post, feedbackCount: fallback.length } : post
+          )
+        );
 
-      setSelectedPostHistory((prev) =>
-        prev && prev.id === postId ? { ...prev, feedbackCount: fallback.length } : prev
-      );
+        setSelectedPostHistory((prev) =>
+          prev && prev.id === postId ? { ...prev, feedbackCount: fallback.length } : prev
+        );
 
-      return fallback;
-    }
-  }, []);
+        return fallback;
+      }
+    },
+    []
+  );
 
   const openHistoryModal = React.useCallback(
     async (postId: string) => {
@@ -407,7 +460,7 @@ export const ApprovalModule = () => {
     );
 
     if (validFiles.length === 0) {
-      setAlertMessage('Arquivos inválidos ou tamanho excedido');
+      setAlertMessage('Arquivos inválidos ou tamanho excedido.');
       return;
     }
 
@@ -417,7 +470,6 @@ export const ApprovalModule = () => {
       filesToProcess.map(async (file, index) => {
         const isVideo = file.type.startsWith('video/');
         const previewUrl = URL.createObjectURL(file);
-
         let persistedPreview = '';
 
         if (!isVideo) {
@@ -426,6 +478,7 @@ export const ApprovalModule = () => {
             const ctx = canvas.getContext('2d');
             const img = new Image();
             img.src = previewUrl;
+
             await new Promise((resolve) => {
               img.onload = resolve;
             });
@@ -497,23 +550,32 @@ export const ApprovalModule = () => {
           previewUrl,
           persistedPreview,
           uploadStatus: 'ready',
-          order: newMediaItems.length + index
+          order: newMediaItems.length + index,
         };
       })
     );
 
-    setNewMediaItems((prev) => (newContentType === 'carousel' ? [...prev, ...newItems] : newItems));
+    setNewMediaItems((prev) =>
+      newContentType === 'carousel' ? [...prev, ...newItems] : newItems
+    );
   };
 
   React.useEffect(() => {
     const loadData = async () => {
-      if (!activeProfile?.id) return;
       setIsLoading(true);
-      await refreshApprovals();
-      setIsLoading(false);
+      try {
+        if (!activeProfileId) {
+          setApprovals([]);
+          return;
+        }
+        await refreshApprovals();
+      } finally {
+        setIsLoading(false);
+      }
     };
+
     void loadData();
-  }, [activeProfile?.id, refreshApprovals]);
+  }, [activeProfileId, refreshApprovals]);
 
   React.useEffect(() => {
     if (!selectedPostHistory?.id) return;
@@ -521,6 +583,9 @@ export const ApprovalModule = () => {
   }, [selectedPostHistory?.id, refreshCommentsForPost]);
 
   const generateLink = async (id: string) => {
+    if (!ensureActiveProfile()) return;
+
+    const profileId = activeProfileId!;
     const postIndex = approvals.findIndex((p) => p.id === id);
     if (postIndex === -1) return;
 
@@ -533,7 +598,7 @@ export const ApprovalModule = () => {
       setApprovals(updatedApprovals);
 
       try {
-        await approvalService.updateApprovalPost(id, { publicToken: token }, activeProfile!.id);
+        await approvalService.updateApprovalPost(id, { publicToken: token }, profileId);
       } catch (e) {
         console.error('Failed to save token to Supabase:', e);
         setApprovals(previousApprovals);
@@ -555,7 +620,21 @@ export const ApprovalModule = () => {
   };
 
   const handleSaveRequest = async () => {
-    if (!newTitle.trim() || !activeProfile?.id) return;
+    if (!newTitle.trim()) {
+      setAlertMessage('Informe um título para a solicitação.');
+      return;
+    }
+
+    if (!ensureActiveProfile()) return;
+    const profileId = activeProfileId!;
+
+    console.log('Approval create debug:', {
+      userId: user?.id,
+      activeProfileId: profileId,
+      newTitle,
+      selectedPlatform,
+      newContentType,
+    });
 
     if (view === 'edit' && editingPostId) {
       const postToUpdate = approvals.find((p) => p.id === editingPostId);
@@ -570,17 +649,19 @@ export const ApprovalModule = () => {
         thumbnail:
           newMediaItems.length > 0
             ? newMediaItems[0].persistedPreview || newMediaItems[0].previewUrl
-            : postToUpdate.thumbnail
+            : postToUpdate.thumbnail,
       };
 
       const previousApprovals = [...approvals];
       const updatedApprovals = approvals.map((post) =>
-        post.id === editingPostId ? { ...post, ...updatedData, updatedAt: new Date().toISOString() } : post
+        post.id === editingPostId
+          ? { ...post, ...updatedData, updatedAt: new Date().toISOString() }
+          : post
       );
       setApprovals(updatedApprovals);
 
       try {
-        await approvalService.updateApprovalPost(editingPostId, updatedData, activeProfile.id);
+        await approvalService.updateApprovalPost(editingPostId, updatedData, profileId);
         setView('list');
         resetForm();
         await refreshApprovals();
@@ -600,23 +681,23 @@ export const ApprovalModule = () => {
           newMediaItems.length > 0
             ? newMediaItems[0].persistedPreview || newMediaItems[0].previewUrl
             : `https://picsum.photos/seed/${Date.now()}/400/600`,
-        mediaItems: newMediaItems
+        mediaItems: newMediaItems,
       };
 
       const tempId = Date.now().toString();
       const optimisticPost: ApprovalPost = {
-        ...newPostData,
+        ...(newPostData as ApprovalPost),
         id: tempId,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        feedbackCount: 0
-      } as ApprovalPost;
+        feedbackCount: 0,
+      };
 
       const previousApprovals = [...approvals];
       setApprovals([optimisticPost, ...approvals]);
 
       try {
-        const createdPost = await approvalService.createApprovalPost(newPostData, activeProfile.id);
+        const createdPost = await approvalService.createApprovalPost(newPostData, profileId);
         setApprovals((current) => current.map((p) => (p.id === tempId ? createdPost : p)));
         setView('list');
         resetForm();
@@ -645,7 +726,9 @@ export const ApprovalModule = () => {
 
   const confirmDelete = async () => {
     if (!postToDelete) return;
+    if (!ensureActiveProfile()) return;
 
+    const profileId = activeProfileId!;
     const previousApprovals = [...approvals];
     const previousComments = [...comments];
 
@@ -653,7 +736,7 @@ export const ApprovalModule = () => {
     setComments(comments.filter((c) => c.approvalItemId !== postToDelete));
 
     try {
-      await approvalService.deleteApprovalPost(postToDelete, activeProfile!.id);
+      await approvalService.deleteApprovalPost(postToDelete, profileId);
       if (selectedPostHistory?.id === postToDelete) {
         setSelectedPostHistory(null);
       }
@@ -672,21 +755,23 @@ export const ApprovalModule = () => {
   };
 
   const handleSendInternalComment = async () => {
-    if (!internalComment.trim() || !selectedPostHistory || !activeProfile?.id || !user?.id) return;
+    if (!internalComment.trim() || !selectedPostHistory || !user?.id) return;
+    if (!ensureActiveProfile()) return;
 
+    const profileId = activeProfileId!;
     const newCommentData: Partial<ApprovalComment> = {
       approvalItemId: selectedPostHistory.id,
       authorType: 'internal',
       authorName: 'Você',
-      content: internalComment
+      content: internalComment,
     };
 
     const tempId = Date.now().toString();
     const optimisticComment: ApprovalComment = {
-      ...newCommentData,
+      ...(newCommentData as ApprovalComment),
       id: tempId,
-      createdAt: new Date().toISOString()
-    } as ApprovalComment;
+      createdAt: new Date().toISOString(),
+    };
 
     const previousComments = [...comments];
     const previousApprovals = [...approvals];
@@ -713,8 +798,8 @@ export const ApprovalModule = () => {
 
     try {
       const createdComment = await approvalService.addApprovalFeedback(newCommentData, {
-        profileId: activeProfile.id,
-        userId: user.id
+        profileId,
+        userId: user.id,
       });
 
       setComments((current) => current.map((c) => (c.id === tempId ? createdComment : c)));
@@ -731,20 +816,22 @@ export const ApprovalModule = () => {
 
   if (view === 'create' || view === 'edit') {
     return (
-      <div className="space-y-6 max-w-3xl mx-auto pb-12">
-        <div className="flex items-center gap-4 mb-8">
+      <div className="mx-auto max-w-3xl space-y-6 pb-12">
+        <div className="mb-8 flex items-center gap-4">
           <button
             onClick={() => {
               setView('list');
               resetForm();
             }}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            className="rounded-full p-2 transition-colors hover:bg-gray-100"
           >
             <X className="h-5 w-5 text-gray-500" />
           </button>
           <div>
             <h1 className="text-2xl font-bold text-text-primary">
-              {view === 'edit' ? 'Editar solicitação de aprovação' : 'Criar solicitação de aprovação'}
+              {view === 'edit'
+                ? 'Editar solicitação de aprovação'
+                : 'Criar solicitação de aprovação'}
             </h1>
             <p className="text-text-secondary">
               {view === 'edit'
@@ -754,12 +841,21 @@ export const ApprovalModule = () => {
           </div>
         </div>
 
-        <Card className="p-8 space-y-8">
+        {!activeProfileId && (
+          <Card className="border-amber-200 bg-amber-50 p-4">
+            <p className="text-sm text-amber-700">
+              Nenhum perfil ativo foi encontrado. Recarregue a página ou selecione um perfil antes
+              de criar solicitações de aprovação.
+            </p>
+          </Card>
+        )}
+
+        <Card className="space-y-8 p-8">
           <div className="space-y-2">
             <label className="text-sm font-bold text-text-primary">Título do conteúdo</label>
             <Input
               placeholder="Ex.: Reel da coleção de verão"
-              className="text-lg py-6"
+              className="py-6 text-lg"
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
             />
@@ -767,12 +863,12 @@ export const ApprovalModule = () => {
 
           <div className="space-y-3">
             <label className="text-sm font-bold text-text-primary">Tipo de conteúdo</label>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
               {[
                 { id: 'static', label: 'Imagem estática', icon: ImageIcon },
                 { id: 'carousel', label: 'Carrossel', icon: Layers },
                 { id: 'vertical_video', label: 'Vídeo vertical', icon: Smartphone },
-                { id: 'horizontal_video', label: 'Vídeo horizontal', icon: MonitorPlay }
+                { id: 'horizontal_video', label: 'Vídeo horizontal', icon: MonitorPlay },
               ].map((type) => (
                 <button
                   key={type.id}
@@ -785,7 +881,7 @@ export const ApprovalModule = () => {
                     'flex flex-col items-center gap-3 rounded-xl border-2 p-4 transition-all',
                     newContentType === type.id
                       ? 'border-brand bg-brand/5 text-brand'
-                      : 'border-gray-200 hover:border-brand/50 hover:bg-gray-50 text-gray-600'
+                      : 'border-gray-200 text-gray-600 hover:border-brand/50 hover:bg-gray-50'
                   )}
                 >
                   <type.icon className="h-6 w-6" />
@@ -807,7 +903,7 @@ export const ApprovalModule = () => {
                     'flex flex-col items-center gap-3 rounded-xl border-2 p-4 transition-all',
                     selectedPlatform === p
                       ? 'border-brand bg-brand/5 text-brand'
-                      : 'border-gray-200 hover:border-brand/50 hover:bg-gray-50 text-gray-600'
+                      : 'border-gray-200 text-gray-600 hover:border-brand/50 hover:bg-gray-50'
                   )}
                 >
                   {p === 'Instagram' && <Instagram className="h-6 w-6" />}
@@ -824,7 +920,7 @@ export const ApprovalModule = () => {
               Upload de mídia {newContentType === 'carousel' ? '(Selecione múltiplos arquivos)' : ''}
             </label>
             <div
-              className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-300 p-12 bg-gray-50 hover:bg-gray-100 hover:border-brand/50 transition-all cursor-pointer group relative overflow-hidden"
+              className="group relative flex cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 p-12 transition-all hover:border-brand/50 hover:bg-gray-100"
               onClick={() => fileInputRef.current?.click()}
             >
               <input
@@ -841,29 +937,33 @@ export const ApprovalModule = () => {
                     <img
                       src={newMediaItems[0].previewUrl}
                       alt="Mídia selecionada"
-                      className="absolute inset-0 w-full h-full object-cover opacity-50"
+                      className="absolute inset-0 h-full w-full object-cover opacity-50"
                     />
                   ) : (
-                    <div className="absolute inset-0 w-full h-full bg-gray-900 flex items-center justify-center opacity-50">
+                    <div className="absolute inset-0 flex h-full w-full items-center justify-center bg-gray-900 opacity-50">
                       <Video className="h-16 w-16 text-white" />
                     </div>
                   )}
-                  <div className="relative z-10 rounded-full bg-white p-4 shadow-sm mb-4 group-hover:scale-110 transition-transform">
+                  <div className="relative z-10 mb-4 rounded-full bg-white p-4 shadow-sm transition-transform group-hover:scale-110">
                     <Check className="h-8 w-8 text-green-500" />
                   </div>
-                  <p className="relative z-10 text-base font-bold text-text-primary bg-white/80 px-4 py-1 rounded-full">
+                  <p className="relative z-10 rounded-full bg-white/80 px-4 py-1 text-base font-bold text-text-primary">
                     {newMediaItems.length}{' '}
-                    {newMediaItems.length === 1 ? 'arquivo anexado' : 'arquivos anexados'} (clique para
-                    adicionar/trocar)
+                    {newMediaItems.length === 1 ? 'arquivo anexado' : 'arquivos anexados'} (clique
+                    para adicionar/trocar)
                   </p>
                 </>
               ) : (
                 <>
-                  <div className="rounded-full bg-white p-4 shadow-sm mb-4 group-hover:scale-110 transition-transform">
+                  <div className="mb-4 rounded-full bg-white p-4 shadow-sm transition-transform group-hover:scale-110">
                     <Plus className="h-8 w-8 text-brand" />
                   </div>
-                  <p className="text-base font-bold text-text-primary">Clique para enviar ou arraste e solte</p>
-                  <p className="text-sm text-text-secondary mt-2">MP4, MOV, JPG ou PNG (máx. 1,5 GB)</p>
+                  <p className="text-base font-bold text-text-primary">
+                    Clique para enviar ou arraste e solte
+                  </p>
+                  <p className="mt-2 text-sm text-text-secondary">
+                    MP4, MOV, JPG ou PNG (máx. 1,5 GB)
+                  </p>
                 </>
               )}
             </div>
@@ -872,14 +972,14 @@ export const ApprovalModule = () => {
           <div className="space-y-3">
             <label className="text-sm font-bold text-text-primary">Legenda</label>
             <textarea
-              className="w-full min-h-[150px] rounded-xl border-2 border-gray-200 p-4 text-base focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10 transition-all resize-y"
+              className="min-h-[150px] w-full resize-y rounded-xl border-2 border-gray-200 p-4 text-base transition-all focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10"
               placeholder="Escreva a legenda do post aqui... Inclua hashtags e menções."
               value={newCaption}
               onChange={(e) => setNewCaption(e.target.value)}
             />
           </div>
 
-          <div className="pt-6 border-t border-gray-100 flex justify-end gap-4">
+          <div className="flex justify-end gap-4 border-t border-gray-100 pt-6">
             <Button
               variant="ghost"
               size="lg"
@@ -890,7 +990,12 @@ export const ApprovalModule = () => {
             >
               Cancelar
             </Button>
-            <Button size="lg" onClick={handleSaveRequest} className="px-8" disabled={!newTitle.trim()}>
+            <Button
+              size="lg"
+              onClick={handleSaveRequest}
+              className="px-8"
+              disabled={!newTitle.trim()}
+            >
               {view === 'edit' ? 'Salvar alterações' : 'Criar solicitação'}
             </Button>
           </div>
@@ -912,11 +1017,13 @@ export const ApprovalModule = () => {
             setPreviewPostId(null);
           }}
           onStatusChange={async (status, comment) => {
-            if (!activeProfile?.id || !user?.id) {
-              setAlertMessage('Usuário ou perfil não identificado.');
+            if (!user?.id) {
+              setAlertMessage('Usuário não identificado.');
               return;
             }
+            if (!ensureActiveProfile()) return;
 
+            const profileId = activeProfileId!;
             const previousApprovals = [...approvals];
             const previousComments = [...comments];
 
@@ -927,39 +1034,46 @@ export const ApprovalModule = () => {
             setApprovals(updatedApprovals);
 
             try {
-              await approvalService.updateApprovalStatus(post.id, status, activeProfile.id);
+              await approvalService.updateApprovalStatus(post.id, status, profileId);
 
               if (comment.trim()) {
                 const newCommentData: Partial<ApprovalComment> = {
                   approvalItemId: post.id,
                   authorType: 'internal',
                   authorName: 'Você',
-                  content: comment
+                  content: comment,
                 };
 
                 const tempId = Date.now().toString();
                 const optimisticComment: ApprovalComment = {
-                  ...newCommentData,
+                  ...(newCommentData as ApprovalComment),
                   id: tempId,
-                  createdAt: new Date().toISOString()
-                } as ApprovalComment;
+                  createdAt: new Date().toISOString(),
+                };
 
                 const nextComments = [...comments, optimisticComment];
                 setComments(nextComments);
 
                 updatedApprovals = updatedApprovals.map((p) =>
                   p.id === post.id
-                    ? { ...p, feedbackCount: nextComments.filter((c) => c.approvalItemId === p.id).length }
+                    ? {
+                        ...p,
+                        feedbackCount: nextComments.filter(
+                          (c) => c.approvalItemId === p.id
+                        ).length,
+                      }
                     : p
                 );
                 setApprovals(updatedApprovals);
 
                 const createdComment = await approvalService.addApprovalFeedback(newCommentData, {
-                  profileId: activeProfile.id,
-                  userId: user.id
+                  profileId,
+                  userId: user.id,
                 });
 
-                setComments((current) => current.map((c) => (c.id === tempId ? createdComment : c)));
+                setComments((current) =>
+                  current.map((c) => (c.id === tempId ? createdComment : c))
+                );
               }
 
               await refreshCommentsForPost(post.id);
@@ -972,11 +1086,13 @@ export const ApprovalModule = () => {
             }
           }}
           onCommentSubmit={async (comment) => {
-            if (!activeProfile?.id || !user?.id) {
-              setAlertMessage('Usuário ou perfil não identificado.');
+            if (!user?.id) {
+              setAlertMessage('Usuário não identificado.');
               return;
             }
+            if (!ensureActiveProfile()) return;
 
+            const profileId = activeProfileId!;
             const previousComments = [...comments];
             const previousApprovals = [...approvals];
 
@@ -984,33 +1100,38 @@ export const ApprovalModule = () => {
               approvalItemId: post.id,
               authorType: 'internal',
               authorName: 'Você',
-              content: comment
+              content: comment,
             };
 
             const tempId = Date.now().toString();
             const optimisticComment: ApprovalComment = {
-              ...newCommentData,
+              ...(newCommentData as ApprovalComment),
               id: tempId,
-              createdAt: new Date().toISOString()
-            } as ApprovalComment;
+              createdAt: new Date().toISOString(),
+            };
 
             const nextComments = [...comments, optimisticComment];
             setComments(nextComments);
 
             const updatedApprovals = approvals.map((p) =>
               p.id === post.id
-                ? { ...p, feedbackCount: nextComments.filter((c) => c.approvalItemId === p.id).length }
+                ? {
+                    ...p,
+                    feedbackCount: nextComments.filter((c) => c.approvalItemId === p.id).length,
+                  }
                 : p
             );
             setApprovals(updatedApprovals);
 
             try {
               const createdComment = await approvalService.addApprovalFeedback(newCommentData, {
-                profileId: activeProfile.id,
-                userId: user.id
+                profileId,
+                userId: user.id,
               });
 
-              setComments((current) => current.map((c) => (c.id === tempId ? createdComment : c)));
+              setComments((current) =>
+                current.map((c) => (c.id === tempId ? createdComment : c))
+              );
               await refreshCommentsForPost(post.id);
               await refreshApprovals();
             } catch (e) {
@@ -1046,8 +1167,12 @@ export const ApprovalModule = () => {
 
     if (!url) {
       return (
-        <div className="h-full w-full bg-gray-200 flex items-center justify-center text-gray-400">
-          {isLostVideo ? <Video className="h-8 w-8 opacity-50" /> : <ImageIcon className="h-8 w-8 opacity-50" />}
+        <div className="flex h-full w-full items-center justify-center bg-gray-200 text-gray-400">
+          {isLostVideo ? (
+            <Video className="h-8 w-8 opacity-50" />
+          ) : (
+            <ImageIcon className="h-8 w-8 opacity-50" />
+          )}
         </div>
       );
     }
@@ -1070,18 +1195,21 @@ export const ApprovalModule = () => {
           />
         )}
         {(isVideo || isLostVideo || post.contentType?.includes('video')) && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="bg-black/40 rounded-full p-3 text-white backdrop-blur-sm">
-              <Play className="h-6 w-6 ml-1" />
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div className="rounded-full bg-black/40 p-3 text-white backdrop-blur-sm">
+              <Play className="ml-1 h-6 w-6" />
             </div>
           </div>
         )}
         {isCarousel && (
-          <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5 z-10 pointer-events-none">
+          <div className="pointer-events-none absolute bottom-3 left-0 right-0 z-10 flex justify-center gap-1.5">
             {post.mediaItems?.map((_, idx) => (
               <div
                 key={idx}
-                className={cn('h-1.5 rounded-full shadow-sm', idx === 0 ? 'w-4 bg-white' : 'w-1.5 bg-white/70')}
+                className={cn(
+                  'h-1.5 rounded-full shadow-sm',
+                  idx === 0 ? 'w-4 bg-white' : 'w-1.5 bg-white/70'
+                )}
               />
             ))}
           </div>
@@ -1090,15 +1218,46 @@ export const ApprovalModule = () => {
     );
   };
 
-  return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
+  if (isLoading) {
+    return (
+      <div className="space-y-8">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
+          <h1 className="flex items-center gap-2 text-2xl font-bold text-text-primary">
             <CheckCircle className="h-6 w-6 text-brand" />
             Aprovações de Conteúdo
           </h1>
-          <p className="text-text-secondary">Gerencie revisões de conteúdo e feedbacks dos clientes.</p>
+          <p className="text-text-secondary">
+            Gerencie revisões de conteúdo e feedbacks dos clientes.
+          </p>
+        </div>
+
+        <Card className="p-8">
+          <p className="text-sm text-text-secondary">Carregando solicitações de aprovação...</p>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      {!activeProfileId && (
+        <Card className="border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm text-amber-700">
+            Nenhum perfil ativo foi encontrado. Alguns recursos de aprovação podem não funcionar
+            até que um perfil seja carregado ou selecionado.
+          </p>
+        </Card>
+      )}
+
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="flex items-center gap-2 text-2xl font-bold text-text-primary">
+            <CheckCircle className="h-6 w-6 text-brand" />
+            Aprovações de Conteúdo
+          </h1>
+          <p className="text-text-secondary">
+            Gerencie revisões de conteúdo e feedbacks dos clientes.
+          </p>
         </div>
         <Button onClick={() => setView('create')} className="gap-2">
           <Plus className="h-4 w-4" />
@@ -1109,31 +1268,31 @@ export const ApprovalModule = () => {
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         {approvals.map((post) => (
           <Card key={post.id} padding="none" className="group flex flex-col overflow-hidden">
-            <div className="relative aspect-[4/5] bg-gray-100 overflow-hidden">
+            <div className="relative aspect-[4/5] overflow-hidden bg-gray-100">
               {renderCardCover(post)}
-              <div className="absolute top-3 left-3">
+              <div className="absolute left-3 top-3">
                 <Badge
                   variant={
                     post.status === 'approved'
                       ? 'success'
                       : post.status === 'changes_requested'
-                      ? 'warning'
-                      : post.status === 'rejected'
-                      ? 'error'
-                      : 'default'
+                        ? 'warning'
+                        : post.status === 'rejected'
+                          ? 'error'
+                          : 'default'
                   }
                   className="shadow-sm"
                 >
                   {post.status === 'approved'
                     ? 'APROVADO'
                     : post.status === 'changes_requested'
-                    ? 'AJUSTES SOLICITADOS'
-                    : post.status === 'rejected'
-                    ? 'REJEITADO'
-                    : 'PENDENTE'}
+                      ? 'AJUSTES SOLICITADOS'
+                      : post.status === 'rejected'
+                        ? 'REJEITADO'
+                        : 'PENDENTE'}
                 </Badge>
               </div>
-              <div className="absolute top-3 right-3">
+              <div className="absolute right-3 top-3">
                 <div className="rounded-full bg-white/90 p-1.5 text-text-primary shadow-sm backdrop-blur-sm">
                   {post.platform === 'Instagram' && <Instagram className="h-4 w-4" />}
                   {post.platform === 'TikTok' && <Video className="h-4 w-4" />}
@@ -1142,9 +1301,9 @@ export const ApprovalModule = () => {
               </div>
             </div>
 
-            <div className="p-5 flex-1 flex flex-col">
-              <div className="flex items-start justify-between mb-2">
-                <h3 className="font-bold text-text-primary line-clamp-1">{post.title}</h3>
+            <div className="flex flex-1 flex-col p-5">
+              <div className="mb-2 flex items-start justify-between">
+                <h3 className="line-clamp-1 font-bold text-text-primary">{post.title}</h3>
                 <Dropdown
                   trigger={
                     <button className="text-gray-400 hover:text-text-primary">
@@ -1168,7 +1327,7 @@ export const ApprovalModule = () => {
                   </DropdownItem>
                   <DropdownItem
                     onClick={() => handleDelete(post.id)}
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    className="text-red-600 hover:bg-red-50 hover:text-red-700"
                   >
                     <Trash className="h-4 w-4" />
                     Excluir
@@ -1176,7 +1335,7 @@ export const ApprovalModule = () => {
                 </Dropdown>
               </div>
 
-              <div className="flex items-center gap-4 text-xs text-text-secondary mb-4">
+              <div className="mb-4 flex items-center gap-4 text-xs text-text-secondary">
                 <div className="flex items-center gap-1">
                   <Clock className="h-3 w-3" />
                   {new Date(post.createdAt).toLocaleDateString()}
@@ -1187,8 +1346,13 @@ export const ApprovalModule = () => {
                 </div>
               </div>
 
-              <div className="mt-auto pt-4 border-t border-gray-100 flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1 gap-2" onClick={() => generateLink(post.id)}>
+              <div className="mt-auto flex gap-2 border-t border-gray-100 pt-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 gap-2"
+                  onClick={() => generateLink(post.id)}
+                >
                   <LinkIcon className="h-3 w-3" />
                   Obter link
                 </Button>
@@ -1207,13 +1371,18 @@ export const ApprovalModule = () => {
         ))}
       </div>
 
-      <Modal isOpen={!!generatedLink} onClose={() => setGeneratedLink(null)} title="Link de aprovação gerado">
+      <Modal
+        isOpen={!!generatedLink}
+        onClose={() => setGeneratedLink(null)}
+        title="Link de aprovação gerado"
+      >
         <div className="space-y-4">
           <p className="text-sm text-text-secondary">
-            Compartilhe este link com seu cliente ou revisor. Ele não precisa de uma conta PostHub para visualizar e aprovar.
+            Compartilhe este link com seu cliente ou revisor. Ele não precisa de uma conta PostHub
+            para visualizar e aprovar.
           </p>
           <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
-            <code className="flex-1 text-xs truncate">{generatedLink}</code>
+            <code className="flex-1 truncate text-xs">{generatedLink}</code>
             <Button
               size="sm"
               onClick={() => {
@@ -1225,7 +1394,11 @@ export const ApprovalModule = () => {
             </Button>
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" className="gap-2" onClick={() => window.open(generatedLink!, '_blank')}>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => window.open(generatedLink!, '_blank')}
+            >
               <ExternalLink className="h-4 w-4" />
               Abrir link público
             </Button>
@@ -1250,7 +1423,11 @@ export const ApprovalModule = () => {
         </div>
       </Modal>
 
-      <Modal isOpen={!!selectedPostHistory} onClose={() => setSelectedPostHistory(null)} title="Histórico de revisão">
+      <Modal
+        isOpen={!!selectedPostHistory}
+        onClose={() => setSelectedPostHistory(null)}
+        title="Histórico de revisão"
+      >
         {selectedPostHistory && approvals.find((p) => p.id === selectedPostHistory.id) && (
           <div className="space-y-6">
             <div className="flex items-center gap-4 border-b border-gray-100 pb-4">
@@ -1263,57 +1440,81 @@ export const ApprovalModule = () => {
                 <h3 className="font-bold text-text-primary">
                   {approvals.find((p) => p.id === selectedPostHistory.id)!.title}
                 </h3>
-                <div className="flex items-center gap-2 text-xs text-text-secondary mt-1">
+                <div className="mt-1 flex items-center gap-2 text-xs text-text-secondary">
                   <span>{approvals.find((p) => p.id === selectedPostHistory.id)!.platform}</span>
                   <span>•</span>
                   <Badge
                     variant={
                       approvals.find((p) => p.id === selectedPostHistory.id)!.status === 'approved'
                         ? 'success'
-                        : approvals.find((p) => p.id === selectedPostHistory.id)!.status === 'changes_requested'
-                        ? 'warning'
-                        : approvals.find((p) => p.id === selectedPostHistory.id)!.status === 'rejected'
-                        ? 'error'
-                        : 'default'
+                        : approvals.find((p) => p.id === selectedPostHistory.id)!.status ===
+                            'changes_requested'
+                          ? 'warning'
+                          : approvals.find((p) => p.id === selectedPostHistory.id)!.status ===
+                              'rejected'
+                            ? 'error'
+                            : 'default'
                     }
-                    className="text-[10px] py-0"
+                    className="py-0 text-[10px]"
                   >
                     {approvals.find((p) => p.id === selectedPostHistory.id)!.status === 'approved'
                       ? 'APROVADO'
-                      : approvals.find((p) => p.id === selectedPostHistory.id)!.status === 'changes_requested'
-                      ? 'AJUSTES SOLICITADOS'
-                      : approvals.find((p) => p.id === selectedPostHistory.id)!.status === 'rejected'
-                      ? 'REJEITADO'
-                      : 'PENDENTE'}
+                      : approvals.find((p) => p.id === selectedPostHistory.id)!.status ===
+                          'changes_requested'
+                        ? 'AJUSTES SOLICITADOS'
+                        : approvals.find((p) => p.id === selectedPostHistory.id)!.status ===
+                            'rejected'
+                          ? 'REJEITADO'
+                          : 'PENDENTE'}
                   </Badge>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-6 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="custom-scrollbar max-h-[400px] space-y-6 overflow-y-auto pr-2">
               {comments.filter((c) => c.approvalItemId === selectedPostHistory.id).length > 0 ? (
                 comments
                   .filter((c) => c.approvalItemId === selectedPostHistory.id)
-                  .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+                  .sort(
+                    (a, b) =>
+                      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+                  )
                   .map((comment) => (
-                    <div key={comment.id} className={cn('flex gap-3', comment.authorType === 'internal' ? 'flex-row-reverse' : '')}>
+                    <div
+                      key={comment.id}
+                      className={cn(
+                        'flex gap-3',
+                        comment.authorType === 'internal' ? 'flex-row-reverse' : ''
+                      )}
+                    >
                       <Avatar
                         fallback={comment.authorName.substring(0, 2).toUpperCase()}
                         size="sm"
                         className={comment.authorType === 'internal' ? 'bg-brand text-white' : ''}
                       />
-                      <div className={cn('flex flex-col', comment.authorType === 'internal' ? 'items-end' : 'items-start')}>
-                        <div className="flex items-center gap-2 mb-1">
+                      <div
+                        className={cn(
+                          'flex flex-col',
+                          comment.authorType === 'internal'
+                            ? 'items-end'
+                            : 'items-start'
+                        )}
+                      >
+                        <div className="mb-1 flex items-center gap-2">
                           {comment.authorType === 'internal' ? (
                             <>
                               <span className="text-[10px] text-text-secondary">
                                 {new Date(comment.createdAt).toLocaleString()}
                               </span>
-                              <span className="text-sm font-bold text-text-primary">{comment.authorName}</span>
+                              <span className="text-sm font-bold text-text-primary">
+                                {comment.authorName}
+                              </span>
                             </>
                           ) : (
                             <>
-                              <span className="text-sm font-bold text-text-primary">{comment.authorName}</span>
+                              <span className="text-sm font-bold text-text-primary">
+                                {comment.authorName}
+                              </span>
                               <span className="text-[10px] text-text-secondary">
                                 {new Date(comment.createdAt).toLocaleString()}
                               </span>
@@ -1322,10 +1523,10 @@ export const ApprovalModule = () => {
                         </div>
                         <p
                           className={cn(
-                            'text-sm p-3 rounded-xl',
+                            'rounded-xl p-3 text-sm',
                             comment.authorType === 'internal'
-                              ? 'text-white bg-brand rounded-tr-none'
-                              : 'text-text-secondary bg-gray-50 rounded-tl-none'
+                              ? 'rounded-tr-none bg-brand text-white'
+                              : 'rounded-tl-none bg-gray-50 text-text-secondary'
                           )}
                         >
                           {comment.content}
@@ -1334,23 +1535,27 @@ export const ApprovalModule = () => {
                     </div>
                   ))
               ) : (
-                <div className="text-center py-8 text-text-secondary text-sm">
+                <div className="py-8 text-center text-sm text-text-secondary">
                   Ainda não há feedbacks ou comentários.
                 </div>
               )}
             </div>
 
-            <div className="flex gap-2 pt-4 border-t border-gray-100">
+            <div className="flex gap-2 border-t border-gray-100 pt-4">
               <Input
                 placeholder="Responder ao feedback..."
                 className="flex-1"
                 value={internalComment}
                 onChange={(e) => setInternalComment(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleSendInternalComment();
+                  if (e.key === 'Enter') void handleSendInternalComment();
                 }}
               />
-              <Button className="gap-2 shrink-0" onClick={handleSendInternalComment} disabled={!internalComment.trim()}>
+              <Button
+                className="shrink-0 gap-2"
+                onClick={() => void handleSendInternalComment()}
+                disabled={!internalComment.trim()}
+              >
                 <Send className="h-4 w-4" />
                 Enviar
               </Button>
@@ -1359,16 +1564,25 @@ export const ApprovalModule = () => {
         )}
       </Modal>
 
-      <Modal isOpen={!!postToDelete} onClose={() => setPostToDelete(null)} title="Excluir solicitação de aprovação">
+      <Modal
+        isOpen={!!postToDelete}
+        onClose={() => setPostToDelete(null)}
+        title="Excluir solicitação de aprovação"
+      >
         <div className="space-y-4">
           <p className="text-sm text-text-secondary">
-            Tem certeza de que deseja excluir esta solicitação de aprovação? Esta ação não pode ser desfeita.
+            Tem certeza de que deseja excluir esta solicitação de aprovação? Esta ação não pode ser
+            desfeita.
           </p>
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setPostToDelete(null)}>
               Cancelar
             </Button>
-            <Button variant="primary" className="bg-red-600 hover:bg-red-700 text-white" onClick={confirmDelete}>
+            <Button
+              variant="primary"
+              className="bg-red-600 text-white hover:bg-red-700"
+              onClick={() => void confirmDelete()}
+            >
               Excluir
             </Button>
           </div>
