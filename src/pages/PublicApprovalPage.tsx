@@ -38,31 +38,26 @@ export const PublicApprovalPage = () => {
   const [isLoading, setIsLoading] = React.useState(true);
   const [carouselIndex, setCarouselIndex] = React.useState(0);
 
-  const loadLocalFallback = React.useCallback(
-    (currentToken?: string) => {
-      if (!currentToken) {
-        setPost(null);
-        setComments([]);
-        return;
-      }
+  const loadLocalFallback = React.useCallback((currentToken?: string) => {
+    if (!currentToken) {
+      setPost(null);
+      setComments([]);
+      return;
+    }
 
-      const loadedApprovals = loadApprovals();
-      const localPost = loadedApprovals.find((p) => p.publicToken === currentToken);
+    const loadedApprovals = loadApprovals();
+    const localPost = loadedApprovals.find((p) => p.publicToken === currentToken);
 
-      if (localPost) {
-        setPost(localPost);
+    if (localPost) {
+      setPost(localPost);
 
-        const loadedComments = loadComments();
-        setComments(
-          loadedComments.filter((c) => c.approvalItemId === localPost.id)
-        );
-      } else {
-        setPost(null);
-        setComments([]);
-      }
-    },
-    []
-  );
+      const loadedComments = loadComments();
+      setComments(loadedComments.filter((c) => c.approvalItemId === localPost.id));
+    } else {
+      setPost(null);
+      setComments([]);
+    }
+  }, []);
 
   React.useEffect(() => {
     const loadData = async () => {
@@ -114,7 +109,8 @@ export const PublicApprovalPage = () => {
         setPost(normalizedPost);
 
         const fetchedComments = await approvalService.listApprovalFeedback(
-          fetchedPost.id
+          fetchedPost.id,
+          token
         );
         setComments(fetchedComments || []);
       } catch (error) {
@@ -155,7 +151,7 @@ export const PublicApprovalPage = () => {
 
       if (comment.trim()) {
         const newCommentData: Partial<ApprovalComment> = {
-          approvalItemId: post.id, // id interno real do approval_posts
+          approvalItemId: post.id,
           authorType: 'external',
           authorName: 'Revisor do Cliente',
           content: comment.trim()
@@ -163,7 +159,10 @@ export const PublicApprovalPage = () => {
 
         const createdComment = await approvalService.addApprovalFeedback(
           newCommentData,
-          { token }
+          {
+            token,
+            status: newStatus
+          }
         );
 
         updatedComments = [...updatedComments, createdComment];
@@ -188,7 +187,7 @@ export const PublicApprovalPage = () => {
 
     try {
       const newCommentData: Partial<ApprovalComment> = {
-        approvalItemId: post.id, // id interno real do approval_posts
+        approvalItemId: post.id,
         authorType: 'external',
         authorName: 'Revisor do Cliente',
         content: comment.trim()
@@ -196,7 +195,10 @@ export const PublicApprovalPage = () => {
 
       const createdComment = await approvalService.addApprovalFeedback(
         newCommentData,
-        { token }
+        {
+          token,
+          status: 'changes_requested'
+        }
       );
 
       const updatedComments = [...comments, createdComment];
