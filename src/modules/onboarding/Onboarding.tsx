@@ -100,10 +100,11 @@ export const Onboarding = () => {
 
   const hasQuizCompleted = !!user?.onboarding?.quiz_completed;
 
-  const [showQuiz, setShowQuiz] = React.useState(() => !hasQuizCompleted);
+  const [showQuiz, setShowQuiz] = React.useState(!hasQuizCompleted);
+  const [quizDismissedLocally, setQuizDismissedLocally] = React.useState(hasQuizCompleted);
   const [isSavingQuiz, setIsSavingQuiz] = React.useState(false);
   const [quizError, setQuizError] = React.useState('');
-  const [quizStep, setQuizStep] = React.useState(() => (hasQuizCompleted ? 0 : -1));
+  const [quizStep, setQuizStep] = React.useState(-1);
   const [quizAnswers, setQuizAnswers] = React.useState<QuizAnswers>({
     work_model: user?.onboarding?.work_model ?? '',
     operation_size: user?.onboarding?.operation_size ?? '',
@@ -112,10 +113,11 @@ export const Onboarding = () => {
   const [completedSteps, setCompletedSteps] = React.useState<string[]>([]);
 
   React.useEffect(() => {
-    if (user?.onboarding?.quiz_completed) {
+    if (hasQuizCompleted) {
       setShowQuiz(false);
+      setQuizDismissedLocally(true);
     }
-  }, [user?.onboarding?.quiz_completed]);
+  }, [hasQuizCompleted]);
 
   React.useEffect(() => {
     setQuizAnswers((prev) => ({
@@ -128,6 +130,8 @@ export const Onboarding = () => {
     user?.onboarding?.operation_size,
     user?.onboarding?.current_process,
   ]);
+
+  const shouldRenderQuiz = showQuiz && !quizDismissedLocally && !hasQuizCompleted;
 
   const currentQuestion = quizStep >= 0 ? QUIZ_QUESTIONS[quizStep] : null;
   const selectedOption = currentQuestion
@@ -186,8 +190,9 @@ export const Onboarding = () => {
       const saved = await onboardingService.saveQuizAnswers(user.id, quizAnswers);
       console.log('Quiz salvo com sucesso:', saved);
 
+      setQuizDismissedLocally(true);
       setShowQuiz(false);
-      setQuizStep(0);
+      setQuizStep(-1);
     } catch (error: any) {
       console.error('Erro ao salvar quiz:', error);
       setQuizError(
@@ -228,7 +233,7 @@ export const Onboarding = () => {
   return (
     <div className="min-h-full bg-[#F9FAFB]">
       <AnimatePresence>
-        {showQuiz && (
+        {shouldRenderQuiz && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -381,7 +386,7 @@ export const Onboarding = () => {
           </p>
         </div>
 
-        {!showQuiz && (
+        {!shouldRenderQuiz && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
