@@ -17,6 +17,7 @@ import { AccountArea } from '../../account/AccountArea';
 import { SettingsArea } from '../../settings/SettingsArea';
 import { Support } from '../../support/Support';
 import { ReportsModule } from '../../reports/ReportsModule';
+import { AdminDashboard } from '../../admin/AdminDashboard';
 
 export const ModuleRenderer = () => {
   const { activeModule } = useApp();
@@ -56,6 +57,8 @@ export const ModuleRenderer = () => {
       return <Credits />;
     case 'support':
       return <Support />;
+    case 'admin':
+      return <AdminDashboard />;
     default:
       return <Dashboard />;
   }
