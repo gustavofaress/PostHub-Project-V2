@@ -120,7 +120,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         let onboarding = null;
 
         try {
-          usuarioRecord = await userService.getCurrentUserRecord(sessionUser.id);
+          usuarioRecord = await userService.getCurrentUserRecord(
+            sessionUser.id,
+            sessionUser.email || null
+          );
         } catch (error) {
           console.error('Error loading usuarioRecord:', error);
         }
@@ -324,6 +327,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (getUserError) {
         throw getUserError;
       }
+
+      console.log('[AuthContext] signedInUser.id:', signedInUser?.id);
+      console.log('[AuthContext] signedInUser.email:', signedInUser?.email);
 
       if (!signedInUser) {
         navigate('/login');
