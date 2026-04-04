@@ -5,6 +5,8 @@ import { NAV_GROUPS, NavItem } from '../../../shared/constants/navigation';
 import { cn } from '../../../shared/utils/cn';
 import { useAuth } from '../../../app/context/AuthContext';
 
+const HIDDEN_MODULE_IDS = ['consultant', 'scheduler'];
+
 export const Sidebar = () => {
   const location = useLocation();
   const { logout, user } = useAuth();
@@ -17,11 +19,15 @@ export const Sidebar = () => {
   const visibleGroups = React.useMemo(() => {
     return NAV_GROUPS
       .map((group) => {
-        if (group.label !== 'Admin') return group;
+        let items = group.items.filter((item) => !HIDDEN_MODULE_IDS.includes(item.id));
+
+        if (group.label === 'Admin') {
+          items = items.filter(() => !!user?.isAdmin);
+        }
 
         return {
           ...group,
-          items: group.items.filter(() => !!user?.isAdmin),
+          items,
         };
       })
       .filter((group) => group.items.length > 0);
@@ -46,7 +52,10 @@ export const Sidebar = () => {
   }, []);
 
   React.useEffect(() => {
-    if (hoveredItem?.item.id === 'admin' && !user?.isAdmin) {
+    if (
+      (hoveredItem?.item.id === 'admin' && !user?.isAdmin) ||
+      (hoveredItem?.item.id && HIDDEN_MODULE_IDS.includes(hoveredItem.item.id))
+    ) {
       setHoveredItem(null);
     }
   }, [hoveredItem, user?.isAdmin]);
