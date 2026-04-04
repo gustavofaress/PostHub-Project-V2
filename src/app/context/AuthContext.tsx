@@ -188,11 +188,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const getPostLoginRoute = React.useCallback((appUser: User) => {
     if (appUser.isAdmin) return '/workspace/admin';
     if (appUser.accessStatus === 'pro') return '/workspace/dashboard';
-
-    if (appUser.accessStatus === 'trial_active') {
-      return '/workspace/onboarding';
-    }
-
+    if (appUser.accessStatus === 'trial_active') return '/workspace/onboarding';
     return '/login';
   }, []);
 
