@@ -80,14 +80,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { currentPlan, isAdmin, trialExpiresAt } = params;
 
       if (isAdmin) return 'pro';
-      if (!currentPlan) return 'missing';
-      if (currentPlan === 'pro') return 'pro';
 
-      if (currentPlan === 'start_7') {
+      const normalizedPlan = (currentPlan || '').toLowerCase().trim();
+
+      if (!normalizedPlan) return 'missing';
+      if (normalizedPlan === 'pro') return 'pro';
+
+      if (
+        normalizedPlan === 'start_7' ||
+        normalizedPlan === 'teste' ||
+        normalizedPlan === 'trial'
+      ) {
         return isTrialStillActive(trialExpiresAt) ? 'trial_active' : 'trial_expired';
       }
 
-      if (currentPlan === 'blocked') return 'blocked';
+      if (normalizedPlan === 'blocked' || normalizedPlan === 'bloqueado') {
+        return 'blocked';
+      }
 
       return 'unknown';
     },
@@ -130,6 +139,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           isAdmin,
           trialExpiresAt,
         });
+
+        console.log('[AuthContext] usuarioRecord:', usuarioRecord);
+        console.log('[AuthContext] currentPlan:', currentPlan);
+        console.log('[AuthContext] trialExpiresAt:', trialExpiresAt);
+        console.log('[AuthContext] computed accessStatus:', accessStatus);
 
         return {
           ...baseUser,
@@ -419,7 +433,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       for (let attempt = 0; attempt < 5; attempt++) {
         appUser = await buildAppUser(signedUpUser);
 
-        if (appUser.accessStatus && appUser.accessStatus !== 'missing') {
+        if (
+          appUser.accessStatus &&
+          appUser.accessStatus !== 'missing' &&
+          appUser.accessStatus !== 'unknown'
+        ) {
           break;
         }
 
