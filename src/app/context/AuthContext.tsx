@@ -107,10 +107,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       try {
-        const [usuarioRecord, onboarding] = await Promise.all([
-          userService.getCurrentUserRecord(sessionUser.id),
-          onboardingService.getByUserId(sessionUser.id),
-        ]);
+        let usuarioRecord = null;
+        let onboarding = null;
+
+        try {
+          usuarioRecord = await userService.getCurrentUserRecord(sessionUser.id);
+        } catch (error) {
+          console.error('Error loading usuarioRecord:', error);
+        }
+
+        try {
+          onboarding = await onboardingService.getByUserId(sessionUser.id);
+        } catch (error) {
+          console.error('Error loading onboarding:', error);
+        }
 
         const currentPlan = usuarioRecord?.current_plan ?? null;
         const isAdmin = !!usuarioRecord?.is_admin;
@@ -124,7 +134,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return {
           ...baseUser,
           name:
-            usuarioRecord?.full_name ||
+            (usuarioRecord as any)?.full_name ||
             usuarioRecord?.nome ||
             sessionUser.user_metadata?.full_name ||
             baseUser.name,
@@ -404,7 +414,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      const appUser = await buildAppUser(signedUpUser);
+      let appUser: User | null = null;
+
+      for (let attempt = 0; attempt < 5; attempt++) {
+        appUser = await buildAppUser(signedUpUser);
+
+        if (appUser.accessStatus && appUser.accessStatus !== 'missing') {
+          break;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 600));
+      }
+
+      if (!appUser) {
+        throw new Error('Sua conta foi criada, mas não foi possível carregar seus dados.');
+      }
+
       setUser(appUser);
 
       if (
