@@ -20,6 +20,9 @@ import {
   Eye,
   Upload,
   PlayCircle,
+  FileVideo,
+  FileImage,
+  Globe,
 } from 'lucide-react';
 import { Card } from '../../shared/components/Card';
 import { Button } from '../../shared/components/Button';
@@ -28,6 +31,8 @@ import { Badge } from '../../shared/components/Badge';
 import { cn } from '../../shared/utils/cn';
 
 type ReferenceType = 'link' | 'image' | 'video' | 'screen_recording';
+type ViewMode = 'grid' | 'list';
+type CreateTab = 'link' | 'image' | 'video' | 'screen_recording';
 
 interface ReferenceItem {
   id: string;
@@ -37,7 +42,8 @@ interface ReferenceItem {
   type: ReferenceType;
   source: string;
   sourceUrl?: string;
-  thumbnail: string;
+  thumbnailUrl?: string;
+  fileUrl?: string;
   tags: string[];
   folder?: string;
   campaign?: string;
@@ -47,6 +53,19 @@ interface ReferenceItem {
   createdAt: string;
   fileName?: string;
   fileSizeMb?: number;
+}
+
+interface FormState {
+  title: string;
+  description: string;
+  source: string;
+  sourceUrl: string;
+  tags: string;
+  folder: string;
+  campaign: string;
+  platform: string;
+  format: string;
+  notes: string;
 }
 
 const ACTIVE_PROFILE_ID = 'profile-acme-demo';
@@ -61,7 +80,7 @@ const INITIAL_REFERENCES: ReferenceItem[] = [
     type: 'video',
     source: 'Instagram',
     sourceUrl: 'https://instagram.com/',
-    thumbnail: 'https://picsum.photos/seed/ref1/600/600',
+    thumbnailUrl: 'https://picsum.photos/seed/ref1/600/600',
     tags: ['hook', 'imobiliário', 'autoridade'],
     folder: 'Reels',
     campaign: 'Captação Premium',
@@ -81,7 +100,7 @@ const INITIAL_REFERENCES: ReferenceItem[] = [
     type: 'link',
     source: 'LinkedIn',
     sourceUrl: 'https://linkedin.com/',
-    thumbnail: 'https://picsum.photos/seed/ref2/600/600',
+    thumbnailUrl: 'https://picsum.photos/seed/ref2/600/600',
     tags: ['carrossel', 'storytelling', 'b2b'],
     folder: 'Carrosséis',
     campaign: 'Conteúdo de Autoridade',
@@ -99,7 +118,8 @@ const INITIAL_REFERENCES: ReferenceItem[] = [
     type: 'image',
     source: 'Pinterest',
     sourceUrl: 'https://pinterest.com/',
-    thumbnail: 'https://picsum.photos/seed/ref3/600/600',
+    thumbnailUrl: 'https://picsum.photos/seed/ref3/600/600',
+    fileUrl: 'https://picsum.photos/seed/ref3/1200/1200',
     tags: ['branding', 'estética', 'premium'],
     folder: 'Branding',
     campaign: 'Reposicionamento',
@@ -118,7 +138,7 @@ const INITIAL_REFERENCES: ReferenceItem[] = [
       'Boa referência para vídeos explicativos mostrando ferramenta na prática com cortes ágeis.',
     type: 'screen_recording',
     source: 'Upload',
-    thumbnail: 'https://picsum.photos/seed/ref4/600/600',
+    thumbnailUrl: 'https://picsum.photos/seed/ref4/600/600',
     tags: ['tutorial', 'edição', 'produto'],
     folder: 'Tutoriais',
     campaign: 'Produto',
@@ -145,27 +165,63 @@ const TYPE_ICON: Record<ReferenceType, React.ComponentType<{ className?: string 
   screen_recording: PlayCircle,
 };
 
-const EMPTY_FORM = {
+const EMPTY_FORM: FormState = {
   title: '',
   description: '',
-  type: 'link' as ReferenceType,
   source: '',
   sourceUrl: '',
-  thumbnail: '',
   tags: '',
   folder: '',
   campaign: '',
   platform: '',
   format: '',
   notes: '',
-  fileName: '',
-  fileSizeMb: '',
+};
+
+const getFallbackThumbnail = (title: string) =>
+  `https://picsum.photos/seed/${encodeURIComponent(title || 'reference')}/600/600`;
+
+const inferPlatformFromUrl = (url: string): string => {
+  const normalized = url.toLowerCase();
+
+  if (normalized.includes('instagram.com')) return 'Instagram';
+  if (normalized.includes('tiktok.com')) return 'TikTok';
+  if (normalized.includes('youtube.com') || normalized.includes('youtu.be')) return 'YouTube';
+  if (normalized.includes('linkedin.com')) return 'LinkedIn';
+  if (normalized.includes('facebook.com')) return 'Facebook';
+  if (normalized.includes('pinterest.com')) return 'Pinterest';
+  if (normalized.includes('x.com') || normalized.includes('twitter.com')) return 'X';
+  if (normalized.includes('dribbble.com')) return 'Dribbble';
+  if (normalized.includes('behance.net')) return 'Behance';
+
+  try {
+    const hostname = new URL(url).hostname.replace('www.', '');
+    return hostname || 'Link externo';
+  } catch {
+    return 'Link externo';
+  }
+};
+
+const inferSourceFromTab = (tab: CreateTab, source: string, sourceUrl: string) => {
+  if (source.trim()) return source.trim();
+  if (tab === 'link' && sourceUrl.trim()) return inferPlatformFromUrl(sourceUrl);
+  return 'Upload';
+};
+
+const getPreviewImage = (reference: ReferenceItem) =>
+  reference.thumbnailUrl || reference.fileUrl || getFallbackThumbnail(reference.title);
+
+const formatFileSize = (size?: number) => (size ? `${size} MB` : '—');
+
+const getAcceptByTab = (tab: CreateTab) => {
+  if (tab === 'image') return 'image/*';
+  return 'video/*';
 };
 
 export const References = () => {
   const [references, setReferences] = React.useState<ReferenceItem[]>(INITIAL_REFERENCES);
   const [search, setSearch] = React.useState('');
-  const [viewMode, setViewMode] = React.useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = React.useState<ViewMode>('grid');
   const [selectedReference, setSelectedReference] = React.useState<ReferenceItem | null>(null);
   const [editingReference, setEditingReference] = React.useState<ReferenceItem | null>(null);
   const [showCreateModal, setShowCreateModal] = React.useState(false);
@@ -173,7 +229,13 @@ export const References = () => {
   const [referenceToDelete, setReferenceToDelete] = React.useState<ReferenceItem | null>(null);
   const [menuOpenId, setMenuOpenId] = React.useState<string | null>(null);
 
-  const [form, setForm] = React.useState(EMPTY_FORM);
+  const [activeTab, setActiveTab] = React.useState<CreateTab>('link');
+  const [form, setForm] = React.useState<FormState>(EMPTY_FORM);
+  const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
+  const [filePreviewUrl, setFilePreviewUrl] = React.useState<string>('');
+  const [filePreviewLabel, setFilePreviewLabel] = React.useState<string>('');
+  const [linkPreviewUrl, setLinkPreviewUrl] = React.useState<string>('');
+  const [linkPreviewPlatform, setLinkPreviewPlatform] = React.useState<string>('');
 
   const profileReferences = React.useMemo(() => {
     return references.filter((item) => item.profileId === ACTIVE_PROFILE_ID);
@@ -194,6 +256,7 @@ export const References = () => {
         item.platform,
         item.format,
         item.notes,
+        item.fileName,
         ...item.tags,
       ]
         .filter(Boolean)
@@ -229,9 +292,23 @@ export const References = () => {
     });
   }, [profileReferences]);
 
+  React.useEffect(() => {
+    return () => {
+      if (filePreviewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(filePreviewUrl);
+      }
+    };
+  }, [filePreviewUrl]);
+
   const resetForm = () => {
     setForm(EMPTY_FORM);
     setEditingReference(null);
+    setActiveTab('link');
+    setSelectedFile(null);
+    setFilePreviewUrl('');
+    setFilePreviewLabel('');
+    setLinkPreviewUrl('');
+    setLinkPreviewPlatform('');
   };
 
   const openCreateModal = () => {
@@ -241,24 +318,69 @@ export const References = () => {
 
   const openEditModal = (reference: ReferenceItem) => {
     setEditingReference(reference);
+    setActiveTab(reference.type);
     setForm({
       title: reference.title,
       description: reference.description,
-      type: reference.type,
       source: reference.source,
       sourceUrl: reference.sourceUrl || '',
-      thumbnail: reference.thumbnail,
       tags: reference.tags.join(', '),
       folder: reference.folder || '',
       campaign: reference.campaign || '',
       platform: reference.platform || '',
       format: reference.format || '',
       notes: reference.notes || '',
-      fileName: reference.fileName || '',
-      fileSizeMb: reference.fileSizeMb ? String(reference.fileSizeMb) : '',
     });
+    setSelectedFile(null);
+    setFilePreviewUrl(reference.type === 'link' ? '' : reference.thumbnailUrl || reference.fileUrl || '');
+    setFilePreviewLabel(reference.fileName || '');
+    setLinkPreviewUrl(reference.type === 'link' ? reference.thumbnailUrl || '' : '');
+    setLinkPreviewPlatform(reference.platform || reference.source || '');
     setShowCreateModal(true);
     setMenuOpenId(null);
+  };
+
+  const handleGenerateLinkPreview = () => {
+    const url = form.sourceUrl.trim();
+    if (!url) return;
+
+    const platform = inferPlatformFromUrl(url);
+    setLinkPreviewPlatform(platform);
+    setLinkPreviewUrl(getFallbackThumbnail(`${platform}-${url}`));
+
+    setForm((prev) => ({
+      ...prev,
+      source: prev.source.trim() || platform,
+      platform: prev.platform.trim() || platform,
+      title: prev.title.trim() || `Referência de ${platform}`,
+    }));
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null;
+
+    if (!file) return;
+
+    if (file.size > 500 * 1024 * 1024) {
+      alert('O arquivo excede o limite de 500MB.');
+      return;
+    }
+
+    if (filePreviewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(filePreviewUrl);
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+
+    setSelectedFile(file);
+    setFilePreviewUrl(objectUrl);
+    setFilePreviewLabel(file.name);
+
+    setForm((prev) => ({
+      ...prev,
+      title: prev.title.trim() || file.name.replace(/\.[^/.]+$/, ''),
+      source: prev.source.trim() || 'Upload',
+    }));
   };
 
   const handleSaveReference = () => {
@@ -270,32 +392,58 @@ export const References = () => {
       .map((tag) => tag.trim())
       .filter(Boolean);
 
+    const type = activeTab as ReferenceType;
+    const source = inferSourceFromTab(activeTab, form.source, form.sourceUrl);
+    const sourceUrl = activeTab === 'link' ? form.sourceUrl.trim() || undefined : form.sourceUrl.trim() || undefined;
+
+    let thumbnailUrl: string | undefined;
+    let fileUrl: string | undefined;
+    let fileName: string | undefined;
+    let fileSizeMb: number | undefined;
+
+    if (activeTab === 'link') {
+      thumbnailUrl = linkPreviewUrl || editingReference?.thumbnailUrl || getFallbackThumbnail(title);
+      fileUrl = undefined;
+    } else if (selectedFile) {
+      thumbnailUrl = filePreviewUrl;
+      fileUrl = filePreviewUrl;
+      fileName = selectedFile.name;
+      fileSizeMb = Number((selectedFile.size / (1024 * 1024)).toFixed(1));
+    } else if (editingReference) {
+      thumbnailUrl = editingReference.thumbnailUrl;
+      fileUrl = editingReference.fileUrl;
+      fileName = editingReference.fileName;
+      fileSizeMb = editingReference.fileSizeMb;
+    } else {
+      thumbnailUrl = getFallbackThumbnail(title);
+    }
+
     const payload: ReferenceItem = {
       id: editingReference?.id || crypto.randomUUID(),
       profileId: ACTIVE_PROFILE_ID,
       title,
       description: form.description.trim(),
-      type: form.type,
-      source: form.source.trim() || 'Upload',
-      sourceUrl: form.sourceUrl.trim() || undefined,
-      thumbnail:
-        form.thumbnail.trim() ||
-        `https://picsum.photos/seed/${encodeURIComponent(title)}/600/600`,
+      type,
+      source,
+      sourceUrl,
+      thumbnailUrl,
+      fileUrl,
       tags: parsedTags,
       folder: form.folder.trim() || undefined,
       campaign: form.campaign.trim() || undefined,
-      platform: form.platform.trim() || undefined,
+      platform: form.platform.trim() || (activeTab === 'link' ? linkPreviewPlatform || undefined : undefined),
       format: form.format.trim() || undefined,
       notes: form.notes.trim() || undefined,
       createdAt: editingReference?.createdAt || new Date().toISOString().slice(0, 10),
-      fileName: form.fileName.trim() || undefined,
-      fileSizeMb: form.fileSizeMb ? Number(form.fileSizeMb) : undefined,
+      fileName,
+      fileSizeMb,
     };
 
     if (editingReference) {
-      setReferences((prev) =>
-        prev.map((item) => (item.id === editingReference.id ? payload : item))
-      );
+      setReferences((prev) => prev.map((item) => (item.id === editingReference.id ? payload : item)));
+      if (selectedReference?.id === editingReference.id) {
+        setSelectedReference(payload);
+      }
     } else {
       setReferences((prev) => [payload, ...prev]);
     }
@@ -305,7 +453,7 @@ export const References = () => {
   };
 
   const handleCopyLink = async (reference: ReferenceItem) => {
-    const value = reference.sourceUrl || reference.title;
+    const value = reference.sourceUrl || reference.fileUrl || reference.title;
     try {
       await navigator.clipboard.writeText(value);
     } catch {
@@ -337,6 +485,107 @@ export const References = () => {
     return <Icon className="h-4 w-4" />;
   };
 
+  const renderReferencePreview = (reference: ReferenceItem, className?: string) => {
+    const previewImage = getPreviewImage(reference);
+
+    if (reference.type === 'link' && !reference.thumbnailUrl) {
+      return (
+        <div className={cn('flex h-full w-full flex-col justify-between bg-gradient-to-br from-slate-100 to-slate-200 p-4', className)}>
+          <div className="flex items-center justify-between">
+            <Badge className="border-none bg-white/90 text-text-primary shadow-sm">
+              <span className="flex items-center gap-1">
+                <Globe className="h-3 w-3" />
+                {reference.platform || reference.source || 'Link'}
+              </span>
+            </Badge>
+          </div>
+          <div>
+            <p className="line-clamp-3 text-sm font-bold leading-tight text-slate-800">{reference.title}</p>
+            <p className="mt-2 line-clamp-2 text-xs text-slate-500">{reference.sourceUrl || 'Prévia do link será exibida aqui.'}</p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <img
+        src={previewImage}
+        alt={reference.title}
+        className={cn('h-full w-full object-cover', className)}
+        referrerPolicy="no-referrer"
+      />
+    );
+  };
+
+  const renderModalPreview = () => {
+    if (activeTab === 'link') {
+      if (!form.sourceUrl.trim()) {
+        return (
+          <div className="flex h-[260px] items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50 text-sm text-text-secondary">
+            Cole o link da publicação para gerar uma prévia.
+          </div>
+        );
+      }
+
+      if (linkPreviewUrl) {
+        return (
+          <div className="overflow-hidden rounded-2xl bg-gray-100">
+            <img
+              src={linkPreviewUrl}
+              alt="Prévia do link"
+              className="h-[260px] w-full object-cover"
+              referrerPolicy="no-referrer"
+            />
+          </div>
+        );
+      }
+
+      return (
+        <div className="flex h-[260px] flex-col justify-between rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 p-5">
+          <div className="flex items-center gap-2">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-brand shadow-sm">
+              <Globe className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-text-primary">
+                {linkPreviewPlatform || inferPlatformFromUrl(form.sourceUrl)}
+              </p>
+              <p className="text-xs text-text-secondary">Prévia visual do link</p>
+            </div>
+          </div>
+          <div>
+            <p className="line-clamp-2 text-base font-bold text-slate-800">
+              {form.title.trim() || 'Título da referência'}
+            </p>
+            <p className="mt-2 line-clamp-3 text-sm text-slate-500">{form.sourceUrl}</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (filePreviewUrl) {
+      if (activeTab === 'image') {
+        return (
+          <div className="overflow-hidden rounded-2xl bg-gray-100">
+            <img src={filePreviewUrl} alt="Prévia do arquivo" className="h-[260px] w-full object-cover" />
+          </div>
+        );
+      }
+
+      return (
+        <div className="relative overflow-hidden rounded-2xl bg-gray-100">
+          <video src={filePreviewUrl} className="h-[260px] w-full object-cover" controls />
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex h-[260px] items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50 text-sm text-text-secondary">
+        Faça upload do arquivo para visualizar a prévia.
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -346,8 +595,7 @@ export const References = () => {
             Banco de Referências
           </h1>
           <p className="max-w-2xl text-text-secondary">
-            Salve links, imagens, vídeos e gravações de tela para organizar repertório criativo por
-            marca, campanha e formato.
+            Salve links, prints, vídeos e gravações de tela para organizar repertório criativo por marca, campanha e formato.
           </p>
         </div>
 
@@ -386,9 +634,7 @@ export const References = () => {
                 onClick={() => setViewMode('grid')}
                 className={cn(
                   'rounded-md p-1.5 transition-colors',
-                  viewMode === 'grid'
-                    ? 'bg-white text-brand shadow-sm'
-                    : 'text-gray-500 hover:text-text-primary'
+                  viewMode === 'grid' ? 'bg-white text-brand shadow-sm' : 'text-gray-500 hover:text-text-primary'
                 )}
                 aria-label="Modo grade"
               >
@@ -398,9 +644,7 @@ export const References = () => {
                 onClick={() => setViewMode('list')}
                 className={cn(
                   'rounded-md p-1.5 transition-colors',
-                  viewMode === 'list'
-                    ? 'bg-white text-brand shadow-sm'
-                    : 'text-gray-500 hover:text-text-primary'
+                  viewMode === 'list' ? 'bg-white text-brand shadow-sm' : 'text-gray-500 hover:text-text-primary'
                 )}
                 aria-label="Modo lista"
               >
@@ -451,12 +695,7 @@ export const References = () => {
                 className="group flex flex-col overflow-hidden transition-all hover:-translate-y-0.5 hover:shadow-md"
               >
                 <div className="relative aspect-square overflow-hidden bg-gray-100">
-                  <img
-                    src={ref.thumbnail}
-                    alt={ref.title}
-                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    referrerPolicy="no-referrer"
-                  />
+                  {renderReferencePreview(ref, 'transition-transform duration-500 group-hover:scale-105')}
 
                   <div className="absolute inset-0 flex items-center justify-center gap-3 bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
                     <button
@@ -578,12 +817,7 @@ export const References = () => {
           {filteredReferences.map((ref) => (
             <Card key={ref.id} className="flex flex-col gap-4 md:flex-row md:items-center">
               <div className="h-24 w-full shrink-0 overflow-hidden rounded-xl bg-gray-100 md:w-24">
-                <img
-                  src={ref.thumbnail}
-                  alt={ref.title}
-                  className="h-full w-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
+                {renderReferencePreview(ref)}
               </div>
 
               <div className="min-w-0 flex-1">
@@ -651,17 +885,9 @@ export const References = () => {
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           {collections.map((folder) => (
-            <Card
-              key={folder.name}
-              className="cursor-pointer transition-colors hover:bg-gray-50"
-            >
+            <Card key={folder.name} className="cursor-pointer transition-colors hover:bg-gray-50">
               <div className="flex items-center gap-4">
-                <div
-                  className={cn(
-                    'flex h-12 w-12 items-center justify-center rounded-xl',
-                    folder.color
-                  )}
-                >
+                <div className={cn('flex h-12 w-12 items-center justify-center rounded-xl', folder.color)}>
                   <Folder className="h-6 w-6" />
                 </div>
                 <div>
@@ -676,14 +902,14 @@ export const References = () => {
 
       {showCreateModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
-          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+          <div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-gray-100 px-6 py-5">
               <div>
                 <h3 className="text-lg font-bold text-text-primary">
                   {editingReference ? 'Editar referência' : 'Adicionar referência'}
                 </h3>
                 <p className="text-sm text-text-secondary">
-                  Salve links, imagens, vídeos e gravações de tela no profile ativo.
+                  A prévia visual será gerada a partir do link, do print enviado ou do arquivo de vídeo.
                 </p>
               </div>
 
@@ -698,188 +924,267 @@ export const References = () => {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 gap-5 px-6 py-6 md:grid-cols-2">
-              <div className="md:col-span-2">
-                <label className="mb-2 block text-sm font-semibold text-text-primary">Título</label>
-                <Input
-                  placeholder="Ex: Reel com hook forte para social media"
-                  value={form.title}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setForm((prev) => ({ ...prev, title: e.target.value }))
-                  }
-                />
-              </div>
+            <div className="border-b border-gray-100 px-6 pt-5">
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { key: 'link', label: 'Colar link', icon: LinkIcon },
+                  { key: 'image', label: 'Subir print/imagem', icon: FileImage },
+                  { key: 'video', label: 'Subir vídeo', icon: FileVideo },
+                  { key: 'screen_recording', label: 'Gravação de tela', icon: PlayCircle },
+                ].map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.key;
 
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-text-primary">Tipo</label>
-                <select
-                  value={form.type}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, type: e.target.value as ReferenceType }))
-                  }
-                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm outline-none transition-colors focus:border-brand"
-                >
-                  <option value="link">Link</option>
-                  <option value="image">Imagem</option>
-                  <option value="video">Vídeo</option>
-                  <option value="screen_recording">Gravação de tela</option>
-                </select>
+                  return (
+                    <button
+                      key={tab.key}
+                      onClick={() => setActiveTab(tab.key as CreateTab)}
+                      className={cn(
+                        'inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-all',
+                        isActive
+                          ? 'border-brand bg-brand/10 text-brand'
+                          : 'border-gray-200 bg-white text-text-secondary hover:border-brand/30 hover:text-text-primary'
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {tab.label}
+                    </button>
+                  );
+                })}
               </div>
+            </div>
 
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-text-primary">Origem</label>
-                <Input
-                  placeholder="Instagram, TikTok, Upload, LinkedIn..."
-                  value={form.source}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setForm((prev) => ({ ...prev, source: e.target.value }))
-                  }
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="mb-2 block text-sm font-semibold text-text-primary">
-                  Link da publicação
-                </label>
-                <Input
-                  placeholder="https://..."
-                  icon={<LinkIcon className="h-4 w-4" />}
-                  value={form.sourceUrl}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setForm((prev) => ({ ...prev, sourceUrl: e.target.value }))
-                  }
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="mb-2 block text-sm font-semibold text-text-primary">
-                  Thumbnail / imagem de preview
-                </label>
-                <Input
-                  placeholder="Cole a URL da thumbnail ou use upload depois"
-                  value={form.thumbnail}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setForm((prev) => ({ ...prev, thumbnail: e.target.value }))
-                  }
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-text-primary">Plataforma</label>
-                <Input
-                  placeholder="Instagram, TikTok, YouTube..."
-                  value={form.platform}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setForm((prev) => ({ ...prev, platform: e.target.value }))
-                  }
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-text-primary">Formato</label>
-                <Input
-                  placeholder="Reel, Story, Carrossel..."
-                  value={form.format}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setForm((prev) => ({ ...prev, format: e.target.value }))
-                  }
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-text-primary">Coleção</label>
-                <Input
-                  placeholder="Ex: Reels, Branding, Hooks..."
-                  value={form.folder}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setForm((prev) => ({ ...prev, folder: e.target.value }))
-                  }
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-text-primary">Campanha</label>
-                <Input
-                  placeholder="Ex: Lançamento, Captação Premium..."
-                  value={form.campaign}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setForm((prev) => ({ ...prev, campaign: e.target.value }))
-                  }
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="mb-2 block text-sm font-semibold text-text-primary">Tags</label>
-                <Input
-                  placeholder="Separe por vírgula: hook, retenção, imobiliário"
-                  value={form.tags}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setForm((prev) => ({ ...prev, tags: e.target.value }))
-                  }
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-text-primary">Nome do arquivo</label>
-                <Input
-                  placeholder="Ex: referencia-hook.mp4"
-                  value={form.fileName}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setForm((prev) => ({ ...prev, fileName: e.target.value }))
-                  }
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-text-primary">Tamanho (MB)</label>
-                <Input
-                  placeholder="Até 500"
-                  value={form.fileSizeMb}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setForm((prev) => ({ ...prev, fileSizeMb: e.target.value }))
-                  }
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="mb-2 block text-sm font-semibold text-text-primary">Descrição</label>
-                <textarea
-                  rows={4}
-                  value={form.description}
-                  onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-                  placeholder="Explique por que essa referência é útil para a equipe."
-                  className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none transition-colors focus:border-brand"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="mb-2 block text-sm font-semibold text-text-primary">
-                  Notas criativas / adaptação para a marca
-                </label>
-                <textarea
-                  rows={4}
-                  value={form.notes}
-                  onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
-                  placeholder="Ex: adaptar esse hook para imóveis, trocar ritmo de edição, usar CTA mais direto..."
-                  className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none transition-colors focus:border-brand"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <div className="rounded-2xl border border-dashed border-brand/30 bg-brand/5 p-5">
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-brand shadow-sm">
-                      <Upload className="h-5 w-5" />
-                    </div>
+            <div className="grid grid-cols-1 gap-6 px-6 py-6 lg:grid-cols-[1fr_1fr]">
+              <div className="space-y-5">
+                {activeTab === 'link' ? (
+                  <>
                     <div>
-                      <h4 className="font-semibold text-text-primary">Área de upload</h4>
-                      <p className="text-sm text-text-secondary">
-                        No próximo passo, conecte aqui upload real para imagem, vídeo e gravação de
-                        tela com limite de até 500MB por arquivo.
-                      </p>
+                      <label className="mb-2 block text-sm font-semibold text-text-primary">
+                        Link da publicação
+                      </label>
+                      <div className="flex gap-2">
+                        <div className="flex-1">
+                          <Input
+                            placeholder="https://..."
+                            icon={<LinkIcon className="h-4 w-4" />}
+                            value={form.sourceUrl}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                              setForm((prev) => ({ ...prev, sourceUrl: e.target.value }))
+                            }
+                          />
+                        </div>
+                        <Button type="button" variant="outline" onClick={handleGenerateLinkPreview}>
+                          Gerar prévia
+                        </Button>
+                      </div>
                     </div>
+
+                    <div className="rounded-2xl border border-dashed border-brand/30 bg-brand/5 p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-brand shadow-sm">
+                          <Globe className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-text-primary">Prévia por link</h4>
+                          <p className="text-sm text-text-secondary">
+                            Neste MVP, a prévia é simulada visualmente. Depois você pode trocar isso por uma Edge Function que resolve metadados do link.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-text-primary">
+                      {activeTab === 'image'
+                        ? 'Upload de print ou imagem'
+                        : activeTab === 'video'
+                        ? 'Upload de vídeo'
+                        : 'Upload de gravação de tela'}
+                    </label>
+
+                    <label className="block cursor-pointer rounded-2xl border border-dashed border-brand/30 bg-brand/5 p-5 transition-colors hover:bg-brand/10">
+                      <input
+                        type="file"
+                        accept={getAcceptByTab(activeTab)}
+                        className="hidden"
+                        onChange={handleFileChange}
+                      />
+
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-brand shadow-sm">
+                          <Upload className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-text-primary">Selecionar arquivo</h4>
+                          <p className="text-sm text-text-secondary">
+                            Suporta até 500MB. A thumbnail será o próprio print ou a prévia visual do vídeo enviado.
+                          </p>
+                          {filePreviewLabel && (
+                            <p className="mt-2 text-sm font-medium text-text-primary">{filePreviewLabel}</p>
+                          )}
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+                )}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-text-primary">Título</label>
+                  <Input
+                    placeholder="Ex: Reel com hook forte para social media"
+                    value={form.title}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setForm((prev) => ({ ...prev, title: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-text-primary">Origem</label>
+                    <Input
+                      placeholder="Instagram, TikTok, Upload, LinkedIn..."
+                      value={form.source}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        setForm((prev) => ({ ...prev, source: e.target.value }))
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-text-primary">Plataforma</label>
+                    <Input
+                      placeholder="Instagram, TikTok, YouTube..."
+                      value={form.platform}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        setForm((prev) => ({ ...prev, platform: e.target.value }))
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-text-primary">Formato</label>
+                    <Input
+                      placeholder="Reel, Story, Carrossel..."
+                      value={form.format}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        setForm((prev) => ({ ...prev, format: e.target.value }))
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-text-primary">Coleção</label>
+                    <Input
+                      placeholder="Ex: Reels, Branding, Hooks..."
+                      value={form.folder}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        setForm((prev) => ({ ...prev, folder: e.target.value }))
+                      }
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="mb-2 block text-sm font-semibold text-text-primary">Campanha</label>
+                    <Input
+                      placeholder="Ex: Lançamento, Captação Premium..."
+                      value={form.campaign}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        setForm((prev) => ({ ...prev, campaign: e.target.value }))
+                      }
+                    />
                   </div>
                 </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-text-primary">Tags</label>
+                  <Input
+                    placeholder="Separe por vírgula: hook, retenção, imobiliário"
+                    value={form.tags}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setForm((prev) => ({ ...prev, tags: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-text-primary">Descrição</label>
+                  <textarea
+                    rows={4}
+                    value={form.description}
+                    onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+                    placeholder="Explique por que essa referência é útil para a equipe."
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none transition-colors focus:border-brand"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-text-primary">
+                    Notas criativas / adaptação para a marca
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={form.notes}
+                    onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
+                    placeholder="Ex: adaptar esse hook para imóveis, trocar ritmo de edição, usar CTA mais direto..."
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none transition-colors focus:border-brand"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <h4 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
+                    Prévia da referência
+                  </h4>
+                  {renderModalPreview()}
+                </div>
+
+                <Card className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Badge className="border-none bg-brand/10 text-brand">
+                      {TYPE_LABEL[activeTab as ReferenceType]}
+                    </Badge>
+                    {(form.platform || linkPreviewPlatform) && (
+                      <Badge className="border-none bg-gray-100 text-text-secondary">
+                        {form.platform || linkPreviewPlatform}
+                      </Badge>
+                    )}
+                  </div>
+
+                  <div>
+                    <h5 className="text-sm font-bold text-text-primary">
+                      {form.title.trim() || 'Título da referência'}
+                    </h5>
+                    <p className="mt-1 text-sm text-text-secondary">
+                      {form.description.trim() || 'A descrição aparecerá aqui.'}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Origem</p>
+                      <p className="text-text-primary">{form.source.trim() || '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Arquivo</p>
+                      <p className="truncate text-text-primary">{selectedFile?.name || editingReference?.fileName || '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Tamanho</p>
+                      <p className="text-text-primary">
+                        {selectedFile
+                          ? `${(selectedFile.size / (1024 * 1024)).toFixed(1)} MB`
+                          : formatFileSize(editingReference?.fileSizeMb)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Profile</p>
+                      <p className="truncate text-text-primary">{ACTIVE_PROFILE_ID}</p>
+                    </div>
+                  </div>
+                </Card>
               </div>
             </div>
 
@@ -921,12 +1226,55 @@ export const References = () => {
 
             <div className="grid grid-cols-1 gap-6 px-6 py-6 lg:grid-cols-[1.2fr_0.8fr]">
               <div className="overflow-hidden rounded-2xl bg-gray-100">
-                <img
-                  src={selectedReference.thumbnail}
-                  alt={selectedReference.title}
-                  className="h-full max-h-[560px] w-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
+                {selectedReference.type === 'image' ? (
+                  <img
+                    src={getPreviewImage(selectedReference)}
+                    alt={selectedReference.title}
+                    className="h-full max-h-[560px] w-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : selectedReference.type === 'video' || selectedReference.type === 'screen_recording' ? (
+                  selectedReference.fileUrl ? (
+                    <video
+                      src={selectedReference.fileUrl}
+                      className="h-full max-h-[560px] w-full object-cover"
+                      controls
+                    />
+                  ) : (
+                    <img
+                      src={getPreviewImage(selectedReference)}
+                      alt={selectedReference.title}
+                      className="h-full max-h-[560px] w-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  )
+                ) : selectedReference.thumbnailUrl ? (
+                  <img
+                    src={selectedReference.thumbnailUrl}
+                    alt={selectedReference.title}
+                    className="h-full max-h-[560px] w-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="flex h-[420px] flex-col justify-between bg-gradient-to-br from-slate-100 to-slate-200 p-6">
+                    <div className="flex items-center gap-2">
+                      <Badge className="border-none bg-white text-text-primary">
+                        <span className="flex items-center gap-1">
+                          <Globe className="h-3 w-3" />
+                          {selectedReference.platform || selectedReference.source || 'Link'}
+                        </span>
+                      </Badge>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold leading-tight text-slate-800">
+                        {selectedReference.title}
+                      </p>
+                      <p className="mt-3 text-sm text-slate-500">
+                        {selectedReference.sourceUrl || 'Sem link disponível.'}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-5">
@@ -974,36 +1322,28 @@ export const References = () => {
                     <h4 className="mb-1 text-sm font-semibold uppercase tracking-wide text-gray-400">
                       Coleção
                     </h4>
-                    <p className="text-sm text-text-primary">
-                      {selectedReference.folder || 'Sem coleção'}
-                    </p>
+                    <p className="text-sm text-text-primary">{selectedReference.folder || 'Sem coleção'}</p>
                   </div>
 
                   <div>
                     <h4 className="mb-1 text-sm font-semibold uppercase tracking-wide text-gray-400">
                       Campanha
                     </h4>
-                    <p className="text-sm text-text-primary">
-                      {selectedReference.campaign || 'Sem campanha'}
-                    </p>
+                    <p className="text-sm text-text-primary">{selectedReference.campaign || 'Sem campanha'}</p>
                   </div>
 
                   <div>
                     <h4 className="mb-1 text-sm font-semibold uppercase tracking-wide text-gray-400">
                       Arquivo
                     </h4>
-                    <p className="text-sm text-text-primary">
-                      {selectedReference.fileName || 'Sem arquivo'}
-                    </p>
+                    <p className="text-sm text-text-primary">{selectedReference.fileName || 'Sem arquivo'}</p>
                   </div>
 
                   <div>
                     <h4 className="mb-1 text-sm font-semibold uppercase tracking-wide text-gray-400">
                       Tamanho
                     </h4>
-                    <p className="text-sm text-text-primary">
-                      {selectedReference.fileSizeMb ? `${selectedReference.fileSizeMb} MB` : '—'}
-                    </p>
+                    <p className="text-sm text-text-primary">{formatFileSize(selectedReference.fileSizeMb)}</p>
                   </div>
                 </div>
 
@@ -1030,12 +1370,7 @@ export const References = () => {
 
                 <div className="flex flex-wrap gap-3">
                   {selectedReference.sourceUrl && (
-                    <a
-                      href={selectedReference.sourceUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex"
-                    >
+                    <a href={selectedReference.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex">
                       <Button className="gap-2">
                         <ExternalLink className="h-4 w-4" />
                         Abrir link
@@ -1043,20 +1378,12 @@ export const References = () => {
                     </a>
                   )}
 
-                  <Button
-                    variant="outline"
-                    className="gap-2"
-                    onClick={() => handleCopyLink(selectedReference)}
-                  >
+                  <Button variant="outline" className="gap-2" onClick={() => handleCopyLink(selectedReference)}>
                     <Copy className="h-4 w-4" />
                     Copiar
                   </Button>
 
-                  <Button
-                    variant="outline"
-                    className="gap-2"
-                    onClick={() => openEditModal(selectedReference)}
-                  >
+                  <Button variant="outline" className="gap-2" onClick={() => openEditModal(selectedReference)}>
                     <Pencil className="h-4 w-4" />
                     Editar
                   </Button>
@@ -1081,8 +1408,7 @@ export const References = () => {
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
             <h3 className="text-lg font-bold text-text-primary">Excluir referência</h3>
             <p className="mt-2 text-sm leading-relaxed text-text-secondary">
-              Tem certeza que deseja excluir <strong>{referenceToDelete.title}</strong>? Essa ação
-              remove a referência da biblioteca deste profile.
+              Tem certeza que deseja excluir <strong>{referenceToDelete.title}</strong>? Essa ação remove a referência da biblioteca deste profile.
             </p>
 
             <div className="mt-6 flex items-center justify-end gap-3">
@@ -1095,10 +1421,7 @@ export const References = () => {
               >
                 Cancelar
               </Button>
-              <Button
-                className="bg-red-600 hover:bg-red-700"
-                onClick={confirmDelete}
-              >
+              <Button className="bg-red-600 hover:bg-red-700" onClick={confirmDelete}>
                 Excluir
               </Button>
             </div>
