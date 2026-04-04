@@ -81,7 +81,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (isAdmin) return 'pro';
       if (!currentPlan) return 'missing';
-
       if (currentPlan === 'pro') return 'pro';
 
       if (currentPlan === 'start_7') {
@@ -164,8 +163,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (appUser.accessStatus === 'pro') return '/workspace/dashboard';
 
     if (appUser.accessStatus === 'trial_active') {
-      const quizCompleted = !!appUser.onboarding?.quiz_completed;
-      return quizCompleted ? '/workspace/onboarding' : '/workspace/onboarding';
+      return '/workspace/onboarding';
     }
 
     return '/login';
@@ -320,8 +318,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       navigate(getPostLoginRoute(appUser));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
+      console.error('Login error message:', error?.message);
+      console.error('Login error details:', error?.details);
+      console.error('Login error hint:', error?.hint);
       throw error;
     }
   };
@@ -415,8 +416,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       navigate('/workspace/onboarding');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Signup error:', error);
+      console.error('Signup error message:', error?.message);
+      console.error('Signup error details:', error?.details);
+      console.error('Signup error hint:', error?.hint);
       throw error;
     }
   };
