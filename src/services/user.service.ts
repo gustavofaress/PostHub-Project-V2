@@ -4,7 +4,6 @@ export interface UsuarioRecord {
   id: string;
   email: string | null;
   nome: string | null;
-  full_name?: string | null;
   current_plan: string | null;
   trial_started_at: string | null;
   trial_expires_at: string | null;
@@ -29,7 +28,6 @@ export const userService = {
           id,
           email,
           nome,
-          full_name,
           current_plan,
           trial_started_at,
           trial_expires_at,
@@ -53,7 +51,6 @@ export const userService = {
             id,
             email,
             nome,
-            full_name,
             current_plan,
             trial_started_at,
             trial_expires_at,
