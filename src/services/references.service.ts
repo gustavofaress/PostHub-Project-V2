@@ -13,14 +13,18 @@ const getCurrentUserId = async (): Promise<string> => {
     error,
   } = await supabase.auth.getUser();
 
-  if (error || !user) {
+  if (error) {
+    throw error;
+  }
+
+  if (!user) {
     throw new Error('Usuário não autenticado.');
   }
 
   return user.id;
 };
 
-const sanitizeFileName = (fileName: string) => {
+const sanitizeFileName = (fileName: string): string => {
   return fileName
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -37,9 +41,11 @@ export const referencesService = {
       .eq('profile_id', profileId)
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
-    return (data || []) as ReferenceItem[];
+    return (data ?? []) as ReferenceItem[];
   },
 
   async create(input: CreateReferenceInput): Promise<ReferenceItem> {
@@ -71,7 +77,9 @@ export const referencesService = {
       .select('*')
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
     return data as ReferenceItem;
   },
@@ -79,19 +87,24 @@ export const referencesService = {
   async update(input: UpdateReferenceInput): Promise<ReferenceItem> {
     const { id, ...updates } = input;
 
-    const payload = {
-      ...updates,
-      source_url: updates.source_url ?? undefined,
-      thumbnail_url: updates.thumbnail_url ?? undefined,
-      file_url: updates.file_url ?? undefined,
-      folder: updates.folder ?? undefined,
-      campaign: updates.campaign ?? undefined,
-      platform: updates.platform ?? undefined,
-      format: updates.format ?? undefined,
-      notes: updates.notes ?? undefined,
-      file_name: updates.file_name ?? undefined,
-      file_size_mb: updates.file_size_mb ?? undefined,
-    };
+    const payload: Record<string, unknown> = {};
+
+    if (updates.profile_id !== undefined) payload.profile_id = updates.profile_id;
+    if (updates.title !== undefined) payload.title = updates.title;
+    if (updates.description !== undefined) payload.description = updates.description;
+    if (updates.type !== undefined) payload.type = updates.type;
+    if (updates.source !== undefined) payload.source = updates.source;
+    if (updates.source_url !== undefined) payload.source_url = updates.source_url;
+    if (updates.thumbnail_url !== undefined) payload.thumbnail_url = updates.thumbnail_url;
+    if (updates.file_url !== undefined) payload.file_url = updates.file_url;
+    if (updates.tags !== undefined) payload.tags = updates.tags;
+    if (updates.folder !== undefined) payload.folder = updates.folder;
+    if (updates.campaign !== undefined) payload.campaign = updates.campaign;
+    if (updates.platform !== undefined) payload.platform = updates.platform;
+    if (updates.format !== undefined) payload.format = updates.format;
+    if (updates.notes !== undefined) payload.notes = updates.notes;
+    if (updates.file_name !== undefined) payload.file_name = updates.file_name;
+    if (updates.file_size_mb !== undefined) payload.file_size_mb = updates.file_size_mb;
 
     const { data, error } = await supabase
       .from('reference_items')
@@ -100,7 +113,9 @@ export const referencesService = {
       .select('*')
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
     return data as ReferenceItem;
   },
@@ -108,7 +123,9 @@ export const referencesService = {
   async remove(id: string): Promise<void> {
     const { error } = await supabase.from('reference_items').delete().eq('id', id);
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   },
 
   async uploadFile(
@@ -131,7 +148,9 @@ export const referencesService = {
         upsert: false,
       });
 
-    if (uploadError) throw uploadError;
+    if (uploadError) {
+      throw uploadError;
+    }
 
     const { data } = supabase.storage.from(BUCKET_NAME).getPublicUrl(filePath);
 
