@@ -15,8 +15,6 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { Button } from '../shared/components/Button';
 
-const STRIPE_CHECKOUT_URL = 'https://buy.stripe.com/4gMcN671V9YHgknapodMI02';
-
 const modules = [
   {
     id: 'ideias',
@@ -189,7 +187,7 @@ export const LandingPage = () => {
               href="#preco"
               className="text-sm font-medium text-white/70 transition-colors hover:text-white"
             >
-              Preço
+              Teste grátis
             </a>
           </nav>
 
@@ -200,11 +198,11 @@ export const LandingPage = () => {
             >
               Login
             </Link>
-            <a href={STRIPE_CHECKOUT_URL} target="_blank" rel="noreferrer">
+            <Link to="/signup">
               <Button className="rounded-full px-5 py-2.5 text-sm font-semibold">
-                Assinar agora
+                Testar grátis
               </Button>
-            </a>
+            </Link>
           </div>
 
           <button
@@ -244,7 +242,7 @@ export const LandingPage = () => {
                   className="py-2 text-base font-medium text-white/80 hover:text-white"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  Preço
+                  Teste grátis
                 </a>
                 <div className="my-2 h-px bg-white/10" />
                 <Link
@@ -254,17 +252,15 @@ export const LandingPage = () => {
                 >
                   Login
                 </Link>
-                <a
-                  href={STRIPE_CHECKOUT_URL}
-                  target="_blank"
-                  rel="noreferrer"
+                <Link
+                  to="/signup"
                   className="mt-2"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   <Button className="w-full rounded-xl py-3 text-base font-semibold">
-                    Assinar agora
+                    Testar grátis
                   </Button>
-                </a>
+                </Link>
               </div>
             </motion.div>
           )}
@@ -304,12 +300,12 @@ export const LandingPage = () => {
                 </p>
 
                 <div className="mb-6 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
-                  <a href={STRIPE_CHECKOUT_URL} target="_blank" rel="noreferrer">
+                  <Link to="/signup">
                     <Button className="flex w-full items-center justify-center gap-2 rounded-full px-8 py-4 text-base font-semibold shadow-[0_0_30px_rgba(56,182,255,0.25)] hover:shadow-[0_0_40px_rgba(56,182,255,0.4)] sm:w-auto">
-                      Começar agora
+                      Começar teste grátis
                       <ArrowRight size={18} />
                     </Button>
-                  </a>
+                  </Link>
 
                   <Link to="/login">
                     <Button
@@ -322,7 +318,8 @@ export const LandingPage = () => {
                 </div>
 
                 <p className="text-sm text-white/40">
-                  Assinatura mensal de R$ 147,90. Cancele quando quiser.
+                  Teste grátis por 7 dias. Depois, continue no plano completo por
+                  R$ 147,90/mês.
                 </p>
               </motion.div>
 
@@ -330,7 +327,7 @@ export const LandingPage = () => {
                 initial={{ opacity: 0, scale: 0.95, x: 20 }}
                 animate={{ opacity: 1, scale: 1, x: 0 }}
                 transition={{ duration: 0.8, delay: 0.2 }}
-                className="relative lg:h-[600px] flex items-center justify-center"
+                className="relative flex items-center justify-center lg:h-[600px]"
               >
                 <div className="absolute inset-0 rounded-3xl bg-gradient-to-tr from-[#38B6FF]/20 to-transparent blur-3xl" />
                 <div className="relative w-full overflow-hidden rounded-2xl border border-white/10 bg-[#0A1023]/80 shadow-2xl ring-1 ring-white/5 backdrop-blur-sm">
@@ -362,12 +359,12 @@ export const LandingPage = () => {
               </p>
             </div>
 
-            <div className="hide-scrollbar mb-8 flex gap-2 overflow-x-auto pb-4 justify-start lg:justify-center">
+            <div className="hide-scrollbar mb-8 flex justify-start gap-2 overflow-x-auto pb-4 lg:justify-center">
               {modules.map((mod) => (
                 <button
                   key={mod.id}
                   onClick={() => setActiveModuleId(mod.id)}
-                  className={`flex items-center gap-2 rounded-full border px-5 py-3 whitespace-nowrap transition-all duration-300 ${
+                  className={`flex items-center gap-2 whitespace-nowrap rounded-full border px-5 py-3 transition-all duration-300 ${
                     activeModule.id === mod.id
                       ? 'border-[#38B6FF]/30 bg-[#38B6FF]/10 text-[#38B6FF]'
                       : 'border-white/5 bg-[#0F152B] text-white/60 hover:bg-white/5 hover:text-white'
@@ -419,7 +416,7 @@ export const LandingPage = () => {
                       <img
                         src={activeModule.image}
                         alt={activeModule.title}
-                        className="h-auto w-full object-contain max-h-[420px] md:max-h-[520px]"
+                        className="max-h-[420px] h-auto w-full object-contain md:max-h-[520px]"
                       />
                       <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10" />
                     </div>
@@ -467,18 +464,18 @@ export const LandingPage = () => {
               <div>
                 <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#38B6FF]/20 bg-[#38B6FF]/10 px-3 py-1.5">
                   <span className="text-xs font-medium text-[#38B6FF]">
-                    Plano da PostHub
+                    Teste grátis da PostHub
                   </span>
                 </div>
 
                 <h2 className="mb-6 text-3xl font-bold leading-tight md:text-5xl">
-                  Tudo que você precisa por um valor único.
+                  Comece grátis e veja a plataforma funcionando na prática.
                 </h2>
 
                 <p className="mb-8 max-w-md text-lg leading-relaxed text-white/60">
-                  Sem planos complexos ou taxas escondidas. Assine e tenha acesso
-                  imediato a todo o ecossistema PostHub para estruturar sua
-                  operação.
+                  Crie sua conta, explore todos os módulos e entenda como a
+                  PostHub pode organizar sua operação de conteúdo antes de tomar
+                  qualquer decisão.
                 </p>
               </div>
 
@@ -492,18 +489,21 @@ export const LandingPage = () => {
                   </p>
                 </div>
 
-                <div className="mb-8 flex items-baseline gap-2">
+                <div className="mb-3 flex items-baseline gap-2">
                   <span className="text-5xl font-bold tracking-tight">
-                    R$ 147,90
+                    7 dias grátis
                   </span>
-                  <span className="text-white/50">/ mês</span>
                 </div>
 
-                <a href={STRIPE_CHECKOUT_URL} target="_blank" rel="noreferrer">
+                <p className="mb-8 text-white/50">
+                  Depois, continue no plano completo por R$ 147,90 / mês.
+                </p>
+
+                <Link to="/signup">
                   <Button className="mb-10 w-full rounded-xl py-4 text-base font-bold shadow-[0_0_20px_rgba(56,182,255,0.2)] hover:shadow-[0_0_30px_rgba(56,182,255,0.4)]">
-                    Assinar agora
+                    Criar conta gratuita
                   </Button>
-                </a>
+                </Link>
 
                 <div className="space-y-4">
                   <p className="mb-4 text-sm font-medium text-white/80">
@@ -527,7 +527,7 @@ export const LandingPage = () => {
           <div className="pointer-events-none absolute bottom-0 left-1/2 h-[400px] w-[800px] -translate-x-1/2 rounded-full bg-[#38B6FF]/10 blur-[120px]" />
 
           <div className="relative z-10 mx-auto max-w-4xl px-6 text-center">
-            <div className="mb-8 mx-auto">
+            <div className="mx-auto mb-8">
               <img
                 src="/logo-full-white.png"
                 alt="PostHub"
@@ -548,11 +548,11 @@ export const LandingPage = () => {
             </p>
 
             <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <a href={STRIPE_CHECKOUT_URL} target="_blank" rel="noreferrer">
+              <Link to="/signup">
                 <Button className="w-full rounded-full px-8 py-4 text-base font-semibold shadow-[0_0_30px_rgba(56,182,255,0.25)] hover:shadow-[0_0_40px_rgba(56,182,255,0.4)] sm:w-auto">
-                  Assinar agora
+                  Começar teste grátis
                 </Button>
-              </a>
+              </Link>
 
               <Link to="/login">
                 <Button
