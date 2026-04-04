@@ -24,11 +24,16 @@ export const SignupPage = () => {
     try {
       await signup(name, email, password, profileName || name);
     } catch (err: any) {
-      setError(err.message || 'Failed to sign up');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  console.error('Signup full error:', err);
+  setError(
+    err?.message ||
+    err?.error_description ||
+    JSON.stringify(err) ||
+    'Failed to sign up'
+  );
+} finally {
+  setIsLoading(false);
+}
 
   return (
     <div className="min-h-screen bg-bg-main flex flex-col items-center justify-center p-4">
