@@ -1,150 +1,250 @@
 import * as React from 'react';
-import { 
-  BookOpen, 
-  Plus, 
-  Search, 
-  Filter, 
-  Grid, 
-  List, 
-  ExternalLink, 
-  Copy, 
-  MoreVertical,
-  Tag,
-  Folder
+import {
+  BookOpen,
+  Plus,
+  Search,
+  Trash2,
+  Pencil,
 } from 'lucide-react';
+
 import { Card } from '../../shared/components/Card';
 import { Button } from '../../shared/components/Button';
 import { Input } from '../../shared/components/Input';
-import { Badge } from '../../shared/components/Badge';
-import { cn } from '../../shared/utils/cn';
 
-const REFERENCES = [
-  { id: '1', title: 'Design de interiores minimalista', type: 'Visual', source: 'Pinterest', tags: ['estética', 'interiores'], thumbnail: 'https://picsum.photos/seed/ref1/400/400' },
-  { id: '2', title: 'Exemplos de ganchos virais', type: 'Roteiro', source: 'TikTok', tags: ['ganchos', 'viral'], thumbnail: 'https://picsum.photos/seed/ref2/400/400' },
-  { id: '3', title: 'Paleta de cores: Brisa do Oceano', type: 'Visual', source: 'Dribbble', tags: ['cores', 'branding'], thumbnail: 'https://picsum.photos/seed/ref3/400/400' },
-  { id: '4', title: 'Estratégia de conteúdo B2B', type: 'Artigo', source: 'LinkedIn', tags: ['estratégia', 'b2b'], thumbnail: 'https://picsum.photos/seed/ref4/400/400' },
-  { id: '5', title: 'Tutorial de transição dinâmica', type: 'Vídeo', source: 'YouTube', tags: ['edição', 'transições'], thumbnail: 'https://picsum.photos/seed/ref5/400/400' },
-  { id: '6', title: 'Tendências de tipografia 2024', type: 'Artigo', source: 'Medium', tags: ['fontes', 'design'], thumbnail: 'https://picsum.photos/seed/ref6/400/400' },
-];
+import { useProfile } from '../../app/context/ProfileContext';
+import { referencesService } from '../../services/references.service';
+import type { ReferenceItem, ReferenceType } from '../../types/reference.types';
+
+type CreateTab = 'link' | 'image' | 'video' | 'screen_recording';
+
+interface FormState {
+  title: string;
+  description: string;
+  sourceUrl: string;
+  tags: string;
+}
+
+const EMPTY_FORM: FormState = {
+  title: '',
+  description: '',
+  sourceUrl: '',
+  tags: '',
+};
+
+const inferPlatformFromUrl = (url: string): string => {
+  const u = url.toLowerCase();
+  if (u.includes('instagram')) return 'Instagram';
+  if (u.includes('tiktok')) return 'TikTok';
+  if (u.includes('youtube')) return 'YouTube';
+  if (u.includes('linkedin')) return 'LinkedIn';
+  return 'Link externo';
+};
 
 export const References = () => {
+  const { activeProfile } = useProfile();
+  const profileId = activeProfile?.id;
+
+  const [references, setReferences] = React.useState<ReferenceItem[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  const [search, setSearch] = React.useState('');
+
+  const [showModal, setShowModal] = React.useState(false);
+  const [editing, setEditing] = React.useState<ReferenceItem | null>(null);
+
+  const [form, setForm] = React.useState<FormState>(EMPTY_FORM);
+  const [activeTab, setActiveTab] = React.useState<CreateTab>('link');
+  const [file, setFile] = React.useState<File | null>(null);
+
+  // 🔥 LOAD DATA
+  const loadReferences = async () => {
+    if (!profileId) return;
+
+    setLoading(true);
+    try {
+      const data = await referencesService.listByProfile(profileId);
+      setReferences(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    loadReferences();
+  }, [profileId]);
+
+  // 🔥 CREATE / UPDATE
+  const handleSave = async () => {
+    if (!profileId || !form.title.trim()) return;
+
+    const tags = form.tags.split(',').map((t) => t.trim()).filter(Boolean);
+
+    try {
+      if (editing) {
+        await referencesService.update({
+          id: editing.id,
+          title: form.title,
+          description: form.description,
+          tags,
+        });
+      } else {
+        if (activeTab === 'link') {
+          await referencesService.create({
+            profile_id: profileId,
+            title: form.title,
+            description: form.description,
+            type: 'link',
+            source: inferPlatformFromUrl(form.sourceUrl),
+            source_url: form.sourceUrl,
+            tags,
+          });
+        } else if (file) {
+          const upload = await referencesService.uploadFile(profileId, file);
+
+          await referencesService.create({
+            profile_id: profileId,
+            title: form.title,
+            description: form.description,
+            type: activeTab as ReferenceType,
+            source: 'Upload',
+            file_url: upload.fileUrl,
+            thumbnail_url: upload.fileUrl,
+            file_name: upload.fileName,
+            file_size_mb: upload.fileSizeMb,
+            tags,
+          });
+        }
+      }
+
+      setShowModal(false);
+      setForm(EMPTY_FORM);
+      setEditing(null);
+      setFile(null);
+
+      await loadReferences();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // 🔥 DELETE
+  const handleDelete = async (id: string) => {
+    try {
+      await referencesService.remove(id);
+      await loadReferences();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const filtered = references.filter((r) =>
+    [r.title, r.description, ...(r.tags || [])]
+      .join(' ')
+      .toLowerCase()
+      .includes(search.toLowerCase())
+  );
+
+  if (loading) {
+    return <div className="p-6">Carregando referências...</div>;
+  }
+
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
-            <BookOpen className="h-6 w-6 text-brand" />
-            Banco de Referências
-          </h1>
-          <p className="text-text-secondary">Salve e organize suas inspirações visuais e criativas.</p>
-        </div>
-        <Button className="gap-2">
-          <Plus className="h-4 w-4" />
-          Adicionar Referência
+    <div className="space-y-6">
+      {/* HEADER */}
+      <div className="flex justify-between items-center">
+        <h1 className="text-xl font-bold flex gap-2 items-center">
+          <BookOpen /> Banco de Referências
+        </h1>
+
+        <Button onClick={() => setShowModal(true)}>
+          <Plus /> Nova
         </Button>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-        <div className="w-full md:w-96">
-          <Input placeholder="Buscar referências..." icon={<Search className="h-4 w-4" />} />
-        </div>
-        <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
-          <Button variant="outline" size="sm" className="gap-2 shrink-0">
-            <Filter className="h-4 w-4" />
-            Filtrar
-          </Button>
-          <div className="h-8 w-px bg-gray-200 shrink-0" />
-          <div className="flex bg-gray-100 p-1 rounded-lg shrink-0">
-            <button className="p-1.5 rounded-md bg-white shadow-sm text-brand">
-              <Grid className="h-4 w-4" />
-            </button>
-            <button className="p-1.5 rounded-md text-gray-500 hover:text-text-primary">
-              <List className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      </div>
+      {/* SEARCH */}
+      <Input
+        placeholder="Buscar..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {REFERENCES.map((ref) => (
-          <Card key={ref.id} padding="none" className="group overflow-hidden flex flex-col">
-            <div className="relative aspect-square bg-gray-100 overflow-hidden">
-              <img 
-                src={ref.thumbnail} 
-                alt={ref.title} 
-                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" 
-                referrerPolicy="no-referrer"
-              />
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
-                <button className="h-10 w-10 rounded-full bg-white text-text-primary flex items-center justify-center hover:bg-brand hover:text-white transition-colors">
-                  <ExternalLink className="h-5 w-5" />
-                </button>
-                <button className="h-10 w-10 rounded-full bg-white text-text-primary flex items-center justify-center hover:bg-brand hover:text-white transition-colors">
-                  <Copy className="h-5 w-5" />
-                </button>
-              </div>
-              <div className="absolute top-3 left-3">
-                <Badge className="bg-white/90 text-text-primary backdrop-blur-sm border-none shadow-sm">
-                  {ref.type}
-                </Badge>
-              </div>
-            </div>
-            
-            <div className="p-4 flex-1 flex flex-col">
-              <div className="flex items-start justify-between mb-2">
-                <h3 className="font-bold text-text-primary text-sm line-clamp-2 leading-tight">{ref.title}</h3>
-                <button className="text-gray-400 hover:text-text-primary shrink-0">
-                  <MoreVertical className="h-4 w-4" />
-                </button>
-              </div>
-              
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-[10px] font-medium text-text-secondary bg-gray-100 px-2 py-0.5 rounded">
-                  {ref.source}
-                </span>
-              </div>
+      {/* GRID */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {filtered.map((ref) => (
+          <Card key={ref.id} className="p-4 space-y-2">
+            <h3 className="font-bold">{ref.title}</h3>
+            <p className="text-sm text-gray-500">{ref.description}</p>
 
-              <div className="mt-auto flex flex-wrap gap-1.5">
-                {ref.tags.map(tag => (
-                  <span key={tag} className="text-[10px] text-brand bg-brand/5 px-1.5 py-0.5 rounded flex items-center gap-1">
-                    <Tag className="h-2 w-2" />
-                    {tag}
-                  </span>
-                ))}
-              </div>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={() => {
+                setEditing(ref);
+                setForm({
+                  title: ref.title,
+                  description: ref.description,
+                  sourceUrl: ref.source_url || '',
+                  tags: (ref.tags || []).join(', ')
+                });
+                setShowModal(true);
+              }}>
+                <Pencil size={16} />
+              </Button>
+
+              <Button size="sm" onClick={() => handleDelete(ref.id)}>
+                <Trash2 size={16} />
+              </Button>
             </div>
           </Card>
         ))}
       </div>
 
-      {/* Collections Section */}
-      <div className="pt-8 border-t border-gray-100">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-text-primary flex items-center gap-2">
-            <Folder className="h-5 w-5 text-brand" />
-            Suas Coleções
-          </h2>
-          <Button variant="ghost" size="sm" className="text-brand">Ver Tudo</Button>
+      {/* MODAL */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
+          <div className="bg-white p-6 w-[400px] space-y-4">
+            <h2 className="font-bold">Nova referência</h2>
+
+            <Input
+              placeholder="Título"
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+            />
+
+            <textarea
+              className="w-full border rounded p-2"
+              placeholder="Descrição"
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+            />
+
+            <Input
+              placeholder="Tags"
+              value={form.tags}
+              onChange={(e) => setForm({ ...form, tags: e.target.value })}
+            />
+
+            {/* LINK */}
+            {activeTab === 'link' && (
+              <Input
+                placeholder="URL"
+                value={form.sourceUrl}
+                onChange={(e) => setForm({ ...form, sourceUrl: e.target.value })}
+              />
+            )}
+
+            {/* UPLOAD */}
+            {activeTab !== 'link' && (
+              <input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+            )}
+
+            <div className="flex gap-2 justify-end">
+              <Button onClick={() => setShowModal(false)}>Cancelar</Button>
+              <Button onClick={handleSave}>Salvar</Button>
+            </div>
+          </div>
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {[
-            { name: 'Campanha de Verão 2024', count: 24, color: 'bg-orange-100 text-orange-600' },
-            { name: 'Cliente: Acme Corp', count: 12, color: 'bg-blue-100 text-blue-600' },
-            { name: 'Inspiração para Reels', count: 48, color: 'bg-pink-100 text-pink-600' },
-          ].map(folder => (
-            <Card key={folder.name} className="flex items-center gap-4 hover:bg-gray-50 transition-colors cursor-pointer">
-              <div className={cn("h-12 w-12 rounded-xl flex items-center justify-center", folder.color)}>
-                <Folder className="h-6 w-6" />
-              </div>
-              <div>
-                <h3 className="font-bold text-text-primary text-sm">{folder.name}</h3>
-                <p className="text-xs text-text-secondary">{folder.count} itens</p>
-              </div>
-            </Card>
-          ))}
-        </div>
-      </div>
+      )}
     </div>
   );
 };
