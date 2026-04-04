@@ -8,7 +8,6 @@ export interface UsuarioRecord {
   trial_started_at: string | null;
   trial_expires_at: string | null;
   is_admin: boolean | null;
-  created_at?: string | null;
 }
 
 export const userService = {
@@ -31,8 +30,7 @@ export const userService = {
           current_plan,
           trial_started_at,
           trial_expires_at,
-          is_admin,
-          created_at
+          is_admin
         `)
         .eq('id', userId)
         .maybeSingle();
@@ -54,8 +52,7 @@ export const userService = {
             current_plan,
             trial_started_at,
             trial_expires_at,
-            is_admin,
-            created_at
+            is_admin
           `)
           .eq('email', email)
           .maybeSingle();
