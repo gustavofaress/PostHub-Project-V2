@@ -151,7 +151,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return {
           ...baseUser,
           name:
-            (usuarioRecord as any)?.full_name ||
             usuarioRecord?.nome ||
             sessionUser.user_metadata?.full_name ||
             baseUser.name,
