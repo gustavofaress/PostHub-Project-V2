@@ -12,6 +12,14 @@ interface UserOnboardingState {
   setup_completed: boolean;
 }
 
+type UserAccessStatus =
+  | 'trial_active'
+  | 'trial_expired'
+  | 'pro'
+  | 'blocked'
+  | 'missing'
+  | 'unknown';
+
 interface User {
   id: string;
   name: string;
@@ -19,6 +27,7 @@ interface User {
   currentPlan?: string | null;
   isAdmin?: boolean;
   trialExpiresAt?: string | null;
+  accessStatus?: UserAccessStatus;
   onboarding?: UserOnboardingState | null;
 }
 
@@ -34,9 +43,15 @@ interface AuthContextType {
   logout: () => Promise<void>;
   isAuthenticated: boolean;
   isLoading: boolean;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
+
+const isTrialStillActive = (trialExpiresAt?: string | null) => {
+  if (!trialExpiresAt) return false;
+  return new Date(trialExpiresAt).getTime() > Date.now();
+};
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = React.useState<User | null>(null);
@@ -48,15 +63,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: sessionUser.id,
       name: sessionUser.user_metadata?.full_name || 'User',
       email: sessionUser.email || '',
+      currentPlan: null,
+      isAdmin: false,
+      trialExpiresAt: null,
+      accessStatus: 'unknown',
+      onboarding: null,
     };
   }, []);
+
+  const getAccessStatus = React.useCallback(
+    (params: {
+      currentPlan?: string | null;
+      isAdmin?: boolean;
+      trialExpiresAt?: string | null;
+    }): UserAccessStatus => {
+      const { currentPlan, isAdmin, trialExpiresAt } = params;
+
+      if (isAdmin) return 'pro';
+      if (!currentPlan) return 'missing';
+
+      if (currentPlan === 'pro') return 'pro';
+
+      if (currentPlan === 'start_7') {
+        return isTrialStillActive(trialExpiresAt) ? 'trial_active' : 'trial_expired';
+      }
+
+      if (currentPlan === 'blocked') return 'blocked';
+
+      return 'unknown';
+    },
+    []
+  );
 
   const buildAppUser = React.useCallback(
     async (sessionUser: any): Promise<User> => {
       const baseUser = mapSessionUser(sessionUser);
 
       if (!supabase) {
-        return baseUser;
+        return {
+          ...baseUser,
+          currentPlan: 'start_7',
+          accessStatus: 'trial_active',
+        };
       }
 
       try {
@@ -65,11 +113,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           onboardingService.getByUserId(sessionUser.id),
         ]);
 
+        const currentPlan = usuarioRecord?.current_plan ?? null;
+        const isAdmin = !!usuarioRecord?.is_admin;
+        const trialExpiresAt = usuarioRecord?.trial_expires_at ?? null;
+        const accessStatus = getAccessStatus({
+          currentPlan,
+          isAdmin,
+          trialExpiresAt,
+        });
+
         return {
           ...baseUser,
-          currentPlan: usuarioRecord?.current_plan ?? null,
-          isAdmin: !!usuarioRecord?.is_admin,
-          trialExpiresAt: usuarioRecord?.trial_expires_at ?? null,
+          name:
+            usuarioRecord?.full_name ||
+            usuarioRecord?.nome ||
+            sessionUser.user_metadata?.full_name ||
+            baseUser.name,
+          email: usuarioRecord?.email || sessionUser.email || baseUser.email,
+          currentPlan,
+          isAdmin,
+          trialExpiresAt,
+          accessStatus,
           onboarding: onboarding
             ? {
                 work_model: onboarding.work_model,
@@ -87,21 +151,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           currentPlan: null,
           isAdmin: false,
           trialExpiresAt: null,
+          accessStatus: 'missing',
           onboarding: null,
         };
       }
     },
-    [mapSessionUser]
+    [getAccessStatus, mapSessionUser]
   );
 
   const getPostLoginRoute = React.useCallback((appUser: User) => {
-    const isPro = appUser.currentPlan === 'pro';
-    const quizCompleted = !!appUser.onboarding?.quiz_completed;
+    if (appUser.isAdmin) return '/workspace/admin';
+    if (appUser.accessStatus === 'pro') return '/workspace/dashboard';
 
-    if (isPro) return '/workspace/dashboard';
-    if (!quizCompleted) return '/workspace/onboarding';
-    return '/workspace/dashboard';
+    if (appUser.accessStatus === 'trial_active') {
+      const quizCompleted = !!appUser.onboarding?.quiz_completed;
+      return quizCompleted ? '/workspace/onboarding' : '/workspace/onboarding';
+    }
+
+    return '/login';
   }, []);
+
+  const refreshUser = React.useCallback(async () => {
+    if (!supabase) return;
+
+    const {
+      data: { user: sessionUser },
+      error,
+    } = await supabase.auth.getUser();
+
+    if (error) {
+      console.error('Error refreshing user:', error);
+      return;
+    }
+
+    if (!sessionUser) {
+      setUser(null);
+      return;
+    }
+
+    const appUser = await buildAppUser(sessionUser);
+    setUser(appUser);
+  }, [buildAppUser]);
 
   React.useEffect(() => {
     const initializeAuth = async () => {
@@ -169,6 +259,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         currentPlan: 'start_7',
         isAdmin: false,
         trialExpiresAt: null,
+        accessStatus: 'trial_active',
         onboarding: null,
       };
       setUser(mockUser);
@@ -213,12 +304,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (!signedInUser) {
-        navigate('/workspace/dashboard');
+        navigate('/login');
         return;
       }
 
       const appUser = await buildAppUser(signedInUser);
       setUser(appUser);
+
+      if (
+        appUser.accessStatus === 'trial_expired' ||
+        appUser.accessStatus === 'blocked' ||
+        appUser.accessStatus === 'missing'
+      ) {
+        throw new Error('Seu teste grátis expirou ou sua conta está bloqueada.');
+      }
+
       navigate(getPostLoginRoute(appUser));
     } catch (error) {
       console.error('Login error:', error);
@@ -240,6 +340,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         currentPlan: 'start_7',
         isAdmin: false,
         trialExpiresAt: null,
+        accessStatus: 'trial_active',
         onboarding: null,
       };
       setUser(mockUser);
@@ -304,6 +405,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const appUser = await buildAppUser(signedUpUser);
       setUser(appUser);
+
+      if (
+        appUser.accessStatus === 'trial_expired' ||
+        appUser.accessStatus === 'blocked' ||
+        appUser.accessStatus === 'missing'
+      ) {
+        throw new Error('Sua conta foi criada, mas o acesso não foi liberado corretamente.');
+      }
+
       navigate('/workspace/onboarding');
     } catch (error) {
       console.error('Signup error:', error);
@@ -334,6 +444,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         logout,
         isAuthenticated: !!user,
         isLoading,
+        refreshUser,
       }}
     >
       {children}

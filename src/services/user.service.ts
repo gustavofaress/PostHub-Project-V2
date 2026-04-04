@@ -13,15 +13,41 @@ export interface UsuarioRecord {
 
 export const userService = {
   async getCurrentUserRecord(userId: string): Promise<UsuarioRecord | null> {
-    if (!supabase) return null;
+    if (!supabase || !userId) {
+      console.warn('[userService] Supabase ou userId ausente');
+      return null;
+    }
 
-    const { data, error } = await supabase
-      .from('usuarios')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle();
+    try {
+      const { data, error } = await supabase
+        .from('usuarios')
+        .select(`
+          id,
+          email,
+          nome,
+          current_plan,
+          trial_started_at,
+          trial_expires_at,
+          is_admin,
+          created_at
+        `)
+        .eq('id', userId)
+        .maybeSingle();
 
-    if (error) throw error;
-    return data;
+      if (error) {
+        console.error('[userService] Erro ao buscar usuario:', error);
+        return null; // ⚠️ NÃO quebra o fluxo
+      }
+
+      if (!data) {
+        console.warn('[userService] Usuário não encontrado na tabela usuarios:', userId);
+        return null;
+      }
+
+      return data;
+    } catch (err) {
+      console.error('[userService] Erro inesperado:', err);
+      return null;
+    }
   },
 };

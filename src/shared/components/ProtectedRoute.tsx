@@ -3,17 +3,24 @@ import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../../app/context/AuthContext';
 
 export const ProtectedRoute: React.FC = () => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
 
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-bg-primary">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-brand"></div>
+        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-t-2 border-brand"></div>
       </div>
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  const canAccessWorkspace =
+    user.accessStatus === 'pro' || user.accessStatus === 'trial_active';
+
+  if (!canAccessWorkspace) {
     return <Navigate to="/login" replace />;
   }
 
