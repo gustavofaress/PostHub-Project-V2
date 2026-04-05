@@ -82,7 +82,9 @@ export const AdminDashboard = () => {
     });
   }, [users, searchTerm, filterPlan, filterQuiz, filterSetup, filterWorkModel]);
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return '-';
+
     return new Intl.DateTimeFormat('pt-BR', {
       day: '2-digit',
       month: 'short',

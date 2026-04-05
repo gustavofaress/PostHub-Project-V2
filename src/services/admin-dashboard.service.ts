@@ -6,7 +6,6 @@ export interface AdminDashboardUserRow {
   email: string | null;
   current_plan: string | null;
   trial_expires_at: string | null;
-  created_at: string | null;
   is_admin: boolean | null;
 }
 
@@ -30,7 +29,7 @@ export interface AdminDashboardUser {
   currentWorkflow: string;
   quizCompleted: boolean;
   setupCompleted: boolean;
-  createdAt: string;
+  createdAt: string | null;
 }
 
 export class AdminDashboardAccessError extends Error {
@@ -50,8 +49,7 @@ export const adminDashboardService = {
       await Promise.all([
         supabase
           .from('usuarios')
-          .select('id, nome, email, current_plan, trial_expires_at, created_at, is_admin')
-          .order('created_at', { ascending: false }),
+          .select('id, nome, email, current_plan, trial_expires_at, is_admin'),
         supabase
           .from('user_onboarding')
           .select(
@@ -87,7 +85,7 @@ export const adminDashboardService = {
         currentWorkflow: onboarding?.current_process || '',
         quizCompleted: !!onboarding?.quiz_completed,
         setupCompleted: !!onboarding?.setup_completed,
-        createdAt: usuario.created_at || new Date().toISOString(),
+        createdAt: null,
       };
     });
   },
