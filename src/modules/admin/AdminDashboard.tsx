@@ -1,41 +1,12 @@
 import * as React from 'react';
 import { Search, Filter, MoreVertical, ShieldAlert } from 'lucide-react';
 import { cn } from '../../shared/utils/cn';
-import { supabase } from '../../shared/utils/supabase';
 import { useAuth } from '../../app/context/AuthContext';
-
-interface UsuarioRow {
-  id: string;
-  nome: string | null;
-  email: string | null;
-  current_plan: string | null;
-  trial_expires_at: string | null;
-  created_at: string | null;
-  is_admin: boolean | null;
-}
-
-interface OnboardingRow {
-  user_id: string;
-  work_model: string | null;
-  operation_size: string | null;
-  current_process: string | null;
-  quiz_completed: boolean | null;
-  setup_completed: boolean | null;
-}
-
-interface UserData {
-  id: string;
-  name: string;
-  email: string;
-  plan: 'Trial' | 'Pro';
-  trialStatus: 'Active' | 'Expired' | 'N/A';
-  workModel: string;
-  operationSize: string;
-  currentWorkflow: string;
-  quizCompleted: boolean;
-  setupCompleted: boolean;
-  createdAt: string;
-}
+import {
+  adminDashboardService,
+  AdminDashboardAccessError,
+  type AdminDashboardUser as UserData,
+} from '../../services/admin-dashboard.service';
 
 const WORK_MODEL_OPTIONS = [
   'Social Media Autônomo',
@@ -59,63 +30,18 @@ export const AdminDashboard = () => {
   const [filterWorkModel, setFilterWorkModel] = React.useState('All');
 
   const fetchAdminData = React.useCallback(async () => {
-    if (!supabase) {
-      setError('Supabase não está configurado.');
-      setIsLoading(false);
-      return;
-    }
-
     try {
       setIsLoading(true);
       setError('');
-
-      const [{ data: usuariosData, error: usuariosError }, { data: onboardingData, error: onboardingError }] =
-        await Promise.all([
-          supabase
-            .from('usuarios')
-            .select('id, nome, email, current_plan, trial_expires_at, created_at, is_admin')
-            .order('created_at', { ascending: false }),
-          supabase
-            .from('user_onboarding')
-            .select(
-              'user_id, work_model, operation_size, current_process, quiz_completed, setup_completed'
-            ),
-        ]);
-
-      if (usuariosError) throw usuariosError;
-      if (onboardingError) throw onboardingError;
-
-      const onboardingMap = new Map<string, OnboardingRow>();
-      (onboardingData as OnboardingRow[] | null)?.forEach((row) => {
-        onboardingMap.set(row.user_id, row);
-      });
-
-      const mergedUsers: UserData[] = ((usuariosData as UsuarioRow[] | null) ?? []).map((usuario) => {
-        const onboarding = onboardingMap.get(usuario.id);
-        const isPro = usuario.current_plan === 'pro';
-        const trialStatus = getTrialStatus(usuario.current_plan, usuario.trial_expires_at);
-
-        return {
-          id: usuario.id,
-          name: usuario.nome?.trim() || 'Usuário sem nome',
-          email: usuario.email?.trim() || '-',
-          plan: isPro ? 'Pro' : 'Trial',
-          trialStatus,
-          workModel: onboarding?.work_model || '',
-          operationSize: onboarding?.operation_size || '',
-          currentWorkflow: onboarding?.current_process || '',
-          quizCompleted: !!onboarding?.quiz_completed,
-          setupCompleted: !!onboarding?.setup_completed,
-          createdAt: usuario.created_at || new Date().toISOString(),
-        };
-      });
-
-      setUsers(mergedUsers);
+      const adminUsers = await adminDashboardService.listUsers();
+      setUsers(adminUsers);
     } catch (err: any) {
       console.error('Erro ao carregar Admin Dashboard:', err);
       setError(
-        err?.message ||
-          'Não foi possível carregar os dados do dashboard. Verifique as policies do Supabase.'
+        err instanceof AdminDashboardAccessError
+          ? err.message
+          : err?.message ||
+              'Não foi possível carregar os dados do dashboard. Verifique as policies do Supabase.'
       );
     } finally {
       setIsLoading(false);
@@ -312,7 +238,9 @@ export const AdminDashboard = () => {
                 ) : filteredUsers.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
-                      No users found matching your filters.
+                      {users.length === 0
+                        ? 'Nenhum usuário disponível. Se você esperava dados aqui, aplique as policies do arquivo docs/admin-dashboard-rls.sql no Supabase.'
+                        : 'No users found matching your filters.'}
                     </td>
                   </tr>
                 ) : (
@@ -411,16 +339,3 @@ export const AdminDashboard = () => {
     </div>
   );
 };
-
-function getTrialStatus(
-  currentPlan: string | null,
-  trialExpiresAt: string | null
-): 'Active' | 'Expired' | 'N/A' {
-  if (currentPlan === 'pro') return 'N/A';
-  if (!trialExpiresAt) return 'Active';
-
-  const expiresAt = new Date(trialExpiresAt).getTime();
-  const now = Date.now();
-
-  return expiresAt >= now ? 'Active' : 'Expired';
-}
