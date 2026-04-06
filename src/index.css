@@ -11,14 +11,47 @@
 }
 
 @layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+    }
+  }
+
+  html {
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
     @apply bg-bg-main text-text-primary font-sans antialiased;
+    overscroll-behavior: none;
+  }
+
+  button,
+  a,
+  [role="button"] {
+    user-select: none;
+    touch-action: manipulation;
+  }
+
+  input,
+  textarea,
+  select {
+    font-size: 16px;
   }
 }
 
 @layer components {
   .card-shadow {
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  }
+
+  .mobile-skeleton {
+    @apply animate-pulse rounded-3xl bg-slate-200/70 dark:bg-slate-800;
   }
 }
 
