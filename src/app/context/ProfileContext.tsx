@@ -1,11 +1,12 @@
 import * as React from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../../shared/utils/supabase';
+import { TeamMemberRole } from '../../shared/constants/workspaceMembers';
 
 interface Profile {
   id: string;
   name: string;
-  role: string;
+  role: TeamMemberRole;
   avatar_url?: string;
 }
 
@@ -40,7 +41,6 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   const loadProfiles = React.useCallback(async () => {
-    // Sem auth real ou sem Supabase real: não inventa perfil
     if (!isAuthenticated || !user || !supabase) {
       clearProfileState();
       return;
@@ -49,23 +49,70 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setIsLoadingProfiles(true);
 
     try {
-      const { data, error } = await supabase
+      const { data: ownProfilesData, error: ownProfilesError } = await supabase
         .from('client_profiles')
         .select('id, profile_name, avatar_url, is_default, created_at')
         .eq('user_id', user.id)
         .order('is_default', { ascending: false })
         .order('created_at', { ascending: true });
 
-      if (error) {
-        throw error;
+      if (ownProfilesError) {
+        throw ownProfilesError;
       }
 
-      const mappedProfiles: Profile[] = (data ?? []).map((profile) => ({
+      const ownProfiles: Profile[] = (ownProfilesData ?? []).map((profile) => ({
         id: profile.id,
         name: profile.profile_name || 'Sem nome',
         role: 'owner',
         avatar_url: profile.avatar_url ?? undefined,
       }));
+
+      const { data: membershipsData, error: membershipsError } = await supabase
+        .from('workspace_members')
+        .select('profile_id, role')
+        .eq('user_id', user.id)
+        .eq('status', 'active');
+
+      if (membershipsError) {
+        throw membershipsError;
+      }
+
+      const sharedProfileIds = Array.from(
+        new Set(
+          (membershipsData ?? [])
+            .map((membership) => membership.profile_id as string)
+            .filter((profileId) => !ownProfiles.some((profile) => profile.id === profileId))
+        )
+      );
+
+      let sharedProfiles: Profile[] = [];
+
+      if (sharedProfileIds.length > 0) {
+        const { data: sharedProfilesData, error: sharedProfilesError } = await supabase
+          .from('client_profiles')
+          .select('id, profile_name, avatar_url, is_default, created_at')
+          .in('id', sharedProfileIds)
+          .order('created_at', { ascending: true });
+
+        if (sharedProfilesError) {
+          throw sharedProfilesError;
+        }
+
+        sharedProfiles = (sharedProfilesData ?? []).map((profile) => {
+          const membership = (membershipsData ?? []).find(
+            (currentMembership) => currentMembership.profile_id === profile.id
+          );
+
+          return {
+            id: profile.id,
+            name: profile.profile_name || 'Sem nome',
+            role: (membership?.role as TeamMemberRole) || 'editor',
+            avatar_url: profile.avatar_url ?? undefined,
+          };
+        });
+      }
+
+      const mappedProfiles = [...ownProfiles, ...sharedProfiles];
 
       setProfiles(mappedProfiles);
 
