@@ -3,8 +3,14 @@ import { Settings as SettingsIcon, CreditCard, Share2, Users, Zap } from 'lucide
 import { Card, CardTitle, CardDescription } from '../../shared/components/Card';
 import { Button } from '../../shared/components/Button';
 import { Badge } from '../../shared/components/Badge';
+import { useAuth } from '../../app/context/AuthContext';
+import { LockedModuleState } from '../../shared/components/LockedModuleState';
+import { hasAccess } from '../../shared/constants/plans';
 
 export const SettingsArea = () => {
+  const { user } = useAuth();
+  const canUseTeamMembers = hasAccess(user?.currentPlan, 'team', user?.isAdmin);
+
   return (
     <div className="max-w-4xl space-y-8">
       <div>
@@ -83,24 +89,33 @@ export const SettingsArea = () => {
               <CardTitle>Membros da Equipe</CardTitle>
               <CardDescription>Convide sua equipe para colaborar no conteúdo.</CardDescription>
             </div>
-            <Button variant="outline" size="sm" className="gap-2">
+            <Button variant="outline" size="sm" className="gap-2" disabled={!canUseTeamMembers}>
               <Users className="h-4 w-4" />
               Convidar Membro
             </Button>
           </div>
-          
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-full bg-brand/10 flex items-center justify-center text-brand font-bold text-xs">GF</div>
-                <div>
-                  <p className="text-sm font-medium text-text-primary">Gustavo Fares (Você)</p>
-                  <p className="text-xs text-text-secondary">Proprietário</p>
+
+          {!canUseTeamMembers ? (
+            <LockedModuleState
+              feature="team"
+              compact
+              title="Gerenciar equipe é exclusivo do plano PRO"
+              description="Traga sua equipe para a mesma operação, com acessos por email e controle claro sobre quem pode atuar em cada etapa."
+            />
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-full bg-brand/10 flex items-center justify-center text-brand font-bold text-xs">GF</div>
+                  <div>
+                    <p className="text-sm font-medium text-text-primary">Gustavo Fares (Você)</p>
+                    <p className="text-xs text-text-secondary">Proprietário</p>
+                  </div>
                 </div>
+                <Badge>Admin</Badge>
               </div>
-              <Badge>Admin</Badge>
             </div>
-          </div>
+          )}
         </Card>
       </div>
     </div>

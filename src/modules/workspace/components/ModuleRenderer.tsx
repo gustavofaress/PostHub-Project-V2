@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { useApp } from '../../../app/context/AppContext';
+import { useAuth } from '../../../app/context/AuthContext';
 import { Dashboard } from '../../dashboard/Dashboard';
 import { Onboarding } from '../../onboarding/Onboarding';
 import { Consultant } from '../../consultant/Consultant';
@@ -18,9 +19,16 @@ import { SettingsArea } from '../../settings/SettingsArea';
 import { Support } from '../../support/Support';
 import { ReportsModule } from '../../reports/ReportsModule';
 import { AdminDashboard } from '../../admin/AdminDashboard';
+import { LockedModuleState } from '../../../shared/components/LockedModuleState';
+import { hasAccess } from '../../../shared/constants/plans';
 
 export const ModuleRenderer = () => {
   const { activeModule } = useApp();
+  const { user } = useAuth();
+
+  if (!hasAccess(user?.currentPlan, activeModule, user?.isAdmin)) {
+    return <LockedModuleState feature={activeModule} autoOpen />;
+  }
 
   switch (activeModule) {
     case 'onboarding':
