@@ -36,8 +36,8 @@ export interface CreateReferenceInput {
   type: ReferenceType;
   source: string;
   source_url?: string;
-  thumbnail_url?: string;
-  file_url?: string;
+  thumbnail_url?: string | null;
+  file_url?: string | null;
   tags?: string[];
   folder?: string;
   campaign?: string;
