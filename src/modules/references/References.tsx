@@ -117,6 +117,61 @@ const getAcceptByTab = (tab: CreateTab) => {
   return 'video/*';
 };
 
+const ReferencePreviewFallback = ({
+  reference,
+  className,
+}: {
+  reference: ReferenceItem;
+  className?: string;
+}) => {
+  const Icon = TYPE_ICON[reference.type];
+
+  return (
+    <div className={cn('flex h-full w-full flex-col justify-between bg-gradient-to-br from-slate-100 to-slate-200 p-4', className)}>
+      <div className="flex items-center justify-between">
+        <Badge className="border-none bg-white/90 text-text-primary shadow-sm">
+          <span className="flex items-center gap-1">
+            {reference.type === 'link' ? <Globe className="h-3 w-3" /> : <Icon className="h-3 w-3" />}
+            {reference.platform || reference.source || TYPE_LABEL[reference.type]}
+          </span>
+        </Badge>
+      </div>
+      <div>
+        <p className="line-clamp-3 text-sm font-bold leading-tight text-slate-800">{reference.title}</p>
+        <p className="mt-2 line-clamp-2 text-xs text-slate-500">
+          {reference.source_url || reference.description || reference.file_name || 'Prévia indisponível.'}
+        </p>
+      </div>
+    </div>
+  );
+};
+
+const ReferenceImagePreview = ({
+  reference,
+  src,
+  className,
+}: {
+  reference: ReferenceItem;
+  src: string;
+  className?: string;
+}) => {
+  const [hasError, setHasError] = React.useState(false);
+
+  if (hasError) {
+    return <ReferencePreviewFallback reference={reference} className={className} />;
+  }
+
+  return (
+    <img
+      src={src}
+      alt={reference.title}
+      className={cn('h-full w-full object-cover', className)}
+      referrerPolicy="no-referrer"
+      onError={() => setHasError(true)}
+    />
+  );
+};
+
 export const References = () => {
   const { activeProfile } = useProfile();
   const profileId = activeProfile?.id;
@@ -471,24 +526,7 @@ export const References = () => {
     const previewVideo = reference.file_url || reference.thumbnail_url;
 
     if (reference.type === 'link' && !reference.thumbnail_url) {
-      return (
-        <div className={cn('flex h-full w-full flex-col justify-between bg-gradient-to-br from-slate-100 to-slate-200 p-4', className)}>
-          <div className="flex items-center justify-between">
-            <Badge className="border-none bg-white/90 text-text-primary shadow-sm">
-              <span className="flex items-center gap-1">
-                <Globe className="h-3 w-3" />
-                {reference.platform || reference.source || 'Link'}
-              </span>
-            </Badge>
-          </div>
-          <div>
-            <p className="line-clamp-3 text-sm font-bold leading-tight text-slate-800">{reference.title}</p>
-            <p className="mt-2 line-clamp-2 text-xs text-slate-500">
-              {reference.source_url || 'Prévia do link será exibida aqui.'}
-            </p>
-          </div>
-        </div>
-      );
+      return <ReferencePreviewFallback reference={reference} className={className} />;
     }
 
     if ((reference.type === 'video' || reference.type === 'screen_recording') && previewVideo) {
@@ -510,14 +548,7 @@ export const References = () => {
       );
     }
 
-    return (
-      <img
-        src={previewImage}
-        alt={reference.title}
-        className={cn('h-full w-full object-cover', className)}
-        referrerPolicy="no-referrer"
-      />
-    );
+    return <ReferenceImagePreview reference={reference} src={previewImage} className={className} />;
   };
 
   const renderModalPreview = () => {
