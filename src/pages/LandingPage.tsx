@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Button } from '../shared/components/Button';
+import { STRIPE_PAYMENT_LINKS, type PlanId } from '../shared/constants/plans';
 
 const modules = [
   {
@@ -102,15 +103,49 @@ const modules = [
   },
 ];
 
-const pricingFeatures = [
-  'Acesso completo a todos os módulos',
-  'Banco de Ideias ilimitado',
-  'Gerador de Roteiros com templates',
-  'Calendário Editorial interativo',
-  'Kanban de produção personalizável',
-  'Links de aprovação externos',
-  'Dashboards de performance',
-  'Suporte prioritário via chat',
+const pricingPlans: Array<{
+  id: PlanId;
+  name: string;
+  price: string;
+  description: string;
+  benefits: string[];
+  highlighted?: boolean;
+}> = [
+  {
+    id: 'start',
+    name: 'Start',
+    price: 'R$57',
+    description: 'Para organizar o essencial sem depender de planilhas soltas.',
+    benefits: [
+      'Planeje seus conteúdos com mais clareza',
+      'Acompanhe cada entrega do rascunho à publicação',
+      'Guarde boas ideias antes que elas se percam',
+    ],
+  },
+  {
+    id: 'growth',
+    name: 'Growth',
+    price: 'R$117',
+    description: 'Para transformar rotina em processo e mostrar mais contexto ao cliente.',
+    benefits: [
+      'Use referências para criar com mais direção',
+      'Monte relatórios simples para fechar ciclos',
+      'Ganhe mais visibilidade sem aumentar o ruído',
+    ],
+  },
+  {
+    id: 'pro',
+    name: 'Pro',
+    price: 'R$147,90',
+    description: 'Para operar como uma equipe profissional, com aprovação, IA e colaboração.',
+    highlighted: true,
+    benefits: [
+      'Envie conteúdos para aprovação com um clique',
+      'Transforme ideias em roteiros prontos para gravar',
+      'Traga sua equipe para o fluxo sem perder controle',
+      'Conecte a operação para reduzir tarefas manuais',
+    ],
+  },
 ];
 
 const howItWorksSteps = [
@@ -457,68 +492,80 @@ export const LandingPage = () => {
         </section>
 
         <section id="preco" className="relative overflow-hidden bg-[#0A1023] py-24">
-          <div className="pointer-events-none absolute top-0 right-0 h-[600px] w-[600px] rounded-full bg-[#38B6FF]/5 blur-[100px]" />
 
           <div className="relative z-10 mx-auto max-w-7xl px-6 md:px-12">
-            <div className="grid items-center gap-16 lg:grid-cols-2">
-              <div>
-                <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#38B6FF]/20 bg-[#38B6FF]/10 px-3 py-1.5">
-                  <span className="text-xs font-medium text-[#38B6FF]">
-                    Teste grátis da PostHub
-                  </span>
-                </div>
-
-                <h2 className="mb-6 text-3xl font-bold leading-tight md:text-5xl">
-                  Comece grátis e veja a plataforma funcionando na prática.
-                </h2>
-
-                <p className="mb-8 max-w-md text-lg leading-relaxed text-white/60">
-                  Crie sua conta, explore todos os módulos e entenda como a
-                  PostHub pode organizar sua operação de conteúdo antes de tomar
-                  qualquer decisão.
-                </p>
+            <div className="mx-auto mb-14 max-w-3xl text-center">
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#38B6FF]/20 bg-[#38B6FF]/10 px-3 py-1.5">
+                <span className="text-xs font-medium text-[#38B6FF]">
+                  Planos PostHub
+                </span>
               </div>
 
-              <div className="relative rounded-[2rem] border border-white/10 bg-[#050816] p-8 shadow-2xl md:p-12">
-                <div className="absolute top-0 left-1/2 h-px w-3/4 -translate-x-1/2 bg-gradient-to-r from-transparent via-[#38B6FF]/50 to-transparent" />
+              <h2 className="mb-6 text-3xl font-bold leading-tight md:text-5xl">
+                Escolha o plano para profissionalizar sua operação de conteúdo.
+              </h2>
 
-                <div className="mb-8">
-                  <h3 className="mb-2 text-2xl font-bold">PostHub</h3>
-                  <p className="text-sm text-white/60">
-                    A solução definitiva para criadores e gestores.
-                  </p>
-                </div>
+              <p className="mx-auto max-w-2xl text-lg leading-relaxed text-white/60">
+                Comece com o essencial, avance com mais clareza e desbloqueie no
+                PRO o fluxo completo para aprovar, criar com IA e trabalhar em
+                equipe.
+              </p>
+            </div>
 
-                <div className="mb-3 flex items-baseline gap-2">
-                  <span className="text-5xl font-bold tracking-tight">
-                    7 dias grátis
-                  </span>
-                </div>
-
-                <p className="mb-8 text-white/50">
-                  Depois, continue no plano completo por R$ 147,90 / mês.
-                </p>
-
-                <Link to="/signup">
-                  <Button className="mb-10 w-full rounded-xl py-4 text-base font-bold shadow-[0_0_20px_rgba(56,182,255,0.2)] hover:shadow-[0_0_30px_rgba(56,182,255,0.4)]">
-                    Criar conta gratuita
-                  </Button>
-                </Link>
-
-                <div className="space-y-4">
-                  <p className="mb-4 text-sm font-medium text-white/80">
-                    O que está incluído:
-                  </p>
-                  {pricingFeatures.map((feature, idx) => (
-                    <div key={idx} className="flex items-start gap-3">
-                      <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#38B6FF]/10">
-                        <Check size={12} className="text-[#38B6FF]" />
-                      </div>
-                      <span className="text-sm text-white/70">{feature}</span>
+            <div className="grid gap-6 lg:grid-cols-3">
+              {pricingPlans.map((plan) => (
+                <div
+                  key={plan.id}
+                  className={`relative flex flex-col rounded-lg border p-8 shadow-2xl ${
+                    plan.highlighted
+                      ? 'border-[#38B6FF] bg-[#050816] shadow-[#38B6FF]/20'
+                      : 'border-white/10 bg-[#050816]'
+                  }`}
+                >
+                  {plan.highlighted ? (
+                    <div className="absolute right-5 top-5 rounded-full bg-[#38B6FF] px-3 py-1 text-xs font-bold text-white">
+                      Mais usado
                     </div>
-                  ))}
+                  ) : null}
+
+                  <div className="mb-8">
+                    <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#38B6FF]">
+                      {plan.name}
+                    </p>
+                    <div className="mt-4 flex items-end gap-2">
+                      <span className="text-4xl font-bold text-white">{plan.price}</span>
+                      <span className="pb-1 text-sm text-white/50">/ mês</span>
+                    </div>
+                    <p className="mt-4 min-h-[72px] text-sm leading-6 text-white/60">
+                      {plan.description}
+                    </p>
+                  </div>
+
+                  <div className="mb-8 flex-1 space-y-4">
+                    {plan.benefits.map((benefit) => (
+                      <div key={benefit} className="flex items-start gap-3">
+                        <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#38B6FF]/10">
+                          <Check size={12} className="text-[#38B6FF]" />
+                        </div>
+                        <span className="text-sm leading-6 text-white/70">{benefit}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <a
+                    href={STRIPE_PAYMENT_LINKS[plan.id]}
+                    rel="noreferrer"
+                    className={`inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-base font-bold transition-colors ${
+                      plan.highlighted
+                        ? 'bg-[#38B6FF] text-white shadow-[0_0_20px_rgba(56,182,255,0.25)] hover:bg-[#2da1e6]'
+                        : 'border border-white/10 bg-white/5 text-white hover:bg-white/10'
+                    }`}
+                  >
+                    Começar agora
+                    <ArrowRight className="h-4 w-4" />
+                  </a>
                 </div>
-              </div>
+              ))}
             </div>
           </div>
         </section>
