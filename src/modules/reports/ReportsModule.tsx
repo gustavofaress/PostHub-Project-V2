@@ -65,8 +65,77 @@ interface ApprovalPostRow {
 
 type PeriodOption = '7d' | '30d' | 'this_month' | 'last_month' | 'custom';
 
+const PDF_COLOR_CLASS_STYLES: Record<string, Partial<CSSStyleDeclaration>> = {
+  'text-white': { color: '#ffffff' },
+  'text-gray-400': { color: '#9ca3af' },
+  'text-gray-500': { color: '#6b7280' },
+  'text-gray-600': { color: '#4b5563' },
+  'text-gray-700': { color: '#374151' },
+  'text-gray-900': { color: '#111827' },
+  'text-blue-600': { color: '#2563eb' },
+  'text-amber-600': { color: '#d97706' },
+  'text-green-600': { color: '#16a34a' },
+  'text-[#38B6FF]': { color: '#38b6ff' },
+  'bg-white': { backgroundColor: '#ffffff' },
+  'bg-gray-50': { backgroundColor: '#f9fafb' },
+  'bg-gray-100': { backgroundColor: '#f3f4f6' },
+  'bg-blue-100': { backgroundColor: '#dbeafe' },
+  'bg-amber-100': { backgroundColor: '#fef3c7' },
+  'bg-amber-500': { backgroundColor: '#f59e0b' },
+  'bg-green-100': { backgroundColor: '#dcfce7' },
+  'bg-green-500': { backgroundColor: '#22c55e' },
+  'bg-[#38B6FF]': { backgroundColor: '#38b6ff' },
+  'bg-[#38B6FF]/5': { backgroundColor: '#f5fbff' },
+  'border-white': { borderColor: '#ffffff' },
+  'border-gray-100': { borderColor: '#f3f4f6' },
+  'border-[#38B6FF]/10': { borderColor: '#e7f6ff' },
+};
+
+const PDF_STYLE_PROPERTIES = [
+  'backgroundColor',
+  'borderColor',
+  'color',
+] as const;
+
 function cn(...inputs: Array<string | false | null | undefined>) {
   return inputs.filter(Boolean).join(' ');
+}
+
+function toKebabCase(property: string) {
+  return property.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`);
+}
+
+function applyPdfStyle(element: HTMLElement, styles: Partial<CSSStyleDeclaration>) {
+  Object.entries(styles).forEach(([property, value]) => {
+    if (typeof value === 'string') {
+      element.style.setProperty(toKebabCase(property), value, 'important');
+    }
+  });
+}
+
+function prepareReportCloneForPdf(clonedReport: HTMLElement) {
+  clonedReport.style.setProperty('background-color', '#ffffff', 'important');
+  clonedReport.style.setProperty('box-shadow', 'none', 'important');
+
+  const elements = [clonedReport, ...Array.from(clonedReport.querySelectorAll<HTMLElement>('*'))];
+
+  elements.forEach((element) => {
+    element.classList.forEach((className) => {
+      const styles = PDF_COLOR_CLASS_STYLES[className];
+
+      if (styles) {
+        applyPdfStyle(element, styles);
+      }
+    });
+
+    PDF_STYLE_PROPERTIES.forEach((property) => {
+      const value = element.style[property];
+
+      if (typeof value === 'string' && value.includes('oklch')) {
+        element.style.removeProperty(toKebabCase(property));
+      }
+    });
+  });
 }
 
 function formatDate(dateString: string): string {
@@ -88,6 +157,7 @@ export const ReportsModule = () => {
   const [isLoading, setIsLoading] = React.useState(true);
   const [isExporting, setIsExporting] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+  const [exportErrorMessage, setExportErrorMessage] = React.useState<string | null>(null);
 
   const [period, setPeriod] = React.useState<PeriodOption>('30d');
   const [customStartDate, setCustomStartDate] = React.useState('');
@@ -313,16 +383,31 @@ export const ReportsModule = () => {
   };
 
   const handleExportPdf = async () => {
-    if (!reportPreviewRef.current) return;
+    const reportPreview = reportPreviewRef.current;
+
+    if (!reportPreview) {
+      setExportErrorMessage('Não foi possível encontrar a prévia do relatório para exportar.');
+      return;
+    }
 
     try {
       setIsExporting(true);
+      setExportErrorMessage(null);
 
-      const canvas = await html2canvas(reportPreviewRef.current, {
+      const canvas = await html2canvas(reportPreview, {
         scale: 2,
         useCORS: true,
         backgroundColor: '#ffffff',
         logging: false,
+        windowWidth: reportPreview.scrollWidth,
+        windowHeight: reportPreview.scrollHeight,
+        onclone: (clonedDocument) => {
+          const clonedReport = clonedDocument.querySelector('[data-report-preview="true"]');
+
+          if (clonedReport instanceof HTMLElement) {
+            prepareReportCloneForPdf(clonedReport);
+          }
+        },
       });
 
       const imgData = canvas.toDataURL('image/png');
@@ -365,6 +450,9 @@ export const ReportsModule = () => {
       pdf.save(`${safeReportName}-${safeClientName}.pdf`);
     } catch (error) {
       console.error('Erro ao exportar PDF:', error);
+      setExportErrorMessage(
+        'Não foi possível gerar o PDF agora. Tente novamente em alguns instantes.'
+      );
     } finally {
       setIsExporting(false);
     }
@@ -422,6 +510,12 @@ export const ReportsModule = () => {
               {isExporting ? 'Gerando PDF...' : 'Baixar PDF'}
             </Button>
           </div>
+
+          {exportErrorMessage && (
+            <p className="max-w-[360px] text-xs font-medium text-red-500 md:text-right">
+              {exportErrorMessage}
+            </p>
+          )}
         </div>
       </header>
 
@@ -545,6 +639,7 @@ export const ReportsModule = () => {
         <div className="w-full flex-1 overflow-x-auto rounded-2xl border border-white/5 bg-bg-surface p-8">
           <div
             ref={reportPreviewRef}
+            data-report-preview="true"
             className="mx-auto min-w-[800px] max-w-4xl rounded-xl border border-gray-100 bg-white p-12 shadow-sm"
           >
             <header className="mb-12 border-b border-gray-100 pb-8">
