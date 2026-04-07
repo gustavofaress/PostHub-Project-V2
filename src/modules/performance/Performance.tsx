@@ -11,6 +11,7 @@ import { Card, CardDescription, CardTitle } from '../../shared/components/Card';
 import { Badge } from '../../shared/components/Badge';
 import { Button } from '../../shared/components/Button';
 import { EmptyState } from '../../shared/components/EmptyState';
+import { Modal } from '../../shared/components/Modal';
 import { useProfile } from '../../app/context/ProfileContext';
 import { useAuth } from '../../app/context/AuthContext';
 import { supabase } from '../../shared/utils/supabase';
@@ -287,6 +288,7 @@ export const Performance = () => {
   const [isConnecting, setIsConnecting] = React.useState(false);
   const [isSyncing, setIsSyncing] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+  const [isComingSoonModalOpen, setIsComingSoonModalOpen] = React.useState(true);
 
   const metaFeedback = React.useMemo(() => {
     const searchParams = new URLSearchParams(location.search);
@@ -417,6 +419,37 @@ export const Performance = () => {
 
   return (
     <div className="space-y-8">
+      <Modal
+        isOpen={isComingSoonModalOpen}
+        onClose={() => setIsComingSoonModalOpen(false)}
+        title="Analytics em breve"
+      >
+        <div className="space-y-5">
+          <div className="rounded-2xl border border-brand/10 bg-brand/5 p-5">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-brand shadow-sm">
+              <BarChart3 className="h-6 w-6" />
+            </div>
+            <h4 className="mb-2 text-lg font-bold text-text-primary">
+              A ferramenta de métricas está quase pronta
+            </h4>
+            <p className="text-sm leading-6 text-text-secondary">
+              Estamos finalizando o módulo de Analytics para trazer dados de performance mais
+              confiáveis, relatórios por perfil e insights conectados às integrações da PostHub.
+            </p>
+          </div>
+
+          <p className="text-sm text-text-secondary">
+            Por enquanto, você já pode acompanhar as próximas conexões pelo módulo de Integrações.
+          </p>
+
+          <div className="flex justify-end">
+            <Button onClick={() => setIsComingSoonModalOpen(false)}>
+              Entendi
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold text-text-primary">

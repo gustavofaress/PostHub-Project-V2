@@ -358,8 +358,14 @@ export async function fetchUserPages(userAccessToken: string) {
       id: string;
       name?: string;
       access_token?: string;
+      instagram_business_account?: {
+        id: string;
+        username?: string;
+        profile_picture_url?: string;
+      } | null;
     }>;
   }>('/me/accounts', {
+    fields: 'id,name,access_token,instagram_business_account{id,username,profile_picture_url}',
     access_token: userAccessToken,
   });
 }

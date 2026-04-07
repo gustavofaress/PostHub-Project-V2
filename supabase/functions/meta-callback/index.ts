@@ -7,7 +7,6 @@ import {
   encryptSecret,
   exchangeCodeForAccessToken,
   exchangeForLongLivedToken,
-  fetchInstagramAccountFromPage,
   fetchInstagramUserProfile,
   fetchUserPages,
   getFrontendPerformanceUrl,
@@ -67,14 +66,16 @@ Deno.serve(async (request) => {
 
     for (const page of pages.data ?? []) {
       const pageToken = page.access_token ?? accessToken;
-      const igAccount = await fetchInstagramAccountFromPage(page.id, pageToken);
-      const instagramUserId = igAccount?.instagram_business_account?.id;
+      const instagramUserId = page.instagram_business_account?.id;
 
       if (!instagramUserId) {
         continue;
       }
 
-      const profile = await fetchInstagramUserProfile(instagramUserId, pageToken);
+      const profile =
+        page.instagram_business_account?.username || page.instagram_business_account?.profile_picture_url
+          ? page.instagram_business_account
+          : await fetchInstagramUserProfile(instagramUserId, pageToken);
 
       const { data, error } = await adminClient
         .from('contas_instagram')
@@ -109,10 +110,14 @@ Deno.serve(async (request) => {
     }
 
     if (connections.length === 0) {
+      const pageNames = (pages.data ?? []).map((page) => page.name).filter(Boolean).join(', ');
+
       return redirectToApp({
         meta_status: 'error',
         meta_message:
-          'Nenhuma conta do Instagram Business vinculada a uma página do Facebook foi encontrada.',
+          pages.data?.length
+            ? `Encontramos ${pages.data.length} página(s) (${pageNames}), mas nenhuma retornou instagram_business_account pela Meta API. Confira se o Instagram Business está vinculado à página selecionada e se as permissões foram aceitas.`
+            : 'A Meta não retornou páginas para este usuário. Confira se o Facebook usado no login tem acesso à página vinculada ao Instagram Business.',
       });
     }
 
