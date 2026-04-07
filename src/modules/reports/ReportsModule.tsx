@@ -1,5 +1,4 @@
 import * as React from 'react';
-import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import {
   Lightbulb,
@@ -65,77 +64,8 @@ interface ApprovalPostRow {
 
 type PeriodOption = '7d' | '30d' | 'this_month' | 'last_month' | 'custom';
 
-const PDF_COLOR_CLASS_STYLES: Record<string, Partial<CSSStyleDeclaration>> = {
-  'text-white': { color: '#ffffff' },
-  'text-gray-400': { color: '#9ca3af' },
-  'text-gray-500': { color: '#6b7280' },
-  'text-gray-600': { color: '#4b5563' },
-  'text-gray-700': { color: '#374151' },
-  'text-gray-900': { color: '#111827' },
-  'text-blue-600': { color: '#2563eb' },
-  'text-amber-600': { color: '#d97706' },
-  'text-green-600': { color: '#16a34a' },
-  'text-[#38B6FF]': { color: '#38b6ff' },
-  'bg-white': { backgroundColor: '#ffffff' },
-  'bg-gray-50': { backgroundColor: '#f9fafb' },
-  'bg-gray-100': { backgroundColor: '#f3f4f6' },
-  'bg-blue-100': { backgroundColor: '#dbeafe' },
-  'bg-amber-100': { backgroundColor: '#fef3c7' },
-  'bg-amber-500': { backgroundColor: '#f59e0b' },
-  'bg-green-100': { backgroundColor: '#dcfce7' },
-  'bg-green-500': { backgroundColor: '#22c55e' },
-  'bg-[#38B6FF]': { backgroundColor: '#38b6ff' },
-  'bg-[#38B6FF]/5': { backgroundColor: '#f5fbff' },
-  'border-white': { borderColor: '#ffffff' },
-  'border-gray-100': { borderColor: '#f3f4f6' },
-  'border-[#38B6FF]/10': { borderColor: '#e7f6ff' },
-};
-
-const PDF_STYLE_PROPERTIES = [
-  'backgroundColor',
-  'borderColor',
-  'color',
-] as const;
-
 function cn(...inputs: Array<string | false | null | undefined>) {
   return inputs.filter(Boolean).join(' ');
-}
-
-function toKebabCase(property: string) {
-  return property.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`);
-}
-
-function applyPdfStyle(element: HTMLElement, styles: Partial<CSSStyleDeclaration>) {
-  Object.entries(styles).forEach(([property, value]) => {
-    if (typeof value === 'string') {
-      element.style.setProperty(toKebabCase(property), value, 'important');
-    }
-  });
-}
-
-function prepareReportCloneForPdf(clonedReport: HTMLElement) {
-  clonedReport.style.setProperty('background-color', '#ffffff', 'important');
-  clonedReport.style.setProperty('box-shadow', 'none', 'important');
-
-  const elements = [clonedReport, ...Array.from(clonedReport.querySelectorAll<HTMLElement>('*'))];
-
-  elements.forEach((element) => {
-    element.classList.forEach((className) => {
-      const styles = PDF_COLOR_CLASS_STYLES[className];
-
-      if (styles) {
-        applyPdfStyle(element, styles);
-      }
-    });
-
-    PDF_STYLE_PROPERTIES.forEach((property) => {
-      const value = element.style[property];
-
-      if (typeof value === 'string' && value.includes('oklch')) {
-        element.style.removeProperty(toKebabCase(property));
-      }
-    });
-  });
 }
 
 function formatDate(dateString: string): string {
@@ -383,34 +313,9 @@ export const ReportsModule = () => {
   };
 
   const handleExportPdf = async () => {
-    const reportPreview = reportPreviewRef.current;
-
-    if (!reportPreview) {
-      setExportErrorMessage('Não foi possível encontrar a prévia do relatório para exportar.');
-      return;
-    }
-
     try {
       setIsExporting(true);
       setExportErrorMessage(null);
-
-      const canvas = await html2canvas(reportPreview, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        logging: false,
-        windowWidth: reportPreview.scrollWidth,
-        windowHeight: reportPreview.scrollHeight,
-        onclone: (clonedDocument) => {
-          const clonedReport = clonedDocument.querySelector('[data-report-preview="true"]');
-
-          if (clonedReport instanceof HTMLElement) {
-            prepareReportCloneForPdf(clonedReport);
-          }
-        },
-      });
-
-      const imgData = canvas.toDataURL('image/png');
 
       const pdf = new jsPDF({
         orientation: 'p',
@@ -418,24 +323,213 @@ export const ReportsModule = () => {
         format: 'a4',
       });
 
-      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pageWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
+      const margin = 18;
+      const contentWidth = pageWidth - margin * 2;
+      let y = 20;
 
-      const imgWidth = pdfWidth;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const ensureSpace = (height: number) => {
+        if (y + height <= pdfHeight - margin) return;
 
-      let heightLeft = imgHeight;
-      let position = 0;
-
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pdfHeight;
-
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
         pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pdfHeight;
+        y = 20;
+      };
+
+      const setTextColor = (hex: string) => {
+        pdf.setTextColor(hex);
+      };
+
+      const addWrappedText = (
+        text: string,
+        x: number,
+        maxWidth: number,
+        lineHeight: number,
+        options?: { fontSize?: number; color?: string; fontStyle?: 'normal' | 'bold' }
+      ) => {
+        pdf.setFont('helvetica', options?.fontStyle || 'normal');
+        pdf.setFontSize(options?.fontSize || 10);
+        setTextColor(options?.color || '#374151');
+
+        const lines = pdf.splitTextToSize(text, maxWidth) as string[];
+        ensureSpace(lines.length * lineHeight);
+        pdf.text(lines, x, y);
+        y += lines.length * lineHeight;
+      };
+
+      const addSectionTitle = (title: string) => {
+        ensureSpace(14);
+        y += 4;
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(10);
+        setTextColor('#9ca3af');
+        pdf.text(title.toUpperCase(), margin, y);
+        y += 8;
+      };
+
+      const addDivider = () => {
+        pdf.setDrawColor('#e5e7eb');
+        pdf.line(margin, y, pageWidth - margin, y);
+        y += 8;
+      };
+
+      pdf.setFillColor('#ffffff');
+      pdf.rect(0, 0, pageWidth, pdfHeight, 'F');
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(22);
+      setTextColor('#111827');
+      pdf.text(reportConfig.reportName || 'Relatório', margin, y);
+      y += 9;
+
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(11);
+      setTextColor('#6b7280');
+      pdf.text(`Cliente: ${reportConfig.clientName || 'Não informado'}`, margin, y);
+      y += 6;
+      pdf.text(`Período: ${getPeriodLabel()}`, margin, y);
+      y += 10;
+      addDivider();
+
+      if (sections.kpis) {
+        addSectionTitle('KPIs Gerais');
+
+        const cardGap = 4;
+        const cardWidth = (contentWidth - cardGap * (stats.length - 1)) / stats.length;
+        const cardHeight = 26;
+
+        ensureSpace(cardHeight + 8);
+
+        stats.forEach((stat, index) => {
+          const x = margin + index * (cardWidth + cardGap);
+
+          pdf.setDrawColor('#e5e7eb');
+          pdf.setFillColor('#f9fafb');
+          pdf.roundedRect(x, y, cardWidth, cardHeight, 3, 3, 'FD');
+
+          pdf.setFont('helvetica', 'normal');
+          pdf.setFontSize(8);
+          setTextColor('#6b7280');
+          pdf.text(stat.label, x + 4, y + 8);
+
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(16);
+          setTextColor('#111827');
+          pdf.text(stat.value, x + 4, y + 19);
+        });
+
+        y += cardHeight + 8;
       }
+
+      if (sections.status) {
+        addSectionTitle('Status da Operação');
+
+        const statusRows = [
+          ['Em Produção', String(contentStatus.inProduction)],
+          ['Em Revisão', String(contentStatus.pendingReview)],
+          ['Publicados', String(contentStatus.published)],
+        ];
+
+        statusRows.forEach(([label, value]) => {
+          ensureSpace(9);
+          pdf.setFont('helvetica', 'normal');
+          pdf.setFontSize(10);
+          setTextColor('#4b5563');
+          pdf.text(label, margin, y);
+
+          pdf.setFont('helvetica', 'bold');
+          setTextColor('#111827');
+          pdf.text(value, pageWidth - margin, y, { align: 'right' });
+          y += 8;
+        });
+      }
+
+      if (sections.insights) {
+        addSectionTitle('Insights Executivos');
+
+        addWrappedText(
+          `A operação de conteúdo para ${reportConfig.clientName} está ativa com um pipeline saudável. Temos ${stats[0].value} ideias no backlog e ${stats[1].value} roteiros em andamento.`,
+          margin,
+          contentWidth,
+          6,
+          { fontSize: 11 }
+        );
+        y += 3;
+        addWrappedText(
+          `Atualmente, há ${contentStatus.inProduction} itens em produção e ${contentStatus.pendingReview} aguardando revisão. Com ${stats[2].value} posts agendados, o calendário de publicações está bem mantido para o próximo período.`,
+          margin,
+          contentWidth,
+          6,
+          { fontSize: 11 }
+        );
+        y += 3;
+        addWrappedText(
+          'Para manter o ritmo, recomendamos focar em mover os itens atualmente em revisão para o status de publicado e converter mais ideias em roteiros acionáveis.',
+          margin,
+          contentWidth,
+          6,
+          { fontSize: 11 }
+        );
+      }
+
+      if (sections.activity) {
+        addSectionTitle('Linha do Tempo da Operação');
+
+        if (recentActivity.length === 0) {
+          addWrappedText(
+            'Nenhuma atividade recente registrada neste período.',
+            margin,
+            contentWidth,
+            6,
+            { color: '#6b7280' }
+          );
+        } else {
+          recentActivity.forEach((activity) => {
+            ensureSpace(16);
+
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(10);
+            setTextColor('#111827');
+            pdf.text(activity.title, margin, y);
+            y += 5;
+
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(8);
+            setTextColor('#6b7280');
+            pdf.text(`${activity.type} • ${activity.time}`, margin, y);
+            y += 8;
+          });
+        }
+      }
+
+      if (sections.notes) {
+        addSectionTitle('Observações Finais');
+        addWrappedText(
+          reportConfig.finalNotes || 'Sem observações finais.',
+          margin,
+          contentWidth,
+          6,
+          { fontSize: 11 }
+        );
+      }
+
+      ensureSpace(16);
+      y = Math.max(y + 8, pdfHeight - 24);
+      pdf.setDrawColor('#e5e7eb');
+      pdf.line(margin, y - 8, pageWidth - margin, y - 8);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8);
+      setTextColor('#9ca3af');
+      pdf.text(
+        `Gerado em ${new Date().toLocaleDateString('pt-BR', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        })}`,
+        pageWidth / 2,
+        y,
+        { align: 'center' }
+      );
 
       const safeClientName = (reportConfig.clientName || 'cliente')
         .toLowerCase()
