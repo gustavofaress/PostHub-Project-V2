@@ -1,24 +1,34 @@
 import * as React from 'react';
+import { useLocation } from 'react-router-dom';
 import {
-  BarChart3,
-  ArrowUpRight,
   Activity,
+  ArrowUpRight,
+  BarChart3,
+  Instagram,
+  RefreshCcw,
 } from 'lucide-react';
-import { Card, CardTitle } from '../../shared/components/Card';
+import { Card, CardDescription, CardTitle } from '../../shared/components/Card';
 import { Badge } from '../../shared/components/Badge';
 import { Button } from '../../shared/components/Button';
 import { EmptyState } from '../../shared/components/EmptyState';
 import { useProfile } from '../../app/context/ProfileContext';
 import { useAuth } from '../../app/context/AuthContext';
 import { supabase } from '../../shared/utils/supabase';
+import {
+  InstagramConnection,
+  metaInstagramService,
+} from '../../services/meta-instagram.service';
 
 interface InstagramMetricRow {
   id: string;
+  metric_external_id?: string | null;
+  metric_scope?: 'account' | 'media' | null;
   user_id?: string | null;
   customer_id: string;
   profile_id: string | null;
   page_id?: string | null;
-  conta_id?: number | null;
+  instagram_user_id?: string | null;
+  media_id?: string | null;
   date?: string | null;
   data?: string | null;
   likes?: number | null;
@@ -41,7 +51,6 @@ interface InstagramMetricRow {
   permalink?: string | null;
   created_at: string;
   updated_at?: string | null;
-  access_token?: string | null;
 }
 
 interface MetricCard {
@@ -67,7 +76,7 @@ interface MetricsSummary {
   profileViews: number;
 }
 
-function cn(...inputs: any[]) {
+function cn(...inputs: Array<string | boolean | null | undefined>) {
   return inputs.filter(Boolean).join(' ');
 }
 
@@ -147,17 +156,15 @@ function getEngagementRate(row: InstagramMetricRow): number {
 
 function calculateMetrics(rows: InstagramMetricRow[]) {
   const now = new Date();
+  const currentStart = startOfDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29));
 
-  const currentStart = startOfDay(
-    new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29)
+  const filteredRows = rows.filter((row) => getMetricDate(row) >= currentStart);
+  const currentRows = filteredRows.length > 0 ? filteredRows : rows;
+  const accountRows = currentRows.filter((row) => row.metric_scope === 'account');
+  const mediaRows = currentRows.filter(
+    (row) => row.metric_scope === 'media' || (!row.metric_scope && Boolean(row.caption || row.permalink))
   );
-
-  const currentRowsRaw = rows.filter((row) => {
-    const d = getMetricDate(row);
-    return d >= currentStart;
-  });
-
-  const currentRows = currentRowsRaw.length > 0 ? currentRowsRaw : rows;
+  const summaryRows = accountRows.length > 0 ? accountRows : mediaRows;
 
   const sumBy = (items: InstagramMetricRow[], getter: (row: InstagramMetricRow) => number) =>
     items.reduce((acc, item) => acc + getter(item), 0);
@@ -167,54 +174,53 @@ function calculateMetrics(rows: InstagramMetricRow[]) {
     return sumBy(items, getter) / items.length;
   };
 
-  const currentRowsSorted = [...currentRows].sort(
+  const accountRowsSorted = [...summaryRows].sort(
     (a, b) => getMetricDate(a).getTime() - getMetricDate(b).getTime()
   );
 
   const followerGrowth =
-    currentRowsSorted.length >= 2
-      ? getFollowers(currentRowsSorted[currentRowsSorted.length - 1]) -
-        getFollowers(currentRowsSorted[0])
-      : currentRowsSorted.length === 1
-      ? getFollowers(currentRowsSorted[0])
+    accountRowsSorted.length >= 2
+      ? getFollowers(accountRowsSorted[accountRowsSorted.length - 1]) - getFollowers(accountRowsSorted[0])
+      : accountRowsSorted.length === 1
+      ? getFollowers(accountRowsSorted[0])
       : 0;
 
-  const totalLikes = sumBy(currentRows, (row) => safeNumber(row.likes));
-  const totalComments = sumBy(currentRows, (row) => safeNumber(row.comments));
-  const totalAccountsEngaged = sumBy(currentRows, (row) => safeNumber(row.accounts_engaged));
+  const totalLikes = sumBy(mediaRows, (row) => safeNumber(row.likes));
+  const totalComments = sumBy(mediaRows, (row) => safeNumber(row.comments));
+  const totalAccountsEngaged = sumBy(mediaRows, (row) => safeNumber(row.accounts_engaged));
   const totalSavesAndShares = sumBy(
-    currentRows,
+    mediaRows,
     (row) => safeNumber(row.saves) + safeNumber(row.shares)
   );
 
-  const totalReach = sumBy(currentRows, getReach);
-  const totalImpressions = sumBy(currentRows, getImpressions);
-  const totalProfileViews = sumBy(currentRows, getProfileViews);
-  const avgEngagementRate = avgBy(currentRows, getEngagementRate);
+  const totalReach = sumBy(summaryRows, getReach);
+  const totalImpressions = sumBy(summaryRows, getImpressions);
+  const totalProfileViews = sumBy(summaryRows, getProfileViews);
+  const avgEngagementRate = avgBy(mediaRows, getEngagementRate);
 
   const metrics: MetricCard[] = [
     {
       label: 'Curtidas',
       value: formatCompactNumber(totalLikes),
-      change: `${currentRows.length} registros`,
+      change: `${mediaRows.length} posts`,
       trend: 'up',
     },
     {
       label: 'Comentários',
       value: formatCompactNumber(totalComments),
-      change: `${currentRows.length} registros`,
+      change: `${mediaRows.length} posts`,
       trend: 'up',
     },
     {
       label: 'Contas Engajadas',
       value: formatCompactNumber(totalAccountsEngaged),
-      change: `${currentRows.length} registros`,
+      change: `${mediaRows.length} posts`,
       trend: 'up',
     },
     {
       label: 'Salvamentos + Compartilhamentos',
       value: formatCompactNumber(totalSavesAndShares),
-      change: `${currentRows.length} registros`,
+      change: `${mediaRows.length} posts`,
       trend: 'up',
     },
   ];
@@ -226,7 +232,7 @@ function calculateMetrics(rows: InstagramMetricRow[]) {
     profileViews: totalProfileViews,
   };
 
-  const topPosts: TopPostRow[] = rows
+  const topPosts: TopPostRow[] = mediaRows
     .filter((row) => Boolean(row.caption || row.permalink))
     .map((row) => ({
       id: row.id,
@@ -239,16 +245,60 @@ function calculateMetrics(rows: InstagramMetricRow[]) {
     .sort((a, b) => b.reach - a.reach)
     .slice(0, 8);
 
-  return { metrics, topPosts, summary, followerGrowth };
+  return {
+    metrics,
+    topPosts,
+    summary,
+    followerGrowth,
+    hasAccountData: summaryRows.length > 0,
+    hasMediaData: mediaRows.length > 0,
+  };
+}
+
+function formatConnectionStatus(connection: InstagramConnection) {
+  if (connection.last_sync_status === 'error') {
+    return {
+      label: 'Erro na sincronização',
+      variant: 'default' as const,
+    };
+  }
+
+  if (connection.last_sync_status === 'success') {
+    return {
+      label: 'Sincronizado',
+      variant: 'success' as const,
+    };
+  }
+
+  return {
+    label: 'Pendente',
+    variant: 'default' as const,
+  };
 }
 
 export const Performance = () => {
+  const location = useLocation();
   const { activeProfile } = useProfile();
   const { user } = useAuth();
 
   const [rows, setRows] = React.useState<InstagramMetricRow[]>([]);
+  const [connections, setConnections] = React.useState<InstagramConnection[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
+  const [isConnecting, setIsConnecting] = React.useState(false);
+  const [isSyncing, setIsSyncing] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+
+  const metaFeedback = React.useMemo(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const status = searchParams.get('meta_status');
+    const message = searchParams.get('meta_message');
+
+    if (!status || !message) {
+      return null;
+    }
+
+    return { status, message };
+  }, [location.search]);
 
   const loadMetrics = React.useCallback(async () => {
     if (!supabase || !user?.id || !activeProfile?.id) {
@@ -256,71 +306,254 @@ export const Performance = () => {
       return;
     }
 
+    const { data, error } = await supabase
+      .from('instagram_metrics')
+      .select('*')
+      .eq('customer_id', user.id)
+      .eq('profile_id', activeProfile.id)
+      .order('data', { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    setRows((data ?? []) as InstagramMetricRow[]);
+  }, [activeProfile?.id, user?.id]);
+
+  const loadConnections = React.useCallback(async () => {
+    if (!activeProfile?.id) {
+      setConnections([]);
+      return;
+    }
+
+    const data = await metaInstagramService.listConnections(activeProfile.id);
+    setConnections(data);
+  }, [activeProfile?.id]);
+
+  const loadData = React.useCallback(async () => {
+    if (!activeProfile?.id || !user?.id) {
+      setRows([]);
+      setConnections([]);
+      return;
+    }
+
     setIsLoading(true);
     setErrorMessage(null);
 
     try {
-      const { data, error } = await supabase
-        .from('instagram_metrics')
-        .select('*')
-        .eq('customer_id', user.id)
-        .eq('profile_id', activeProfile.id)
-        .order('data', { ascending: false });
-
-      if (error) throw error;
-
-      setRows((data ?? []) as InstagramMetricRow[]);
+      await Promise.all([loadConnections(), loadMetrics()]);
     } catch (error) {
-      console.error('[Performance] Error loading instagram metrics:', error);
+      console.error('[Performance] Error loading performance data:', error);
       setRows([]);
-      setErrorMessage('Não foi possível carregar as métricas do Instagram para este perfil.');
+      setConnections([]);
+      setErrorMessage(
+        'Não foi possível carregar as conexões e métricas do Instagram para este perfil.'
+      );
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id, activeProfile?.id]);
+  }, [activeProfile?.id, loadConnections, loadMetrics, user?.id]);
 
   React.useEffect(() => {
-    void loadMetrics();
-  }, [loadMetrics]);
+    void loadData();
+  }, [loadData]);
 
-  const { metrics, topPosts, summary, followerGrowth } = React.useMemo(
-    () => calculateMetrics(rows),
-    [rows]
-  );
+  const handleConnectInstagram = React.useCallback(async () => {
+    if (!activeProfile?.id) {
+      return;
+    }
 
+    setIsConnecting(true);
+    setErrorMessage(null);
+
+    try {
+      const authUrl = await metaInstagramService.getAuthUrl(activeProfile.id);
+      window.location.assign(authUrl);
+    } catch (error) {
+      console.error('[Performance] Error starting Meta OAuth:', error);
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'Não foi possível iniciar a conexão com a Meta.'
+      );
+      setIsConnecting(false);
+    }
+  }, [activeProfile?.id]);
+
+  const handleSyncMetrics = React.useCallback(async () => {
+    if (!activeProfile?.id) {
+      return;
+    }
+
+    setIsSyncing(true);
+    setErrorMessage(null);
+
+    try {
+      const result = await metaInstagramService.syncMetrics(activeProfile.id);
+      const failedSync = result.results.find((item) => item.status === 'error');
+
+      if (failedSync?.error) {
+        setErrorMessage(failedSync.error);
+      }
+
+      await loadData();
+    } catch (error) {
+      console.error('[Performance] Error syncing instagram metrics:', error);
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'Não foi possível sincronizar as métricas do Instagram.'
+      );
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [activeProfile?.id, loadData]);
+
+  const { metrics, topPosts, summary, followerGrowth, hasAccountData, hasMediaData } =
+    React.useMemo(() => calculateMetrics(rows), [rows]);
+
+  const hasConnections = connections.length > 0;
   const hasData = rows.length > 0;
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
+          <h1 className="flex items-center gap-2 text-2xl font-bold text-text-primary">
             <BarChart3 className="h-6 w-6 text-brand" />
             Análise de Performance
           </h1>
-          <p className="text-text-secondary">Acompanhe o impacto do seu conteúdo e o crescimento da sua audiência.</p>
+          <p className="text-text-secondary">
+            Conecte a Meta, sincronize métricas reais e acompanhe o crescimento do Instagram por
+            perfil.
+          </p>
           {activeProfile && (
-            <p className="text-sm text-text-secondary mt-1">
+            <p className="mt-1 text-sm text-text-secondary">
               Perfil ativo: <span className="font-medium">{activeProfile.name}</span>
             </p>
           )}
         </div>
-        <div className="flex gap-3">
-          <Button variant="secondary">Últimos 30 Dias</Button>
-          <Button onClick={() => void loadMetrics()}>Atualizar Dados</Button>
+
+        <div className="flex flex-wrap gap-3">
+          <Button
+            variant="outline"
+            onClick={() => void handleConnectInstagram()}
+            isLoading={isConnecting}
+            className="gap-2"
+          >
+            <Instagram className="h-4 w-4" />
+            Conectar Instagram
+          </Button>
+          <Button
+            onClick={() => void handleSyncMetrics()}
+            isLoading={isSyncing}
+            disabled={!hasConnections}
+            className="gap-2"
+          >
+            <RefreshCcw className="h-4 w-4" />
+            Sincronizar Agora
+          </Button>
         </div>
       </div>
 
-      {errorMessage && (
-        <Card className="border-red-200 bg-red-50 text-red-700 p-4">
-          {errorMessage}
+      {metaFeedback && (
+        <Card
+          className={cn(
+            'p-4',
+            metaFeedback.status === 'success'
+              ? 'border-green-200 bg-green-50 text-green-700'
+              : 'border-red-200 bg-red-50 text-red-700'
+          )}
+        >
+          {metaFeedback.message}
         </Card>
       )}
+
+      {errorMessage && (
+        <Card className="border-red-200 bg-red-50 p-4 text-red-700">{errorMessage}</Card>
+      )}
+
+      <Card>
+        <div className="mb-6 flex items-center justify-between gap-4">
+          <div>
+            <CardTitle>Contas Conectadas</CardTitle>
+            <CardDescription>
+              Cada conexão é vinculada ao `profile_id` ativo e sincronizada somente via Edge
+              Functions.
+            </CardDescription>
+          </div>
+          <Badge variant={hasConnections ? 'success' : 'default'}>
+            {hasConnections ? `${connections.length} conectada(s)` : 'Nenhuma conexão'}
+          </Badge>
+        </div>
+
+        {!hasConnections && !isLoading ? (
+          <EmptyState
+            title="Nenhuma conta do Instagram conectada"
+            description="Conecte uma conta Business vinculada a uma página do Facebook para liberar métricas reais no módulo de performance."
+            icon={Instagram}
+            action={
+              <Button onClick={() => void handleConnectInstagram()} isLoading={isConnecting}>
+                Conectar Instagram
+              </Button>
+            }
+          />
+        ) : (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {connections.map((connection) => {
+              const status = formatConnectionStatus(connection);
+
+              return (
+                <Card key={connection.id} className="border-gray-200 bg-gray-50/40">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-sm">
+                        {connection.profile_picture_url ? (
+                          <img
+                            src={connection.profile_picture_url}
+                            alt={connection.username || 'Instagram'}
+                            className="h-12 w-12 rounded-full object-cover"
+                          />
+                        ) : (
+                          <Instagram className="h-5 w-5 text-brand" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-text-primary">
+                          @{connection.username || connection.instagram_user_id}
+                        </p>
+                        <p className="text-xs text-text-secondary">IG User ID: {connection.instagram_user_id}</p>
+                      </div>
+                    </div>
+                    <Badge variant={status.variant}>{status.label}</Badge>
+                  </div>
+
+                  <div className="mt-4 space-y-2 text-sm text-text-secondary">
+                    <p>Página vinculada: {connection.page_id}</p>
+                    <p>
+                      Última sincronização:{' '}
+                      {connection.last_synced_at
+                        ? new Date(connection.last_synced_at).toLocaleString()
+                        : 'Ainda não sincronizada'}
+                    </p>
+                    {connection.token_expires_at && (
+                      <p>Token expira em: {new Date(connection.token_expires_at).toLocaleDateString()}</p>
+                    )}
+                    {connection.last_sync_error && (
+                      <p className="text-red-600">{connection.last_sync_error}</p>
+                    )}
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </Card>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
         {metrics.map((metric) => (
           <Card key={metric.label}>
-            <p className="text-sm text-text-secondary mb-1">{metric.label}</p>
+            <p className="mb-1 text-sm text-text-secondary">{metric.label}</p>
             <div className="flex items-end justify-between">
               <h3 className="text-2xl font-bold text-text-primary">{metric.value}</h3>
               <div
@@ -338,13 +571,13 @@ export const Performance = () => {
       </div>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-        <Card className="h-80 flex flex-col">
+        <Card className="flex h-80 flex-col">
           <CardTitle className="mb-4">Crescimento de Audiência</CardTitle>
-          <div className="flex-1 flex items-center justify-center bg-gray-50 rounded-lg border border-dashed border-gray-200">
+          <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-gray-200 bg-gray-50">
             {isLoading ? (
               <p className="text-text-secondary">Carregando métricas...</p>
-            ) : hasData ? (
-              <div className="w-full h-full p-6 flex flex-col justify-center">
+            ) : hasAccountData ? (
+              <div className="flex h-full w-full flex-col justify-center p-6">
                 <div className="space-y-4">
                   <div>
                     <p className="text-sm text-text-secondary">Crescimento de Seguidores</p>
@@ -369,22 +602,31 @@ export const Performance = () => {
               </div>
             ) : (
               <EmptyState
-                title="Ainda não há dados disponíveis"
-                description="Conecte sua conta do Instagram e sincronize as métricas para visualizar o crescimento da audiência ao longo do tempo."
+                title="Ainda não há dados diários"
+                description="Depois de conectar a Meta e rodar a sincronização, o PostHub passa a preencher os snapshots diários da conta."
                 icon={Activity}
-                action={<Button variant="outline" size="sm">Conectar Contas</Button>}
+                action={
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!hasConnections}
+                    onClick={() => void handleSyncMetrics()}
+                  >
+                    Sincronizar agora
+                  </Button>
+                }
               />
             )}
           </div>
         </Card>
 
-        <Card className="h-80 flex flex-col">
+        <Card className="flex h-80 flex-col">
           <CardTitle className="mb-4">Resumo de Engajamento</CardTitle>
-          <div className="flex-1 flex items-center justify-center bg-gray-50 rounded-lg border border-dashed border-gray-200">
+          <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-gray-200 bg-gray-50">
             {isLoading ? (
               <p className="text-text-secondary">Carregando métricas...</p>
-            ) : hasData ? (
-              <div className="w-full h-full p-6 flex flex-col justify-center">
+            ) : hasMediaData ? (
+              <div className="flex h-full w-full flex-col justify-center p-6">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="text-text-secondary">Impressões</span>
@@ -405,14 +647,14 @@ export const Performance = () => {
                     </span>
                   </div>
                   <div className="pt-3">
-                    <Badge variant="brand">Métricas do Instagram</Badge>
+                    <Badge variant="brand">Métricas reais via Instagram Graph API</Badge>
                   </div>
                 </div>
               </div>
             ) : (
               <EmptyState
                 title="Dados insuficientes"
-                description="Publique mais conteúdo e sincronize suas métricas do Instagram para gerar insights."
+                description="Quando a Meta devolver métricas por mídia, os posts com insights reais vão aparecer aqui."
                 icon={BarChart3}
               />
             )}
@@ -426,7 +668,7 @@ export const Performance = () => {
         {!isLoading && !hasData ? (
           <EmptyState
             title="Nenhuma métrica de post encontrada"
-            description="Quando houver métricas do Instagram disponíveis para este perfil, seus melhores posts aparecerão aqui."
+            description="Conecte a conta, sincronize os dados e o ranking dos melhores posts será preenchido aqui."
             icon={Activity}
           />
         ) : isLoading ? (
@@ -445,14 +687,12 @@ export const Performance = () => {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {topPosts.map((post) => (
-                  <tr key={post.id} className="group hover:bg-gray-50/50 transition-colors">
+                  <tr key={post.id} className="group transition-colors hover:bg-gray-50/50">
                     <td className="py-4">
                       <div className="flex items-center gap-3">
                         <div className="h-10 w-10 rounded bg-gray-100" />
                         <div>
-                          <p className="font-medium text-text-primary line-clamp-1">
-                            {post.title}
-                          </p>
+                          <p className="line-clamp-1 font-medium text-text-primary">{post.title}</p>
                           <p className="text-xs text-text-secondary">
                             {new Date(post.createdAt).toLocaleDateString()}
                           </p>
@@ -463,7 +703,7 @@ export const Performance = () => {
                     <td className="py-4">{formatCompactNumber(post.reach)}</td>
                     <td className="py-4">{formatPercent(post.engagement)}</td>
                     <td className="py-4">
-                      <Badge variant="success">Ativo</Badge>
+                      <Badge variant="success">Sincronizado</Badge>
                     </td>
                   </tr>
                 ))}
