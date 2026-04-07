@@ -468,6 +468,7 @@ export const References = () => {
 
   const renderReferencePreview = (reference: ReferenceItem, className?: string) => {
     const previewImage = getPreviewImage(reference);
+    const previewVideo = reference.file_url || reference.thumbnail_url;
 
     if (reference.type === 'link' && !reference.thumbnail_url) {
       return (
@@ -487,6 +488,25 @@ export const References = () => {
             </p>
           </div>
         </div>
+      );
+    }
+
+    if ((reference.type === 'video' || reference.type === 'screen_recording') && previewVideo) {
+      return (
+        <video
+          src={previewVideo}
+          className={cn('h-full w-full object-cover', className)}
+          muted
+          playsInline
+          preload="metadata"
+          onMouseEnter={(event) => {
+            void event.currentTarget.play();
+          }}
+          onMouseLeave={(event) => {
+            event.currentTarget.pause();
+            event.currentTarget.currentTime = 0;
+          }}
+        />
       );
     }
 
