@@ -77,9 +77,6 @@ const EMPTY_FORM: FormState = {
   notes: '',
 };
 
-const getFallbackThumbnail = (title: string) =>
-  `https://picsum.photos/seed/${encodeURIComponent(title || 'reference')}/600/600`;
-
 const inferPlatformFromUrl = (url: string): string => {
   const normalized = url.toLowerCase();
 
@@ -107,8 +104,21 @@ const inferSourceFromTab = (tab: CreateTab, source: string, sourceUrl: string) =
   return 'Upload';
 };
 
-const getPreviewImage = (reference: ReferenceItem) =>
-  reference.thumbnail_url || reference.file_url || getFallbackThumbnail(reference.title);
+const isGeneratedPreviewUrl = (url?: string | null) => Boolean(url?.includes('picsum.photos/seed/'));
+
+const getPreviewImage = (reference: ReferenceItem) => {
+  const thumbnailUrl = isGeneratedPreviewUrl(reference.thumbnail_url) ? null : reference.thumbnail_url;
+
+  if (reference.type === 'link') {
+    return thumbnailUrl || null;
+  }
+
+  if (reference.type === 'image') {
+    return thumbnailUrl || reference.file_url || null;
+  }
+
+  return null;
+};
 
 const formatFileSize = (size?: number | null) => (size ? `${size} MB` : '—');
 
@@ -319,7 +329,9 @@ export const References = () => {
     setSelectedFile(null);
     setFilePreviewUrl(reference.type === 'link' ? '' : reference.thumbnail_url || reference.file_url || '');
     setFilePreviewLabel(reference.file_name || '');
-    setLinkPreviewUrl(reference.type === 'link' ? reference.thumbnail_url || '' : '');
+    setLinkPreviewUrl(
+      reference.type === 'link' && !isGeneratedPreviewUrl(reference.thumbnail_url) ? reference.thumbnail_url || '' : ''
+    );
     setLinkPreviewPlatform(reference.platform || reference.source || '');
     setShowCreateModal(true);
     setMenuOpenId(null);
@@ -331,7 +343,7 @@ export const References = () => {
 
     const platform = inferPlatformFromUrl(url);
     setLinkPreviewPlatform(platform);
-    setLinkPreviewUrl(getFallbackThumbnail(`${platform}-${url}`));
+    setLinkPreviewUrl('');
 
     setForm((prev) => ({
       ...prev,
@@ -408,7 +420,7 @@ export const References = () => {
           source_url: form.sourceUrl.trim() || undefined,
           thumbnail_url:
             activeTab === 'link'
-              ? linkPreviewUrl || editingReference.thumbnail_url || undefined
+              ? linkPreviewUrl || null
               : uploadData?.fileUrl || editingReference.thumbnail_url || undefined,
           file_url:
             activeTab === 'link'
@@ -433,7 +445,7 @@ export const References = () => {
             type: 'link',
             source: form.source.trim() || inferPlatformFromUrl(form.sourceUrl),
             source_url: form.sourceUrl.trim() || undefined,
-            thumbnail_url: linkPreviewUrl || undefined,
+            thumbnail_url: linkPreviewUrl || null,
             tags: parsedTags,
             folder: form.folder.trim() || undefined,
             campaign: form.campaign.trim() || undefined,
@@ -525,7 +537,7 @@ export const References = () => {
     const previewImage = getPreviewImage(reference);
     const previewVideo = reference.file_url || reference.thumbnail_url;
 
-    if (reference.type === 'link' && !reference.thumbnail_url) {
+    if (reference.type === 'link' && !previewImage) {
       return <ReferencePreviewFallback reference={reference} className={className} />;
     }
 
@@ -548,7 +560,11 @@ export const References = () => {
       );
     }
 
-    return <ReferenceImagePreview reference={reference} src={previewImage} className={className} />;
+    if (previewImage) {
+      return <ReferenceImagePreview reference={reference} src={previewImage} className={className} />;
+    }
+
+    return <ReferencePreviewFallback reference={reference} className={className} />;
   };
 
   const renderModalPreview = () => {
@@ -564,12 +580,20 @@ export const References = () => {
       if (linkPreviewUrl) {
         return (
           <div className="overflow-hidden rounded-2xl bg-gray-100">
-            <img
-              src={linkPreviewUrl}
-              alt="Prévia do link"
-              className="h-[260px] w-full object-cover"
-              referrerPolicy="no-referrer"
-            />
+            {editingReference ? (
+              <ReferenceImagePreview
+                reference={editingReference}
+                src={linkPreviewUrl}
+                className="h-[260px] w-full object-cover"
+              />
+            ) : (
+              <img
+                src={linkPreviewUrl}
+                alt="Prévia do link"
+                className="h-[260px] w-full object-cover"
+                referrerPolicy="no-referrer"
+              />
+            )}
           </div>
         );
       }
@@ -1295,12 +1319,11 @@ export const References = () => {
 
             <div className="grid grid-cols-1 gap-6 px-6 py-6 lg:grid-cols-[1.2fr_0.8fr]">
               <div className="overflow-hidden rounded-2xl bg-gray-100">
-                {selectedReference.type === 'image' ? (
-                  <img
-                    src={getPreviewImage(selectedReference)}
-                    alt={selectedReference.title}
+                {selectedReference.type === 'image' && getPreviewImage(selectedReference) ? (
+                  <ReferenceImagePreview
+                    reference={selectedReference}
+                    src={getPreviewImage(selectedReference) as string}
                     className="h-full max-h-[560px] w-full object-cover"
-                    referrerPolicy="no-referrer"
                   />
                 ) : selectedReference.type === 'video' || selectedReference.type === 'screen_recording' ? (
                   selectedReference.file_url ? (
@@ -1310,19 +1333,16 @@ export const References = () => {
                       controls
                     />
                   ) : (
-                    <img
-                      src={getPreviewImage(selectedReference)}
-                      alt={selectedReference.title}
+                    <ReferencePreviewFallback
+                      reference={selectedReference}
                       className="h-full max-h-[560px] w-full object-cover"
-                      referrerPolicy="no-referrer"
                     />
                   )
-                ) : selectedReference.thumbnail_url ? (
-                  <img
-                    src={selectedReference.thumbnail_url}
-                    alt={selectedReference.title}
+                ) : getPreviewImage(selectedReference) ? (
+                  <ReferenceImagePreview
+                    reference={selectedReference}
+                    src={getPreviewImage(selectedReference) as string}
                     className="h-full max-h-[560px] w-full object-cover"
-                    referrerPolicy="no-referrer"
                   />
                 ) : (
                   <div className="flex h-[420px] flex-col justify-between bg-gradient-to-br from-slate-100 to-slate-200 p-6">
