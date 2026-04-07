@@ -1,6 +1,5 @@
 import * as React from 'react';
 import logoIcon from '../../assets/branding/logo-icon.png';
-import logoFull from '../../assets/branding/logo-full-white.png';
 import logoFull from '../../assets/branding/logo-full-preto.png';
 
 type BrandLogoVariant = 'icon' | 'full';
