@@ -1,17 +1,18 @@
 import * as React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LogOut } from 'lucide-react';
+import { Lock, LogOut } from 'lucide-react';
 import { NAV_GROUPS } from '../../../shared/constants/navigation';
 import { cn } from '../../../shared/utils/cn';
 import { useAuth } from '../../../app/context/AuthContext';
 import { BottomSheet } from './BottomSheet';
+import { hasAccess } from '../../../shared/constants/plans';
 
 interface MobileMoreSheetProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const HIDDEN_MODULE_IDS = ['consultant', 'scheduler'];
+const HIDDEN_MODULE_IDS = ['scheduler'];
 
 export const MobileMoreSheet = ({ isOpen, onClose }: MobileMoreSheetProps) => {
   const location = useLocation();
@@ -39,6 +40,7 @@ export const MobileMoreSheet = ({ isOpen, onClose }: MobileMoreSheetProps) => {
             <div className="space-y-2">
               {group.items.map((item) => {
                 const isActive = location.pathname.startsWith(item.path);
+                const isLocked = !hasAccess(user?.currentPlan, item.id, user?.isAdmin);
 
                 return (
                   <Link
@@ -51,12 +53,24 @@ export const MobileMoreSheet = ({ isOpen, onClose }: MobileMoreSheetProps) => {
                     )}
                   >
                     <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-brand shadow-sm dark:bg-slate-950">
-                      <item.icon className="h-5 w-5" />
+                      <div className="relative">
+                        <item.icon className="h-5 w-5" />
+                        {isLocked ? (
+                          <Lock className="absolute -right-2 -top-2 h-3.5 w-3.5 rounded-full bg-white text-brand dark:bg-slate-950" />
+                        ) : null}
+                      </div>
                     </div>
                     <div className="min-w-0">
-                      <p className="text-base font-semibold text-slate-950 dark:text-slate-50">
-                        {item.label}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-base font-semibold text-slate-950 dark:text-slate-50">
+                          {item.label}
+                        </p>
+                        {isLocked ? (
+                          <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[0.68rem] font-semibold text-brand">
+                            PRO
+                          </span>
+                        ) : null}
+                      </div>
                       {item.description ? (
                         <p className="text-sm text-slate-500 dark:text-slate-400">
                           {item.description}

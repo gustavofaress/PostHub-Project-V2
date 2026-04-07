@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../shared/utils/supabase';
 import { onboardingService } from '../../services/onboarding.service';
 import { userService } from '../../services/user.service';
+import { normalizePlan } from '../../shared/constants/plans';
 
 interface UserOnboardingState {
   work_model: string | null;
@@ -15,6 +16,7 @@ interface UserOnboardingState {
 type UserAccessStatus =
   | 'trial_active'
   | 'trial_expired'
+  | 'paid'
   | 'pro'
   | 'blocked'
   | 'missing'
@@ -85,6 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (!normalizedPlan) return 'missing';
       if (normalizedPlan === 'pro') return 'pro';
+      if (normalizePlan(normalizedPlan)) return 'paid';
 
       if (
         normalizedPlan === 'start_7' ||
@@ -187,6 +190,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const getPostLoginRoute = React.useCallback((appUser: User) => {
     if (appUser.isAdmin) return '/workspace/admin';
     if (appUser.accessStatus === 'pro') return '/workspace/dashboard';
+    if (appUser.accessStatus === 'paid') return '/workspace/dashboard';
     if (appUser.accessStatus === 'trial_active') return '/workspace/onboarding';
     return '/login';
   }, []);
