@@ -6,7 +6,7 @@ import { cn } from '../../../shared/utils/cn';
 import { useAuth } from '../../../app/context/AuthContext';
 import { hasAccess } from '../../../shared/constants/plans';
 
-const HIDDEN_MODULE_IDS = ['scheduler'];
+const HIDDEN_MODULE_IDS = ['consultant', 'scheduler'];
 
 export const Sidebar = () => {
   const location = useLocation();

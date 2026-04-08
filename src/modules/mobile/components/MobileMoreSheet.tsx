@@ -12,7 +12,7 @@ interface MobileMoreSheetProps {
   onClose: () => void;
 }
 
-const HIDDEN_MODULE_IDS = ['scheduler'];
+const HIDDEN_MODULE_IDS = ['consultant', 'scheduler'];
 
 export const MobileMoreSheet = ({ isOpen, onClose }: MobileMoreSheetProps) => {
   const location = useLocation();
