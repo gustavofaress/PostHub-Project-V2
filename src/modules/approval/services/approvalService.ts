@@ -349,7 +349,25 @@ function mapApprovalPostToDb(post: Partial<ApprovalPost>, profileId?: string): a
   if (post.status !== undefined) dbPost.status = post.status;
   if (post.mediaItems !== undefined) dbPost.media_urls = post.mediaItems;
   if (post.publicToken !== undefined) dbPost.public_token = post.publicToken;
-  if (post.thumbnail !== undefined) dbPost.thumbnail = post.thumbnail;
+
+  if (
+    post.thumbnail &&
+    (!Array.isArray(dbPost.media_urls) || dbPost.media_urls.length === 0)
+  ) {
+    dbPost.media_urls = [
+      {
+        id: 'thumbnail',
+        type: 'image',
+        fileName: 'thumbnail',
+        fileSize: 0,
+        mimeType: 'image/jpeg',
+        previewUrl: post.thumbnail,
+        persistedPreview: post.thumbnail,
+        uploadStatus: 'ready',
+        order: 0,
+      },
+    ];
+  }
 
   return dbPost;
 }

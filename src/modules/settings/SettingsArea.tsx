@@ -9,6 +9,8 @@ import { Card, CardDescription, CardTitle } from '../../shared/components/Card';
 import { Input } from '../../shared/components/Input';
 import { Modal } from '../../shared/components/Modal';
 import { cn } from '../../shared/utils/cn';
+import { LockedModuleState } from '../../shared/components/LockedModuleState';
+import { hasAccess } from '../../shared/constants/plans';
 import {
   DEFAULT_MEMBER_PERMISSIONS,
   TeamMember,
@@ -63,6 +65,7 @@ export const SettingsArea = () => {
   const { user } = useAuth();
   const { activeProfile } = useProfile();
   const { canManageMembers, isLoadingPermissions } = useWorkspacePermissions();
+  const canUseTeamMembers = hasAccess(user?.currentPlan, 'team', user?.isAdmin);
   const ownerName = user?.name?.trim() || 'Você';
   const ownerEmail = user?.email?.trim() || 'owner@posthub.app';
 
@@ -94,7 +97,7 @@ export const SettingsArea = () => {
   const [membersError, setMembersError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    if (!activeProfile?.id) {
+    if (!activeProfile?.id || !canUseTeamMembers) {
       setMembers([]);
       return;
     }
@@ -126,7 +129,7 @@ export const SettingsArea = () => {
     return () => {
       isMounted = false;
     };
-  }, [activeProfile?.id]);
+  }, [activeProfile?.id, canUseTeamMembers]);
 
   const allMembers = React.useMemo(
     () => (ownerMember ? [ownerMember, ...members] : members),
@@ -351,13 +354,22 @@ export const SettingsArea = () => {
               size="sm"
               className="gap-2"
               onClick={() => setIsInviteModalOpen(true)}
-              disabled={!canManageMembers || isLoadingPermissions}
+              disabled={!canUseTeamMembers || !canManageMembers || isLoadingPermissions}
             >
               <Users className="h-4 w-4" />
               Adicionar Membro
             </Button>
           </div>
 
+          {!canUseTeamMembers ? (
+            <LockedModuleState
+              feature="team"
+              compact
+              title="Gerenciar equipe é exclusivo do plano PRO"
+              description="Traga sua equipe para a mesma operação, com acessos por email e controle claro sobre quem pode atuar em cada etapa."
+            />
+          ) : (
+            <>
           {!canManageMembers && !isLoadingPermissions ? (
             <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
               Seu acesso neste workspace não permite gerenciar membros.
@@ -495,6 +507,8 @@ export const SettingsArea = () => {
               );
             })}
           </div>
+            </>
+          )}
         </Card>
       </div>
 

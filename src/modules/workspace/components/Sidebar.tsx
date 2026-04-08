@@ -1,9 +1,10 @@
 import * as React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LogOut, ChevronRight } from 'lucide-react';
+import { LogOut, ChevronRight, Lock } from 'lucide-react';
 import { NAV_GROUPS, NavItem } from '../../../shared/constants/navigation';
 import { cn } from '../../../shared/utils/cn';
 import { useAuth } from '../../../app/context/AuthContext';
+import { hasAccess } from '../../../shared/constants/plans';
 
 const HIDDEN_MODULE_IDS = ['consultant', 'scheduler'];
 
@@ -85,6 +86,7 @@ export const Sidebar = () => {
               {group.items.map((item) => {
                 const isActive = location.pathname.startsWith(item.path);
                 const isApproval = item.id === 'approval';
+                const isLocked = !hasAccess(user?.currentPlan, item.id, user?.isAdmin);
 
                 return (
                   <div key={item.id} className="flex w-full flex-col">
@@ -100,6 +102,7 @@ export const Sidebar = () => {
                             : 'bg-white text-[#38B6FF] shadow-[0_4px_12px_rgba(0,0,0,0.1)]'
                           : 'text-white/75 hover:bg-white/15 hover:text-white'
                       )}
+                      aria-label={isLocked ? `${item.label} bloqueado` : item.label}
                     >
                       <item.icon
                         className={cn(
@@ -108,6 +111,12 @@ export const Sidebar = () => {
                         )}
                         strokeWidth={isActive ? 2.5 : 2}
                       />
+
+                      {isLocked && (
+                        <span className="absolute -right-1 -bottom-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#38B6FF] bg-white text-[#38B6FF]">
+                          <Lock className="h-3 w-3" strokeWidth={2.5} />
+                        </span>
+                      )}
 
                       {isActive && (
                         <span className="absolute -right-1 -top-1 flex h-3.5 w-3.5 items-center justify-center">
@@ -186,6 +195,12 @@ export const Sidebar = () => {
                 <p className="mb-4 text-sm leading-relaxed text-gray-500">
                   {hoveredItem.item.description}
                 </p>
+
+                {!hasAccess(user?.currentPlan, hoveredItem.item.id, user?.isAdmin) ? (
+                  <div className="mb-4 rounded-lg border border-brand/20 bg-brand/5 px-3 py-2 text-xs font-medium text-brand">
+                    Disponível no plano PRO
+                  </div>
+                ) : null}
 
                 {hoveredItem.item.subItems && hoveredItem.item.subItems.length > 0 && (
                   <div className="space-y-1">

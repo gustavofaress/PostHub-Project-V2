@@ -18,7 +18,9 @@ export const ProtectedRoute: React.FC = () => {
   }
 
   const canAccessWorkspace =
-    user.accessStatus === 'pro' || user.accessStatus === 'trial_active';
+    user.accessStatus === 'pro' ||
+    user.accessStatus === 'paid' ||
+    user.accessStatus === 'trial_active';
 
   if (!canAccessWorkspace) {
     return <Navigate to="/login" replace />;

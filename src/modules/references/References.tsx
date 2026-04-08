@@ -1041,13 +1041,15 @@ export const References = () => {
                         <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-brand shadow-sm">
                           <Upload className="h-5 w-5" />
                         </div>
-                        <div>
+                        <div className="min-w-0 flex-1">
                           <h4 className="font-semibold text-text-primary">Selecionar arquivo</h4>
                           <p className="text-sm text-text-secondary">
                             Suporta até 500MB. A thumbnail será o próprio print ou a prévia visual do vídeo enviado.
                           </p>
                           {filePreviewLabel && (
-                            <p className="mt-2 text-sm font-medium text-text-primary">{filePreviewLabel}</p>
+                            <p className="mt-2 break-all text-sm font-medium text-text-primary">
+                              {filePreviewLabel}
+                            </p>
                           )}
                         </div>
                       </div>
@@ -1189,17 +1191,17 @@ export const References = () => {
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Origem</p>
-                      <p className="text-text-primary">{form.source.trim() || '—'}</p>
+                      <p className="break-words text-text-primary">{form.source.trim() || '—'}</p>
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Arquivo</p>
-                      <p className="truncate text-text-primary">
+                      <p className="break-all text-text-primary">
                         {selectedFile?.name || editingReference?.file_name || '—'}
                       </p>
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Tamanho</p>
                       <p className="text-text-primary">
                         {selectedFile
@@ -1207,9 +1209,9 @@ export const References = () => {
                           : formatFileSize(editingReference?.file_size_mb)}
                       </p>
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Profile</p>
-                      <p className="truncate text-text-primary">{activeProfile?.name || profileId || '—'}</p>
+                      <p className="break-words text-text-primary">{activeProfile?.name || profileId || '—'}</p>
                     </div>
                   </div>
                 </Card>
@@ -1248,8 +1250,10 @@ export const References = () => {
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 p-4">
           <div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-gray-100 px-6 py-5">
-              <div>
-                <h3 className="text-lg font-bold text-text-primary">{selectedReference.title}</h3>
+              <div className="min-w-0">
+                <h3 className="break-words text-lg font-bold text-text-primary">
+                  {selectedReference.title}
+                </h3>
                 <p className="text-sm text-text-secondary">
                   Visualização completa da referência salva neste profile.
                 </p>
@@ -1356,28 +1360,34 @@ export const References = () => {
                 )}
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
+                  <div className="min-w-0">
                     <h4 className="mb-1 text-sm font-semibold uppercase tracking-wide text-gray-400">
                       Coleção
                     </h4>
-                    <p className="text-sm text-text-primary">{selectedReference.folder || 'Sem coleção'}</p>
+                    <p className="break-words text-sm text-text-primary">
+                      {selectedReference.folder || 'Sem coleção'}
+                    </p>
                   </div>
 
-                  <div>
+                  <div className="min-w-0">
                     <h4 className="mb-1 text-sm font-semibold uppercase tracking-wide text-gray-400">
                       Campanha
                     </h4>
-                    <p className="text-sm text-text-primary">{selectedReference.campaign || 'Sem campanha'}</p>
+                    <p className="break-words text-sm text-text-primary">
+                      {selectedReference.campaign || 'Sem campanha'}
+                    </p>
                   </div>
 
-                  <div>
+                  <div className="min-w-0">
                     <h4 className="mb-1 text-sm font-semibold uppercase tracking-wide text-gray-400">
                       Arquivo
                     </h4>
-                    <p className="text-sm text-text-primary">{selectedReference.file_name || 'Sem arquivo'}</p>
+                    <p className="break-all text-sm text-text-primary">
+                      {selectedReference.file_name || 'Sem arquivo'}
+                    </p>
                   </div>
 
-                  <div>
+                  <div className="min-w-0">
                     <h4 className="mb-1 text-sm font-semibold uppercase tracking-wide text-gray-400">
                       Tamanho
                     </h4>
