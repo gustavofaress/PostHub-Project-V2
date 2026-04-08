@@ -30,6 +30,10 @@ import { Button } from '../../shared/components/Button';
 import { Input } from '../../shared/components/Input';
 import { Badge } from '../../shared/components/Badge';
 import { cn } from '../../shared/utils/cn';
+import {
+  renderCompressedVideo,
+  TARGET_VIDEO_UPLOAD_SIZE,
+} from '../../shared/utils/mediaProcessing';
 import { useProfile } from '../../app/context/ProfileContext';
 import { referencesService } from '../../services/references.service';
 import type { ReferenceItem, ReferenceType } from '../../types/reference.types';
@@ -438,6 +442,48 @@ export const References = () => {
     }));
   };
 
+  const prepareMaterialForUpload = async (file: File) => {
+    const fileKindError = getFileKindError(activeTab, file);
+
+    if (fileKindError) {
+      throw new Error(fileKindError);
+    }
+
+    if (activeTab === 'image') {
+      if (file.size > TARGET_VIDEO_UPLOAD_SIZE) {
+        throw new Error(
+          'A imagem excede o limite aceito pelo Supabase. Reduza o arquivo antes de enviar.'
+        );
+      }
+
+      return file;
+    }
+
+    const isVideoMaterial = activeTab === 'video' || activeTab === 'screen_recording';
+
+    if (!isVideoMaterial) {
+      return file;
+    }
+
+    let createdPreviewUrl = '';
+    const sourceUrl = filePreviewUrl || URL.createObjectURL(file);
+
+    if (!filePreviewUrl) {
+      createdPreviewUrl = sourceUrl;
+    }
+
+    try {
+      return await renderCompressedVideo(file, sourceUrl, (progress, status) => {
+        setMaterialRenderProgress(progress);
+        setMaterialRenderStatus(status);
+      });
+    } finally {
+      if (createdPreviewUrl) {
+        URL.revokeObjectURL(createdPreviewUrl);
+      }
+    }
+  };
+
   const handleSaveReference = async () => {
     if (!profileId || isSaving) return;
 
@@ -469,16 +515,13 @@ export const References = () => {
           | undefined;
 
         if (selectedFile) {
-          const fileKindError = getFileKindError(activeTab, selectedFile);
-
-          if (fileKindError) {
-            throw new Error(fileKindError);
-          }
-
           setMaterialRenderProgress(35);
+          setMaterialRenderStatus('Preparando material...');
+          const uploadFile = await prepareMaterialForUpload(selectedFile);
+          setMaterialRenderProgress(95);
           setMaterialRenderStatus('Enviando material para o Supabase...');
-          const uploaded = await referencesService.uploadFile(profileId, selectedFile);
-          setMaterialRenderProgress(75);
+          const uploaded = await referencesService.uploadFile(profileId, uploadFile);
+          setMaterialRenderProgress(98);
           setMaterialRenderStatus('Salvando referência...');
           uploadData = {
             fileUrl: uploaded.fileUrl,
@@ -532,16 +575,13 @@ export const References = () => {
             notes: form.notes.trim() || undefined,
           });
         } else if (selectedFile) {
-          const fileKindError = getFileKindError(activeTab, selectedFile);
-
-          if (fileKindError) {
-            throw new Error(fileKindError);
-          }
-
           setMaterialRenderProgress(35);
+          setMaterialRenderStatus('Preparando material...');
+          const uploadFile = await prepareMaterialForUpload(selectedFile);
+          setMaterialRenderProgress(95);
           setMaterialRenderStatus('Enviando material para o Supabase...');
-          const upload = await referencesService.uploadFile(profileId, selectedFile);
-          setMaterialRenderProgress(75);
+          const upload = await referencesService.uploadFile(profileId, uploadFile);
+          setMaterialRenderProgress(98);
           setMaterialRenderStatus('Salvando referência...');
 
           await referencesService.create({
