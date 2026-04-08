@@ -484,7 +484,8 @@ export const References = () => {
       resetForm();
     } catch (error) {
       console.error('Erro ao salvar referência:', error);
-      alert('Não foi possível salvar a referência.');
+      const message = error instanceof Error ? error.message : 'Erro desconhecido.';
+      alert(`Não foi possível salvar a referência.\n\n${message}`);
     } finally {
       setIsSaving(false);
     }
