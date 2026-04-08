@@ -30,12 +30,20 @@ import { Button } from '../../shared/components/Button';
 import { Input } from '../../shared/components/Input';
 import { Badge } from '../../shared/components/Badge';
 import { cn } from '../../shared/utils/cn';
+import {
+  renderCompressedVideo,
+  TARGET_VIDEO_UPLOAD_SIZE,
+} from '../../shared/utils/mediaProcessing';
 import { useProfile } from '../../app/context/ProfileContext';
 import { referencesService } from '../../services/references.service';
 import type { ReferenceItem, ReferenceType } from '../../types/reference.types';
 
 type ViewMode = 'grid' | 'list';
 type CreateTab = 'link' | 'image' | 'video' | 'screen_recording';
+type ReferenceNotice = {
+  title: string;
+  message: string;
+};
 
 interface FormState {
   title: string;
@@ -127,6 +135,24 @@ const getAcceptByTab = (tab: CreateTab) => {
   return 'video/*';
 };
 
+const getFileKindError = (tab: CreateTab, file: File) => {
+  if (tab === 'link') return null;
+
+  if (!file.type) {
+    return null;
+  }
+
+  if (tab === 'image' && !file.type.startsWith('image/')) {
+    return 'Selecione um arquivo de imagem para esta aba.';
+  }
+
+  if ((tab === 'video' || tab === 'screen_recording') && !file.type.startsWith('video/')) {
+    return 'Selecione um arquivo de vídeo para esta aba.';
+  }
+
+  return null;
+};
+
 const ReferencePreviewFallback = ({
   reference,
   className,
@@ -207,6 +233,10 @@ export const References = () => {
   const [filePreviewLabel, setFilePreviewLabel] = React.useState<string>('');
   const [linkPreviewUrl, setLinkPreviewUrl] = React.useState<string>('');
   const [linkPreviewPlatform, setLinkPreviewPlatform] = React.useState<string>('');
+  const [notice, setNotice] = React.useState<ReferenceNotice | null>(null);
+  const [isRenderingMaterial, setIsRenderingMaterial] = React.useState(false);
+  const [materialRenderProgress, setMaterialRenderProgress] = React.useState(0);
+  const [materialRenderStatus, setMaterialRenderStatus] = React.useState('');
 
   const loadReferences = React.useCallback(async () => {
     if (!profileId) {
@@ -306,6 +336,23 @@ export const References = () => {
     setLinkPreviewPlatform('');
   };
 
+  const clearSelectedMaterial = () => {
+    if (filePreviewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(filePreviewUrl);
+    }
+
+    setSelectedFile(null);
+    setFilePreviewUrl('');
+    setFilePreviewLabel('');
+  };
+
+  const handleTabChange = (tab: CreateTab) => {
+    if (tab === activeTab) return;
+
+    clearSelectedMaterial();
+    setActiveTab(tab);
+  };
+
   const openCreateModal = () => {
     resetForm();
     setShowCreateModal(true);
@@ -359,7 +406,22 @@ export const References = () => {
     if (!file) return;
 
     if (file.size > 500 * 1024 * 1024) {
-      alert('O arquivo excede o limite de 500MB.');
+      setNotice({
+        title: 'Arquivo muito grande',
+        message: 'O arquivo excede o limite de 500MB.',
+      });
+      event.target.value = '';
+      return;
+    }
+
+    const fileKindError = getFileKindError(activeTab, file);
+
+    if (fileKindError) {
+      setNotice({
+        title: 'Arquivo incompatível',
+        message: fileKindError,
+      });
+      event.target.value = '';
       return;
     }
 
@@ -380,6 +442,48 @@ export const References = () => {
     }));
   };
 
+  const prepareMaterialForUpload = async (file: File) => {
+    const fileKindError = getFileKindError(activeTab, file);
+
+    if (fileKindError) {
+      throw new Error(fileKindError);
+    }
+
+    if (activeTab === 'image') {
+      if (file.size > TARGET_VIDEO_UPLOAD_SIZE) {
+        throw new Error(
+          'A imagem excede o limite aceito pelo Supabase. Reduza o arquivo antes de enviar.'
+        );
+      }
+
+      return file;
+    }
+
+    const isVideoMaterial = activeTab === 'video' || activeTab === 'screen_recording';
+
+    if (!isVideoMaterial) {
+      return file;
+    }
+
+    let createdPreviewUrl = '';
+    const sourceUrl = filePreviewUrl || URL.createObjectURL(file);
+
+    if (!filePreviewUrl) {
+      createdPreviewUrl = sourceUrl;
+    }
+
+    try {
+      return await renderCompressedVideo(file, sourceUrl, (progress, status) => {
+        setMaterialRenderProgress(progress);
+        setMaterialRenderStatus(status);
+      });
+    } finally {
+      if (createdPreviewUrl) {
+        URL.revokeObjectURL(createdPreviewUrl);
+      }
+    }
+  };
+
   const handleSaveReference = async () => {
     if (!profileId || isSaving) return;
 
@@ -392,6 +496,13 @@ export const References = () => {
       .filter(Boolean);
 
     setIsSaving(true);
+    const shouldRenderMaterialPopup = activeTab !== 'link';
+
+    if (shouldRenderMaterialPopup) {
+      setIsRenderingMaterial(true);
+      setMaterialRenderProgress(5);
+      setMaterialRenderStatus('Preparando material...');
+    }
 
     try {
       if (editingReference) {
@@ -404,12 +515,22 @@ export const References = () => {
           | undefined;
 
         if (selectedFile) {
-          const uploaded = await referencesService.uploadFile(profileId, selectedFile);
+          setMaterialRenderProgress(35);
+          setMaterialRenderStatus('Preparando material...');
+          const uploadFile = await prepareMaterialForUpload(selectedFile);
+          setMaterialRenderProgress(95);
+          setMaterialRenderStatus('Enviando material para o Supabase...');
+          const uploaded = await referencesService.uploadFile(profileId, uploadFile);
+          setMaterialRenderProgress(98);
+          setMaterialRenderStatus('Salvando referência...');
           uploadData = {
             fileUrl: uploaded.fileUrl,
             fileName: uploaded.fileName,
             fileSizeMb: uploaded.fileSizeMb,
           };
+        } else if (shouldRenderMaterialPopup) {
+          setMaterialRenderProgress(65);
+          setMaterialRenderStatus('Salvando referência...');
         }
 
         await referencesService.update({
@@ -454,7 +575,14 @@ export const References = () => {
             notes: form.notes.trim() || undefined,
           });
         } else if (selectedFile) {
-          const upload = await referencesService.uploadFile(profileId, selectedFile);
+          setMaterialRenderProgress(35);
+          setMaterialRenderStatus('Preparando material...');
+          const uploadFile = await prepareMaterialForUpload(selectedFile);
+          setMaterialRenderProgress(95);
+          setMaterialRenderStatus('Enviando material para o Supabase...');
+          const upload = await referencesService.uploadFile(profileId, uploadFile);
+          setMaterialRenderProgress(98);
+          setMaterialRenderStatus('Salvando referência...');
 
           await referencesService.create({
             profile_id: profileId,
@@ -475,18 +603,37 @@ export const References = () => {
             file_size_mb: upload.fileSizeMb,
           });
         } else {
+          setNotice({
+            title: 'Material obrigatório',
+            message: 'Selecione um arquivo para salvar esta referência.',
+          });
           return;
         }
       }
 
+      if (shouldRenderMaterialPopup) {
+        setMaterialRenderProgress(95);
+        setMaterialRenderStatus('Atualizando biblioteca...');
+      }
+
       await loadReferences();
+      if (shouldRenderMaterialPopup) {
+        setMaterialRenderProgress(100);
+        setMaterialRenderStatus('Material salvo.');
+      }
       setShowCreateModal(false);
       resetForm();
     } catch (error) {
       console.error('Erro ao salvar referência:', error);
       const message = error instanceof Error ? error.message : 'Erro desconhecido.';
-      alert(`Não foi possível salvar a referência.\n\n${message}`);
+      setNotice({
+        title: 'Não foi possível salvar a referência',
+        message,
+      });
     } finally {
+      setIsRenderingMaterial(false);
+      setMaterialRenderProgress(0);
+      setMaterialRenderStatus('');
       setIsSaving(false);
     }
   };
@@ -523,7 +670,10 @@ export const References = () => {
       setShowDeleteModal(false);
     } catch (error) {
       console.error('Erro ao excluir referência:', error);
-      alert('Não foi possível excluir a referência.');
+      setNotice({
+        title: 'Não foi possível excluir a referência',
+        message: error instanceof Error ? error.message : 'Erro desconhecido.',
+      });
     } finally {
       setIsDeleting(false);
     }
@@ -1020,7 +1170,7 @@ export const References = () => {
                   return (
                     <button
                       key={tab.key}
-                      onClick={() => setActiveTab(tab.key as CreateTab)}
+                      onClick={() => handleTabChange(tab.key as CreateTab)}
                       className={cn(
                         'inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-all',
                         isActive
@@ -1498,6 +1648,48 @@ export const References = () => {
                   </Button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isRenderingMaterial && (
+        <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 text-center shadow-2xl">
+            <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-brand/20 border-t-brand" />
+            <div className="mt-4 space-y-2">
+              <h3 className="text-lg font-bold text-text-primary">Renderizando material</h3>
+              <p className="text-sm font-semibold text-text-primary">
+                {materialRenderStatus || 'Estamos preparando o arquivo para envio.'}
+              </p>
+              <p className="text-sm text-text-secondary">
+                Vídeos maiores podem levar alguns minutos. Mantenha esta aba aberta.
+              </p>
+            </div>
+            <div className="mt-5 space-y-2 text-left">
+              <div className="h-3 overflow-hidden rounded-full bg-gray-100">
+                <div
+                  className="h-full rounded-full bg-brand transition-all duration-300"
+                  style={{ width: `${Math.max(1, Math.min(100, materialRenderProgress))}%` }}
+                />
+              </div>
+              <p className="text-center text-xs font-semibold text-text-secondary">
+                {Math.round(Math.max(0, Math.min(100, materialRenderProgress)))}% concluído
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {notice && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <h3 className="text-lg font-bold text-text-primary">{notice.title}</h3>
+            <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-text-secondary">
+              {notice.message}
+            </p>
+            <div className="mt-6 flex justify-end">
+              <Button onClick={() => setNotice(null)}>OK</Button>
             </div>
           </div>
         </div>
