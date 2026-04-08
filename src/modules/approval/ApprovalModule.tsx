@@ -454,6 +454,7 @@ export const ApprovalModule = () => {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
+    if (!ensureActiveProfile()) return;
 
     const MAX_SIZE = 1.5 * 1024 * 1024 * 1024;
     const validFiles = files.filter(
@@ -467,98 +468,111 @@ export const ApprovalModule = () => {
 
     const filesToProcess = newContentType === 'carousel' ? validFiles : [validFiles[0]];
 
-    const newItems: MediaState[] = await Promise.all(
-      filesToProcess.map(async (file, index) => {
-        const isVideo = file.type.startsWith('video/');
-        const previewUrl = URL.createObjectURL(file);
-        let persistedPreview = '';
+    try {
+      const newItems: MediaState[] = await Promise.all(
+        filesToProcess.map(async (file, index) => {
+          const isVideo = file.type.startsWith('video/');
+          const localPreviewUrl = URL.createObjectURL(file);
+          let persistedPreview = '';
 
-        if (!isVideo) {
           try {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            const img = new Image();
-            img.src = previewUrl;
+            if (!isVideo) {
+              try {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const img = new Image();
+                img.src = localPreviewUrl;
 
-            await new Promise((resolve) => {
-              img.onload = resolve;
-            });
+                await new Promise((resolve) => {
+                  img.onload = resolve;
+                  img.onerror = resolve;
+                });
 
-            const MAX_DIM = 800;
-            let width = img.width;
-            let height = img.height;
+                const MAX_DIM = 800;
+                let width = img.width;
+                let height = img.height;
 
-            if (width > height && width > MAX_DIM) {
-              height *= MAX_DIM / width;
-              width = MAX_DIM;
-            } else if (height > MAX_DIM) {
-              width *= MAX_DIM / height;
-              height = MAX_DIM;
+                if (width > height && width > MAX_DIM) {
+                  height *= MAX_DIM / width;
+                  width = MAX_DIM;
+                } else if (height > MAX_DIM) {
+                  width *= MAX_DIM / height;
+                  height = MAX_DIM;
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                ctx?.drawImage(img, 0, 0, width, height);
+                persistedPreview = canvas.toDataURL('image/jpeg', 0.7);
+              } catch (err) {
+                console.error('Failed to generate persisted preview', err);
+              }
+            } else {
+              try {
+                const video = document.createElement('video');
+                video.src = localPreviewUrl;
+                video.muted = true;
+                video.playsInline = true;
+
+                await new Promise((resolve, reject) => {
+                  video.onloadeddata = () => {
+                    video.currentTime = Math.min(1, video.duration / 2 || 1);
+                  };
+                  video.onseeked = resolve;
+                  video.onerror = reject;
+                  setTimeout(resolve, 3000);
+                });
+
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const MAX_DIM = 800;
+                let width = video.videoWidth || 800;
+                let height = video.videoHeight || 600;
+
+                if (width > height && width > MAX_DIM) {
+                  height *= MAX_DIM / width;
+                  width = MAX_DIM;
+                } else if (height > MAX_DIM) {
+                  width *= MAX_DIM / height;
+                  height = MAX_DIM;
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                ctx?.drawImage(video, 0, 0, width, height);
+                persistedPreview = canvas.toDataURL('image/jpeg', 0.7);
+              } catch (err) {
+                console.error('Failed to generate video persisted preview', err);
+              }
             }
 
-            canvas.width = width;
-            canvas.height = height;
-            ctx?.drawImage(img, 0, 0, width, height);
-            persistedPreview = canvas.toDataURL('image/jpeg', 0.7);
-          } catch (err) {
-            console.error('Failed to generate persisted preview', err);
+            const uploadedMedia = await approvalService.uploadApprovalMedia(activeProfileId!, file);
+
+            return {
+              id: Math.random().toString(36).substring(7),
+              type: isVideo ? 'video' : 'image',
+              fileName: file.name,
+              fileSize: file.size,
+              mimeType: file.type,
+              previewUrl: uploadedMedia.fileUrl,
+              persistedPreview,
+              uploadStatus: 'ready',
+              originalFileReference: uploadedMedia.filePath,
+              order: newMediaItems.length + index,
+            };
+          } finally {
+            URL.revokeObjectURL(localPreviewUrl);
           }
-        } else {
-          try {
-            const video = document.createElement('video');
-            video.src = previewUrl;
-            video.muted = true;
-            video.playsInline = true;
+        })
+      );
 
-            await new Promise((resolve, reject) => {
-              video.onloadeddata = () => {
-                video.currentTime = Math.min(1, video.duration / 2 || 1);
-              };
-              video.onseeked = resolve;
-              video.onerror = reject;
-              setTimeout(resolve, 3000);
-            });
-
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            const MAX_DIM = 800;
-            let width = video.videoWidth || 800;
-            let height = video.videoHeight || 600;
-
-            if (width > height && width > MAX_DIM) {
-              height *= MAX_DIM / width;
-              width = MAX_DIM;
-            } else if (height > MAX_DIM) {
-              width *= MAX_DIM / height;
-              height = MAX_DIM;
-            }
-
-            canvas.width = width;
-            canvas.height = height;
-            ctx?.drawImage(video, 0, 0, width, height);
-            persistedPreview = canvas.toDataURL('image/jpeg', 0.7);
-          } catch (err) {
-            console.error('Failed to generate video persisted preview', err);
-          }
-        }
-
-        return {
-          id: Math.random().toString(36).substring(7),
-          type: isVideo ? 'video' : 'image',
-          fileName: file.name,
-          fileSize: file.size,
-          mimeType: file.type,
-          previewUrl,
-          persistedPreview,
-          uploadStatus: 'ready',
-          order: newMediaItems.length + index,
-        };
-      })
-    );
-
-    setNewMediaItems((prev) =>
-      newContentType === 'carousel' ? [...prev, ...newItems] : newItems
-    );
+      setNewMediaItems((prev) =>
+        newContentType === 'carousel' ? [...prev, ...newItems] : newItems
+      );
+    } catch (error: any) {
+      console.error('Failed to upload approval media:', error);
+      setAlertMessage(error?.message || 'Não foi possível enviar a mídia. Tente novamente.');
+    }
   };
 
   React.useEffect(() => {

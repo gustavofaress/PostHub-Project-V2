@@ -4,6 +4,7 @@ import { ApprovalPost, ApprovalComment } from '../ApprovalModule';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const APPROVAL_MEDIA_BUCKET = 'reference-files';
 
 type DbApprovalPost = any;
 type DbApprovalComment = any;
@@ -38,7 +39,67 @@ const buildReadableError = (prefix: string, error: any) => {
   return new Error(`${prefix}: ${message}`);
 };
 
+const sanitizeFileName = (fileName: string): string => {
+  return fileName
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/[^a-zA-Z0-9.\-_]/g, '')
+    .toLowerCase();
+};
+
 export const approvalService = {
+  async uploadApprovalMedia(
+    profileId: string,
+    file: File
+  ): Promise<{
+    fileUrl: string;
+    filePath: string;
+  }> {
+    const client = ensureSupabase();
+
+    const {
+      data: { user },
+      error: userError,
+    } = await client.auth.getUser();
+
+    if (userError) {
+      console.error('Error fetching authenticated user for approval media upload:', userError);
+      throw buildReadableError('Não foi possível identificar o usuário autenticado', userError);
+    }
+
+    if (!user) {
+      throw new Error('Usuário não autenticado.');
+    }
+
+    if (!profileId) {
+      throw new Error('profileId é obrigatório para enviar mídia de aprovação.');
+    }
+
+    const safeName = sanitizeFileName(file.name);
+    const filePath = `approvals/${user.id}/${profileId}/${Date.now()}-${safeName}`;
+
+    const { error: uploadError } = await client.storage
+      .from(APPROVAL_MEDIA_BUCKET)
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        contentType: file.type || undefined,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error('Error uploading approval media:', uploadError);
+      throw buildReadableError('Não foi possível enviar a mídia da aprovação', uploadError);
+    }
+
+    const { data } = client.storage.from(APPROVAL_MEDIA_BUCKET).getPublicUrl(filePath);
+
+    return {
+      fileUrl: data.publicUrl,
+      filePath,
+    };
+  },
+
   async listApprovalPosts(profileId: string): Promise<ApprovalPost[]> {
     const client = ensureSupabase();
 
