@@ -7,11 +7,20 @@ import type {
 
 const BUCKET_NAME = 'reference-files';
 
+const getSupabaseClient = () => {
+  if (!supabase) {
+    throw new Error('Supabase não está configurado.');
+  }
+
+  return supabase;
+};
+
 const getCurrentUserId = async (): Promise<string> => {
+  const client = getSupabaseClient();
   const {
     data: { user },
     error,
-  } = await supabase.auth.getUser();
+  } = await client.auth.getUser();
 
   if (error) {
     throw error;
@@ -35,7 +44,8 @@ const sanitizeFileName = (fileName: string): string => {
 
 export const referencesService = {
   async listByProfile(profileId: string): Promise<ReferenceItem[]> {
-    const { data, error } = await supabase
+    const client = getSupabaseClient();
+    const { data, error } = await client
       .from('reference_items')
       .select('*')
       .eq('profile_id', profileId)
@@ -49,6 +59,7 @@ export const referencesService = {
   },
 
   async create(input: CreateReferenceInput): Promise<ReferenceItem> {
+    const client = getSupabaseClient();
     const userId = await getCurrentUserId();
 
     const payload = {
@@ -71,7 +82,7 @@ export const referencesService = {
       file_size_mb: input.file_size_mb ?? null,
     };
 
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('reference_items')
       .insert(payload)
       .select('*')
@@ -85,6 +96,7 @@ export const referencesService = {
   },
 
   async update(input: UpdateReferenceInput): Promise<ReferenceItem> {
+    const client = getSupabaseClient();
     const { id, ...updates } = input;
 
     const payload: Record<string, unknown> = {};
@@ -106,7 +118,7 @@ export const referencesService = {
     if (updates.file_name !== undefined) payload.file_name = updates.file_name;
     if (updates.file_size_mb !== undefined) payload.file_size_mb = updates.file_size_mb;
 
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('reference_items')
       .update(payload)
       .eq('id', id)
@@ -121,7 +133,8 @@ export const referencesService = {
   },
 
   async remove(id: string): Promise<void> {
-    const { error } = await supabase.from('reference_items').delete().eq('id', id);
+    const client = getSupabaseClient();
+    const { error } = await client.from('reference_items').delete().eq('id', id);
 
     if (error) {
       throw error;
@@ -137,11 +150,12 @@ export const referencesService = {
     fileName: string;
     fileSizeMb: number;
   }> {
+    const client = getSupabaseClient();
     const userId = await getCurrentUserId();
     const safeName = sanitizeFileName(file.name);
     const filePath = `${userId}/${profileId}/${Date.now()}-${safeName}`;
 
-    const { error: uploadError } = await supabase.storage
+    const { error: uploadError } = await client.storage
       .from(BUCKET_NAME)
       .upload(filePath, file, {
         cacheControl: '3600',
@@ -152,7 +166,7 @@ export const referencesService = {
       throw uploadError;
     }
 
-    const { data } = supabase.storage.from(BUCKET_NAME).getPublicUrl(filePath);
+    const { data } = client.storage.from(BUCKET_NAME).getPublicUrl(filePath);
 
     return {
       fileUrl: data.publicUrl,
