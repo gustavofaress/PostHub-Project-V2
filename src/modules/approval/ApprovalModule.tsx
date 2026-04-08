@@ -88,6 +88,7 @@ const VIDEO_RENDER_MAX_DIMENSION = 720;
 const VIDEO_RENDER_FPS = 24;
 const MIN_VIDEO_BITRATE = 250_000;
 const MAX_VIDEO_BITRATE = 2_500_000;
+type VideoRenderProgressCallback = (progress: number, status: string) => void;
 
 const getVideoRecorderMimeType = () => {
   const preferredTypes = [
@@ -125,8 +126,20 @@ const getRenderedVideoDimensions = (video: HTMLVideoElement) => {
   };
 };
 
-const renderCompressedVideo = async (file: File, sourceUrl: string): Promise<File> => {
-  if (file.size <= TARGET_VIDEO_UPLOAD_SIZE) return file;
+const waitForNextPaint = () =>
+  new Promise<void>((resolve) => {
+    requestAnimationFrame(() => resolve());
+  });
+
+const renderCompressedVideo = async (
+  file: File,
+  sourceUrl: string,
+  onProgress?: VideoRenderProgressCallback
+): Promise<File> => {
+  if (file.size <= TARGET_VIDEO_UPLOAD_SIZE) {
+    onProgress?.(90, 'Vídeo já está no tamanho ideal. Preparando envio...');
+    return file;
+  }
 
   if (typeof MediaRecorder === 'undefined') {
     throw new Error('Seu navegador não consegue compactar vídeos antes do envio.');
@@ -137,6 +150,7 @@ const renderCompressedVideo = async (file: File, sourceUrl: string): Promise<Fil
     throw new Error('Seu navegador não oferece um formato de compactação de vídeo compatível.');
   }
 
+  onProgress?.(5, 'Lendo o vídeo selecionado...');
   const video = await loadVideoForProcessing(sourceUrl);
   const duration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 60;
   const { width, height } = getRenderedVideoDimensions(video);
@@ -160,6 +174,7 @@ const renderCompressedVideo = async (file: File, sourceUrl: string): Promise<Fil
     mimeType,
     videoBitsPerSecond,
   });
+  let lastReportedProgress = 0;
 
   const recordingFinished = new Promise<Blob>((resolve, reject) => {
     recorder.ondataavailable = (event) => {
@@ -179,10 +194,16 @@ const renderCompressedVideo = async (file: File, sourceUrl: string): Promise<Fil
   const drawFrame = () => {
     if (video.ended || video.paused) return;
     ctx.drawImage(video, 0, 0, width, height);
+    const progress = Math.min(90, Math.max(10, 10 + (video.currentTime / duration) * 80));
+    if (progress - lastReportedProgress >= 1) {
+      lastReportedProgress = progress;
+      onProgress?.(Math.round(progress), 'Renderizando e compactando o vídeo...');
+    }
     requestAnimationFrame(drawFrame);
   };
 
   video.muted = true;
+  onProgress?.(10, 'Iniciando renderização do vídeo...');
   recorder.start(1000);
   await video.play();
   drawFrame();
@@ -191,6 +212,7 @@ const renderCompressedVideo = async (file: File, sourceUrl: string): Promise<Fil
     video.onended = () => resolve();
   });
 
+  onProgress?.(92, 'Finalizando renderização...');
   recorder.stop();
   stream.getTracks().forEach((track) => track.stop());
 
@@ -441,6 +463,8 @@ export const ApprovalModule = () => {
   const [postToDelete, setPostToDelete] = React.useState<string | null>(null);
   const [alertMessage, setAlertMessage] = React.useState<string | null>(null);
   const [isRenderingMedia, setIsRenderingMedia] = React.useState(false);
+  const [mediaRenderProgress, setMediaRenderProgress] = React.useState(0);
+  const [mediaRenderStatus, setMediaRenderStatus] = React.useState('');
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const activeProfileId = activeProfile?.id ?? null;
@@ -600,6 +624,9 @@ export const ApprovalModule = () => {
     const filesToProcess = newContentType === 'carousel' ? validFiles : [validFiles[0]];
 
     setIsRenderingMedia(true);
+    setMediaRenderProgress(1);
+    setMediaRenderStatus('Preparando material...');
+    await waitForNextPaint();
 
     try {
       const newItems: MediaState[] = await Promise.all(
@@ -679,11 +706,20 @@ export const ApprovalModule = () => {
               }
             }
 
-            const uploadFile = isVideo ? await renderCompressedVideo(file, localPreviewUrl) : file;
+            const uploadFile = isVideo
+              ? await renderCompressedVideo(file, localPreviewUrl, (progress, status) => {
+                  setMediaRenderProgress(progress);
+                  setMediaRenderStatus(status);
+                })
+              : file;
+            setMediaRenderProgress(95);
+            setMediaRenderStatus('Enviando material para o Supabase...');
             const uploadedMedia = await approvalService.uploadApprovalMedia(
               activeProfileId!,
               uploadFile
             );
+            setMediaRenderProgress(100);
+            setMediaRenderStatus('Material pronto.');
 
             return {
               id: Math.random().toString(36).substring(7),
@@ -711,6 +747,8 @@ export const ApprovalModule = () => {
       setAlertMessage(error?.message || 'Não foi possível enviar a mídia. Tente novamente.');
     } finally {
       setIsRenderingMedia(false);
+      setMediaRenderProgress(0);
+      setMediaRenderStatus('');
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
@@ -967,10 +1005,21 @@ export const ApprovalModule = () => {
         <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-brand/20 border-t-brand" />
         <div className="space-y-2">
           <p className="text-sm font-semibold text-text-primary">
-            Estamos preparando o arquivo para envio.
+            {mediaRenderStatus || 'Estamos preparando o arquivo para envio.'}
           </p>
           <p className="text-sm text-text-secondary">
             Isso pode levar alguns minutos em vídeos maiores. Mantenha esta aba aberta.
+          </p>
+        </div>
+        <div className="space-y-2 text-left">
+          <div className="h-3 overflow-hidden rounded-full bg-gray-100">
+            <div
+              className="h-full rounded-full bg-brand transition-all duration-300"
+              style={{ width: `${Math.max(1, Math.min(100, mediaRenderProgress))}%` }}
+            />
+          </div>
+          <p className="text-center text-xs font-semibold text-text-secondary">
+            {Math.round(Math.max(0, Math.min(100, mediaRenderProgress)))}% concluído
           </p>
         </div>
       </div>
@@ -1108,8 +1157,14 @@ export const ApprovalModule = () => {
                       Renderizando material...
                     </p>
                     <p className="mt-2 text-center text-sm text-text-secondary">
-                      Estamos compactando o vídeo para enviar ao Supabase.
+                      {mediaRenderStatus || 'Estamos compactando o vídeo para enviar ao Supabase.'}
                     </p>
+                    <div className="relative z-10 mt-4 h-2 w-full max-w-xs overflow-hidden rounded-full bg-white/70">
+                      <div
+                        className="h-full rounded-full bg-brand transition-all duration-300"
+                        style={{ width: `${Math.max(1, Math.min(100, mediaRenderProgress))}%` }}
+                      />
+                    </div>
                   </>
                 ) : newMediaItems.length > 0 ? (
                   <>
