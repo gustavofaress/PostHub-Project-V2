@@ -7,6 +7,17 @@ import type {
 
 const BUCKET_NAME = 'reference-files';
 
+const buildReadableError = (prefix: string, error: unknown) => {
+  const supabaseError = error as { message?: string; details?: string; hint?: string };
+  const message =
+    supabaseError?.message ||
+    supabaseError?.details ||
+    supabaseError?.hint ||
+    'Erro desconhecido ao comunicar com o Supabase.';
+
+  return new Error(`${prefix}: ${message}`);
+};
+
 const getSupabaseClient = () => {
   if (!supabase) {
     throw new Error('Supabase não está configurado.');
@@ -159,11 +170,12 @@ export const referencesService = {
       .from(BUCKET_NAME)
       .upload(filePath, file, {
         cacheControl: '3600',
+        contentType: file.type || undefined,
         upsert: false,
       });
 
     if (uploadError) {
-      throw uploadError;
+      throw buildReadableError('Não foi possível enviar o arquivo da referência', uploadError);
     }
 
     const { data } = client.storage.from(BUCKET_NAME).getPublicUrl(filePath);
