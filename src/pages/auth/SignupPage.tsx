@@ -5,6 +5,7 @@ import { Card } from '../../shared/components/Card';
 import { Button } from '../../shared/components/Button';
 import { Input } from '../../shared/components/Input';
 import { useAuth } from '../../app/context/AuthContext';
+import { trackMetaEvent } from '../../services/meta-conversions.service';
 
 export const SignupPage = () => {
   const { signup } = useAuth();
@@ -23,6 +24,16 @@ export const SignupPage = () => {
 
     try {
       await signup(name, email, password, profileName || name);
+      trackMetaEvent({
+        eventName: 'CompleteRegistration',
+        userData: {
+          em: email,
+        },
+        customData: {
+          content_name: 'PostHub account',
+          status: 'completed',
+        },
+      });
     } catch (err: any) {
       console.error('Signup full error:', err);
       setError(

@@ -15,6 +15,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { Button } from '../shared/components/Button';
 import { STRIPE_PAYMENT_LINKS, type PlanId } from '../shared/constants/plans';
+import { trackMetaEvent } from '../services/meta-conversions.service';
 
 const modules = [
   {
@@ -107,6 +108,7 @@ const pricingPlans: Array<{
   id: PlanId;
   name: string;
   price: string;
+  value: number;
   description: string;
   benefits: string[];
   highlighted?: boolean;
@@ -115,6 +117,7 @@ const pricingPlans: Array<{
     id: 'start',
     name: 'Start',
     price: 'R$57',
+    value: 57,
     description: 'Para organizar o essencial sem depender de planilhas soltas.',
     benefits: [
       'Planeje seus conteúdos com mais clareza',
@@ -126,6 +129,7 @@ const pricingPlans: Array<{
     id: 'growth',
     name: 'Growth',
     price: 'R$117',
+    value: 117,
     description: 'Para transformar rotina em processo e mostrar mais contexto ao cliente.',
     benefits: [
       'Use referências para criar com mais direção',
@@ -137,6 +141,7 @@ const pricingPlans: Array<{
     id: 'pro',
     name: 'Pro',
     price: 'R$147,90',
+    value: 147.9,
     description: 'Para operar como uma equipe profissional, com aprovação, IA e colaboração.',
     highlighted: true,
     benefits: [
@@ -186,6 +191,20 @@ export const LandingPage = () => {
     modules.find((module) => module.id === activeModuleId) ?? modules[0];
 
   const ActiveIcon = activeModule.icon;
+
+  const handleCheckoutClick = (plan: (typeof pricingPlans)[number]) => {
+    trackMetaEvent({
+      eventName: 'InitiateCheckout',
+      customData: {
+        content_category: 'subscription',
+        content_ids: [plan.id],
+        content_name: `${plan.name} plan`,
+        contents: [{ id: plan.id, quantity: 1 }],
+        currency: 'BRL',
+        value: plan.value,
+      },
+    });
+  };
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#050816] text-white selection:bg-[#38B6FF] selection:text-white">
@@ -555,6 +574,7 @@ export const LandingPage = () => {
                   <a
                     href={STRIPE_PAYMENT_LINKS[plan.id]}
                     rel="noreferrer"
+                    onClick={() => handleCheckoutClick(plan)}
                     className={`inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-base font-bold transition-colors ${
                       plan.highlighted
                         ? 'bg-[#38B6FF] text-white shadow-[0_0_20px_rgba(56,182,255,0.25)] hover:bg-[#2da1e6]'

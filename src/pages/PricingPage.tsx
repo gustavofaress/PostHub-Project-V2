@@ -4,11 +4,13 @@ import { Link } from 'react-router-dom';
 import { Card } from '../shared/components/Card';
 import { STRIPE_PAYMENT_LINKS, type PlanId } from '../shared/constants/plans';
 import { cn } from '../shared/utils/cn';
+import { trackMetaEvent } from '../services/meta-conversions.service';
 
 interface PricingPlan {
   id: PlanId;
   name: string;
   price: string;
+  value: number;
   description: string;
   benefits: string[];
   highlighted?: boolean;
@@ -19,6 +21,7 @@ const PRICING_PLANS: PricingPlan[] = [
     id: 'start',
     name: 'Start',
     price: 'R$57',
+    value: 57,
     description: 'Para sair da bagunça e organizar a produção essencial.',
     benefits: [
       'Planeje seus conteúdos sem depender de planilhas soltas',
@@ -30,6 +33,7 @@ const PRICING_PLANS: PricingPlan[] = [
     id: 'growth',
     name: 'Growth',
     price: 'R$117',
+    value: 117,
     description: 'Para transformar rotina em processo e mostrar mais clareza ao cliente.',
     benefits: [
       'Use referências para criar com mais direção',
@@ -41,6 +45,7 @@ const PRICING_PLANS: PricingPlan[] = [
     id: 'pro',
     name: 'Pro',
     price: 'R$147,90',
+    value: 147.9,
     description: 'Para operar como uma equipe profissional, com aprovação, IA e acesso multiusuário.',
     highlighted: true,
     benefits: [
@@ -53,6 +58,20 @@ const PRICING_PLANS: PricingPlan[] = [
 ];
 
 export const PricingPage = () => {
+  const handleCheckoutClick = (plan: PricingPlan) => {
+    trackMetaEvent({
+      eventName: 'InitiateCheckout',
+      customData: {
+        content_category: 'subscription',
+        content_ids: [plan.id],
+        content_name: `${plan.name} plan`,
+        contents: [{ id: plan.id, quantity: 1 }],
+        currency: 'BRL',
+        value: plan.value,
+      },
+    });
+  };
+
   return (
     <main className="min-h-screen bg-[#F9F9F9] px-6 py-8 text-text-primary">
       <div className="mx-auto max-w-6xl">
@@ -119,6 +138,7 @@ export const PricingPage = () => {
               <a
                 href={STRIPE_PAYMENT_LINKS[plan.id]}
                 rel="noreferrer"
+                onClick={() => handleCheckoutClick(plan)}
                 className={cn(
                   'inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-brand/50',
                   plan.highlighted

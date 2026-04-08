@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { SignupPage } from './pages/auth/SignupPage';
@@ -8,8 +8,21 @@ import { PublicApprovalPage } from './pages/PublicApprovalPage';
 import { PricingPage } from './pages/PricingPage';
 import { ResponsiveWorkspaceLayout } from './modules/workspace/ResponsiveWorkspaceLayout';
 import { ProtectedRoute } from './shared/components/ProtectedRoute';
+import { trackMetaEvent } from './services/meta-conversions.service';
 
 export default function App() {
+  const location = useLocation();
+  const lastTrackedPath = React.useRef('');
+
+  React.useEffect(() => {
+    const path = `${location.pathname}${location.search}`;
+
+    if (lastTrackedPath.current === path) return;
+
+    lastTrackedPath.current = path;
+    trackMetaEvent({ eventName: 'PageView' });
+  }, [location.pathname, location.search]);
+
   return (
     <Routes>
       {/* Public Routes */}
