@@ -89,6 +89,10 @@ const VIDEO_RENDER_FPS = 24;
 const MIN_VIDEO_BITRATE = 250_000;
 const MAX_VIDEO_BITRATE = 2_500_000;
 type VideoRenderProgressCallback = (progress: number, status: string) => void;
+type AudioRenderSource = {
+  tracks: MediaStreamTrack[];
+  cleanup: () => void;
+};
 
 const getVideoRecorderMimeType = () => {
   const preferredTypes = [
@@ -124,6 +128,33 @@ const getRenderedVideoDimensions = (video: HTMLVideoElement) => {
     width: Math.max(2, Math.round((sourceWidth * scale) / 2) * 2),
     height: Math.max(2, Math.round((sourceHeight * scale) / 2) * 2),
   };
+};
+
+const createVideoAudioSource = (video: HTMLVideoElement): AudioRenderSource => {
+  const AudioContextConstructor =
+    window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+
+  if (!AudioContextConstructor) {
+    return { tracks: [], cleanup: () => {} };
+  }
+
+  try {
+    const audioContext = new AudioContextConstructor();
+    const source = audioContext.createMediaElementSource(video);
+    const destination = audioContext.createMediaStreamDestination();
+    source.connect(destination);
+
+    return {
+      tracks: destination.stream.getAudioTracks(),
+      cleanup: () => {
+        destination.stream.getTracks().forEach((track) => track.stop());
+        void audioContext.close();
+      },
+    };
+  } catch (error) {
+    console.warn('Failed to preserve video audio while rendering', error);
+    return { tracks: [], cleanup: () => {} };
+  }
 };
 
 const waitForNextPaint = () =>
@@ -164,6 +195,8 @@ const renderCompressedVideo = async (
   }
 
   const stream = canvas.captureStream(VIDEO_RENDER_FPS);
+  const audioSource = createVideoAudioSource(video);
+  audioSource.tracks.forEach((track) => stream.addTrack(track));
   const targetBits = TARGET_VIDEO_UPLOAD_SIZE * 8 * 0.9;
   const videoBitsPerSecond = Math.max(
     MIN_VIDEO_BITRATE,
@@ -173,6 +206,7 @@ const renderCompressedVideo = async (
   const recorder = new MediaRecorder(stream, {
     mimeType,
     videoBitsPerSecond,
+    audioBitsPerSecond: audioSource.tracks.length > 0 ? 96_000 : undefined,
   });
   let lastReportedProgress = 0;
 
@@ -202,34 +236,39 @@ const renderCompressedVideo = async (
     requestAnimationFrame(drawFrame);
   };
 
-  video.muted = true;
+  video.muted = false;
   onProgress?.(10, 'Iniciando renderização do vídeo...');
   recorder.start(1000);
-  await video.play();
-  drawFrame();
+  try {
+    await video.play();
+    drawFrame();
 
-  await new Promise<void>((resolve) => {
-    video.onended = () => resolve();
-  });
+    await new Promise<void>((resolve) => {
+      video.onended = () => resolve();
+    });
 
-  onProgress?.(92, 'Finalizando renderização...');
-  recorder.stop();
-  stream.getTracks().forEach((track) => track.stop());
+    onProgress?.(92, 'Finalizando renderização...');
+    recorder.stop();
 
-  const renderedBlob = await recordingFinished;
-  if (renderedBlob.size > TARGET_VIDEO_UPLOAD_SIZE) {
-    throw new Error(
-      'O vídeo ainda ficou acima do limite permitido pelo Supabase após a compactação.'
-    );
+    const renderedBlob = await recordingFinished;
+    if (renderedBlob.size > TARGET_VIDEO_UPLOAD_SIZE) {
+      throw new Error(
+        'O vídeo ainda ficou acima do limite permitido pelo Supabase após a compactação.'
+      );
+    }
+
+    const extension = mimeType.includes('mp4') ? 'mp4' : 'webm';
+    const baseName = file.name.replace(/\.[^.]+$/, '') || 'video';
+
+    return new File([renderedBlob], `${baseName}-compactado.${extension}`, {
+      type: renderedBlob.type,
+      lastModified: Date.now(),
+    });
+  } finally {
+    video.pause();
+    stream.getTracks().forEach((track) => track.stop());
+    audioSource.cleanup();
   }
-
-  const extension = mimeType.includes('mp4') ? 'mp4' : 'webm';
-  const baseName = file.name.replace(/\.[^.]+$/, '') || 'video';
-
-  return new File([renderedBlob], `${baseName}-compactado.${extension}`, {
-    type: renderedBlob.type,
-    lastModified: Date.now(),
-  });
 };
 
 const INITIAL_APPROVALS: ApprovalPost[] = [
