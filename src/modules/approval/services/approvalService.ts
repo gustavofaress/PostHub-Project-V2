@@ -355,6 +355,7 @@ export const approvalService = {
 };
 
 function mapDbToApprovalPost(dbPost: DbApprovalPost): ApprovalPost {
+  const mediaItems = normalizeApprovalMediaItems(dbPost.media_urls || []);
   let inferredContentType: 'static' | 'carousel' | 'vertical_video' | 'horizontal_video' =
     'static';
 
@@ -365,7 +366,7 @@ function mapDbToApprovalPost(dbPost: DbApprovalPost): ApprovalPost {
     dbPost.format === 'static' ||
     dbPost.format === 'video'
   ) {
-    const firstMedia = dbPost.media_urls?.[0];
+    const firstMedia = mediaItems[0];
     if (firstMedia?.type === 'video' || firstMedia?.mimeType?.includes('video')) {
       inferredContentType = 'vertical_video';
     } else {
@@ -384,15 +385,33 @@ function mapDbToApprovalPost(dbPost: DbApprovalPost): ApprovalPost {
     status: dbPost.status || 'pending',
     thumbnail:
       dbPost.thumbnail ||
-      dbPost.media_urls?.[0]?.persistedPreview ||
-      dbPost.media_urls?.[0]?.previewUrl ||
+      mediaItems[0]?.persistedPreview ||
+      mediaItems[0]?.previewUrl ||
       '',
-    mediaItems: dbPost.media_urls || [],
+    mediaItems,
     publicToken: dbPost.public_token,
     createdAt: dbPost.created_at,
     updatedAt: dbPost.updated_at,
     feedbackCount: 0,
   };
+}
+
+function normalizeApprovalMediaItems(mediaItems: any[]): any[] {
+  return mediaItems.map((item) => {
+    if (
+      item?.type === 'video' &&
+      !item.previewUrl &&
+      item.originalFileReference &&
+      SUPABASE_URL
+    ) {
+      return {
+        ...item,
+        previewUrl: `${SUPABASE_URL}/storage/v1/object/public/${APPROVAL_MEDIA_BUCKET}/${item.originalFileReference}`,
+      };
+    }
+
+    return item;
+  });
 }
 
 function mapApprovalPostToDb(post: Partial<ApprovalPost>, profileId?: string): any {
