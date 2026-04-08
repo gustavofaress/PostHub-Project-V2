@@ -105,10 +105,10 @@ export const InternalPreview: React.FC<InternalPreviewProps> = ({
         src={url} 
         className={className} 
         controls 
-        autoPlay 
         muted={false} 
         loop 
         playsInline
+        preload="metadata"
       >
         <p>Seu navegador não suporta vídeo em HTML.</p>
       </video>

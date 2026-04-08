@@ -268,10 +268,10 @@ export const PublicApprovalPage = () => {
         src={url}
         className={className}
         controls
-        autoPlay
         muted={false}
         loop
         playsInline
+        preload="metadata"
       >
         <p>Seu navegador não suporta vídeo HTML.</p>
       </video>
