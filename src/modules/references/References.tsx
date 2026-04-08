@@ -437,7 +437,6 @@ export const References = () => {
 
     setForm((prev) => ({
       ...prev,
-      title: prev.title.trim() || file.name.replace(/\.[^/.]+$/, ''),
       source: prev.source.trim() || 'Upload',
     }));
   };
@@ -1134,7 +1133,7 @@ export const References = () => {
 
       {showCreateModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
-          <div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+          <div className="max-h-[92vh] w-full max-w-5xl overflow-x-hidden overflow-y-auto rounded-2xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-gray-100 px-6 py-5">
               <div>
                 <h3 className="text-lg font-bold text-text-primary">
@@ -1186,8 +1185,8 @@ export const References = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-6 px-6 py-6 lg:grid-cols-[1fr_1fr]">
-              <div className="space-y-5">
+            <div className="grid grid-cols-1 gap-6 overflow-x-hidden px-6 py-6 lg:grid-cols-[1fr_1fr]">
+              <div className="min-w-0 space-y-5">
                 {activeTab === 'link' ? (
                   <>
                     <div>
@@ -1252,11 +1251,6 @@ export const References = () => {
                           <p className="text-sm text-text-secondary">
                             Suporta até 500MB. A thumbnail será o próprio print ou a prévia visual do vídeo enviado.
                           </p>
-                          {filePreviewLabel && (
-                            <p className="mt-2 break-all text-sm font-medium text-text-primary">
-                              {filePreviewLabel}
-                            </p>
-                          )}
                         </div>
                       </div>
                     </label>
@@ -1367,7 +1361,7 @@ export const References = () => {
                 </div>
               </div>
 
-              <div className="space-y-4">
+              <div className="min-w-0 space-y-4">
                 <div>
                   <h4 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
                     Prévia da referência
@@ -1375,7 +1369,7 @@ export const References = () => {
                   {renderModalPreview()}
                 </div>
 
-                <Card className="space-y-3">
+                <Card className="min-w-0 space-y-3 overflow-hidden">
                   <div className="flex items-center gap-2">
                     <Badge className="border-none bg-brand/10 text-brand">
                       {TYPE_LABEL[activeTab as ReferenceType]}
@@ -1387,8 +1381,8 @@ export const References = () => {
                     )}
                   </div>
 
-                  <div>
-                    <h5 className="text-sm font-bold text-text-primary">
+                  <div className="min-w-0">
+                    <h5 className="line-clamp-2 break-words text-sm font-bold text-text-primary">
                       {form.title.trim() || 'Título da referência'}
                     </h5>
                     <p className="mt-1 text-sm text-text-secondary">
@@ -1400,12 +1394,6 @@ export const References = () => {
                     <div className="min-w-0">
                       <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Origem</p>
                       <p className="break-words text-text-primary">{form.source.trim() || '—'}</p>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Arquivo</p>
-                      <p className="break-all text-text-primary">
-                        {selectedFile?.name || editingReference?.file_name || '—'}
-                      </p>
                     </div>
                     <div className="min-w-0">
                       <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Tamanho</p>
