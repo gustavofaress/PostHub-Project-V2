@@ -82,6 +82,134 @@ export interface ApprovalComment {
   createdAt: string;
 }
 
+const MAX_SOURCE_MEDIA_SIZE = 1.5 * 1024 * 1024 * 1024;
+const TARGET_VIDEO_UPLOAD_SIZE = 45 * 1024 * 1024;
+const VIDEO_RENDER_MAX_DIMENSION = 720;
+const VIDEO_RENDER_FPS = 24;
+const MIN_VIDEO_BITRATE = 250_000;
+const MAX_VIDEO_BITRATE = 2_500_000;
+
+const getVideoRecorderMimeType = () => {
+  const preferredTypes = [
+    'video/webm;codecs=vp9,opus',
+    'video/webm;codecs=vp8,opus',
+    'video/webm',
+    'video/mp4',
+  ];
+
+  return preferredTypes.find((type) => MediaRecorder.isTypeSupported(type)) || '';
+};
+
+const loadVideoForProcessing = async (url: string) => {
+  const video = document.createElement('video');
+  video.src = url;
+  video.preload = 'auto';
+  video.playsInline = true;
+
+  await new Promise<void>((resolve, reject) => {
+    video.onloadedmetadata = () => resolve();
+    video.onerror = () => reject(new Error('Não foi possível ler o vídeo selecionado.'));
+  });
+
+  return video;
+};
+
+const getRenderedVideoDimensions = (video: HTMLVideoElement) => {
+  const sourceWidth = video.videoWidth || 720;
+  const sourceHeight = video.videoHeight || 1280;
+  const scale = Math.min(1, VIDEO_RENDER_MAX_DIMENSION / Math.max(sourceWidth, sourceHeight));
+
+  return {
+    width: Math.max(2, Math.round((sourceWidth * scale) / 2) * 2),
+    height: Math.max(2, Math.round((sourceHeight * scale) / 2) * 2),
+  };
+};
+
+const renderCompressedVideo = async (file: File, sourceUrl: string): Promise<File> => {
+  if (file.size <= TARGET_VIDEO_UPLOAD_SIZE) return file;
+
+  if (typeof MediaRecorder === 'undefined') {
+    throw new Error('Seu navegador não consegue compactar vídeos antes do envio.');
+  }
+
+  const mimeType = getVideoRecorderMimeType();
+  if (!mimeType) {
+    throw new Error('Seu navegador não oferece um formato de compactação de vídeo compatível.');
+  }
+
+  const video = await loadVideoForProcessing(sourceUrl);
+  const duration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 60;
+  const { width, height } = getRenderedVideoDimensions(video);
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    throw new Error('Não foi possível preparar a compactação do vídeo.');
+  }
+
+  const stream = canvas.captureStream(VIDEO_RENDER_FPS);
+  const targetBits = TARGET_VIDEO_UPLOAD_SIZE * 8 * 0.9;
+  const videoBitsPerSecond = Math.max(
+    MIN_VIDEO_BITRATE,
+    Math.min(MAX_VIDEO_BITRATE, Math.floor(targetBits / duration))
+  );
+  const chunks: BlobPart[] = [];
+  const recorder = new MediaRecorder(stream, {
+    mimeType,
+    videoBitsPerSecond,
+  });
+
+  const recordingFinished = new Promise<Blob>((resolve, reject) => {
+    recorder.ondataavailable = (event) => {
+      if (event.data.size > 0) chunks.push(event.data);
+    };
+    recorder.onerror = () => reject(new Error('Não foi possível compactar o vídeo.'));
+    recorder.onstop = () => resolve(new Blob(chunks, { type: mimeType }));
+  });
+
+  if (video.currentTime !== 0) {
+    await new Promise<void>((resolve) => {
+      video.onseeked = () => resolve();
+      video.currentTime = 0;
+    });
+  }
+
+  const drawFrame = () => {
+    if (video.ended || video.paused) return;
+    ctx.drawImage(video, 0, 0, width, height);
+    requestAnimationFrame(drawFrame);
+  };
+
+  video.muted = true;
+  recorder.start(1000);
+  await video.play();
+  drawFrame();
+
+  await new Promise<void>((resolve) => {
+    video.onended = () => resolve();
+  });
+
+  recorder.stop();
+  stream.getTracks().forEach((track) => track.stop());
+
+  const renderedBlob = await recordingFinished;
+  if (renderedBlob.size > TARGET_VIDEO_UPLOAD_SIZE) {
+    throw new Error(
+      'O vídeo ainda ficou acima do limite permitido pelo Supabase após a compactação.'
+    );
+  }
+
+  const extension = mimeType.includes('mp4') ? 'mp4' : 'webm';
+  const baseName = file.name.replace(/\.[^.]+$/, '') || 'video';
+
+  return new File([renderedBlob], `${baseName}-compactado.${extension}`, {
+    type: renderedBlob.type,
+    lastModified: Date.now(),
+  });
+};
+
 const INITIAL_APPROVALS: ApprovalPost[] = [
   {
     id: '1',
@@ -456,9 +584,10 @@ export const ApprovalModule = () => {
     if (files.length === 0) return;
     if (!ensureActiveProfile()) return;
 
-    const MAX_SIZE = 1.5 * 1024 * 1024 * 1024;
     const validFiles = files.filter(
-      (f) => f.size <= MAX_SIZE && (f.type.startsWith('image/') || f.type.startsWith('video/'))
+      (f) =>
+        f.size <= MAX_SOURCE_MEDIA_SIZE &&
+        (f.type.startsWith('image/') || f.type.startsWith('video/'))
     );
 
     if (validFiles.length === 0) {
@@ -546,14 +675,18 @@ export const ApprovalModule = () => {
               }
             }
 
-            const uploadedMedia = await approvalService.uploadApprovalMedia(activeProfileId!, file);
+            const uploadFile = isVideo ? await renderCompressedVideo(file, localPreviewUrl) : file;
+            const uploadedMedia = await approvalService.uploadApprovalMedia(
+              activeProfileId!,
+              uploadFile
+            );
 
             return {
               id: Math.random().toString(36).substring(7),
               type: isVideo ? 'video' : 'image',
-              fileName: file.name,
-              fileSize: file.size,
-              mimeType: file.type,
+              fileName: uploadFile.name,
+              fileSize: uploadFile.size,
+              mimeType: uploadFile.type,
               previewUrl: uploadedMedia.fileUrl,
               persistedPreview,
               uploadStatus: 'ready',
