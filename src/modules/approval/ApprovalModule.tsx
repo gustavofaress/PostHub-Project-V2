@@ -440,6 +440,7 @@ export const ApprovalModule = () => {
   const [internalComment, setInternalComment] = React.useState('');
   const [postToDelete, setPostToDelete] = React.useState<string | null>(null);
   const [alertMessage, setAlertMessage] = React.useState<string | null>(null);
+  const [isRenderingMedia, setIsRenderingMedia] = React.useState(false);
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const activeProfileId = activeProfile?.id ?? null;
@@ -582,6 +583,7 @@ export const ApprovalModule = () => {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
+    if (isRenderingMedia) return;
     if (!ensureActiveProfile()) return;
 
     const validFiles = files.filter(
@@ -596,6 +598,8 @@ export const ApprovalModule = () => {
     }
 
     const filesToProcess = newContentType === 'carousel' ? validFiles : [validFiles[0]];
+
+    setIsRenderingMedia(true);
 
     try {
       const newItems: MediaState[] = await Promise.all(
@@ -705,6 +709,9 @@ export const ApprovalModule = () => {
     } catch (error: any) {
       console.error('Failed to upload approval media:', error);
       setAlertMessage(error?.message || 'Não foi possível enviar a mídia. Tente novamente.');
+    } finally {
+      setIsRenderingMedia(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -954,6 +961,22 @@ export const ApprovalModule = () => {
     </Modal>
   );
 
+  const renderMediaProcessingModal = (
+    <Modal isOpen={isRenderingMedia} onClose={() => {}} title="Renderizando material">
+      <div className="space-y-4 text-center">
+        <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-brand/20 border-t-brand" />
+        <div className="space-y-2">
+          <p className="text-sm font-semibold text-text-primary">
+            Estamos preparando o arquivo para envio.
+          </p>
+          <p className="text-sm text-text-secondary">
+            Isso pode levar alguns minutos em vídeos maiores. Mantenha esta aba aberta.
+          </p>
+        </div>
+      </div>
+    </Modal>
+  );
+
   if (view === 'create' || view === 'edit') {
     return (
       <>
@@ -1061,8 +1084,13 @@ export const ApprovalModule = () => {
                 Upload de mídia {newContentType === 'carousel' ? '(Selecione múltiplos arquivos)' : ''}
               </label>
               <div
-                className="group relative flex cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 p-12 transition-all hover:border-brand/50 hover:bg-gray-100"
-                onClick={() => fileInputRef.current?.click()}
+                className={cn(
+                  'group relative flex cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 p-12 transition-all hover:border-brand/50 hover:bg-gray-100',
+                  isRenderingMedia && 'cursor-wait opacity-75'
+                )}
+                onClick={() => {
+                  if (!isRenderingMedia) fileInputRef.current?.click();
+                }}
               >
                 <input
                   type="file"
@@ -1071,8 +1099,19 @@ export const ApprovalModule = () => {
                   accept={newContentType.includes('video') ? 'video/*' : 'image/*'}
                   multiple={newContentType === 'carousel'}
                   onChange={handleFileChange}
+                  disabled={isRenderingMedia}
                 />
-                {newMediaItems.length > 0 ? (
+                {isRenderingMedia ? (
+                  <>
+                    <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-brand/20 border-t-brand" />
+                    <p className="text-base font-bold text-text-primary">
+                      Renderizando material...
+                    </p>
+                    <p className="mt-2 text-center text-sm text-text-secondary">
+                      Estamos compactando o vídeo para enviar ao Supabase.
+                    </p>
+                  </>
+                ) : newMediaItems.length > 0 ? (
                   <>
                     {newMediaItems[0].type === 'image' ? (
                       <img
@@ -1143,6 +1182,7 @@ export const ApprovalModule = () => {
             </div>
           </Card>
         </div>
+        {renderMediaProcessingModal}
         {renderAlertModal}
       </>
     );
