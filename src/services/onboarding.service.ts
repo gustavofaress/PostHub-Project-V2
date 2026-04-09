@@ -6,6 +6,11 @@ import {
 import { supabase } from '../shared/utils/supabase';
 
 const MOCK_ONBOARDING_STORAGE_KEY = 'posthub_user_onboarding';
+const GUIDED_FLOW_COLUMNS = [
+  'guided_current_step',
+  'guided_steps_completed',
+  'guided_flow_completed_at',
+] as const;
 
 const readMockOnboardingMap = (): Record<string, UserOnboarding> => {
   if (typeof window === 'undefined') return {};
@@ -32,6 +37,68 @@ const writeMockOnboardingMap = (nextValue: Record<string, UserOnboarding>) => {
   }
 };
 
+const isMissingGuidedFlowColumnError = (error: any) => {
+  const message = `${error?.message ?? ''} ${error?.details ?? ''} ${error?.hint ?? ''}`;
+  return GUIDED_FLOW_COLUMNS.some((columnName) => message.includes(columnName));
+};
+
+const mergeOnboardingWithFallback = (
+  baseValue: Partial<UserOnboarding> | null | undefined,
+  fallbackValue: Partial<UserOnboarding> | null | undefined,
+  userId: string
+): UserOnboarding | null => {
+  if (!baseValue && !fallbackValue) return null;
+
+  return {
+    user_id: userId,
+    work_model: baseValue?.work_model ?? fallbackValue?.work_model ?? null,
+    operation_size: baseValue?.operation_size ?? fallbackValue?.operation_size ?? null,
+    current_process: baseValue?.current_process ?? fallbackValue?.current_process ?? null,
+    quiz_completed: !!(baseValue?.quiz_completed ?? fallbackValue?.quiz_completed),
+    setup_completed: !!(baseValue?.setup_completed ?? fallbackValue?.setup_completed),
+    guided_current_step:
+      baseValue?.guided_current_step ?? fallbackValue?.guided_current_step ?? null,
+    guided_steps_completed:
+      baseValue?.guided_steps_completed ?? fallbackValue?.guided_steps_completed ?? [],
+    guided_flow_completed_at:
+      baseValue?.guided_flow_completed_at ?? fallbackValue?.guided_flow_completed_at ?? null,
+    id: baseValue?.id ?? fallbackValue?.id,
+    created_at: baseValue?.created_at ?? fallbackValue?.created_at,
+    updated_at: baseValue?.updated_at ?? fallbackValue?.updated_at,
+  };
+};
+
+const persistOnboardingFallback = (
+  userId: string,
+  updates: Partial<UserOnboarding>
+): UserOnboarding => {
+  const map = readMockOnboardingMap();
+  const existing = map[userId] ?? {
+    user_id: userId,
+    work_model: null,
+    operation_size: null,
+    current_process: null,
+    quiz_completed: false,
+    setup_completed: false,
+    guided_current_step: DEFAULT_GUIDED_TOUR_STEP_ID,
+    guided_steps_completed: [],
+    guided_flow_completed_at: null,
+  };
+
+  const nextValue: UserOnboarding = {
+    ...existing,
+    ...updates,
+    user_id: userId,
+  };
+
+  writeMockOnboardingMap({
+    ...map,
+    [userId]: nextValue,
+  });
+
+  return nextValue;
+};
+
 export interface UserOnboarding {
   id?: string;
   user_id: string;
@@ -49,9 +116,10 @@ export interface UserOnboarding {
 
 export const onboardingService = {
   async getByUserId(userId: string): Promise<UserOnboarding | null> {
+    const fallback = readMockOnboardingMap()[userId] ?? null;
+
     if (!supabase) {
-      const map = readMockOnboardingMap();
-      return map[userId] ?? null;
+      return fallback;
     }
 
     const { data, error } = await supabase
@@ -61,7 +129,7 @@ export const onboardingService = {
       .maybeSingle();
 
     if (error) throw error;
-    return data;
+    return mergeOnboardingWithFallback(data, fallback, userId);
   },
 
   async updateGuidedFlow(
@@ -74,28 +142,7 @@ export const onboardingService = {
     >
   ) {
     if (!supabase) {
-      const map = readMockOnboardingMap();
-      const existing = map[userId] ?? {
-        user_id: userId,
-        work_model: null,
-        operation_size: null,
-        current_process: null,
-        quiz_completed: false,
-        setup_completed: false,
-        guided_current_step: DEFAULT_GUIDED_TOUR_STEP_ID,
-        guided_steps_completed: [],
-        guided_flow_completed_at: null,
-      };
-      const nextValue: UserOnboarding = {
-        ...existing,
-        ...updates,
-        user_id: userId,
-      };
-      writeMockOnboardingMap({
-        ...map,
-        [userId]: nextValue,
-      });
-      return nextValue;
+      return persistOnboardingFallback(userId, updates);
     }
 
     const existing = await this.getByUserId(userId);
@@ -108,8 +155,28 @@ export const onboardingService = {
         .select()
         .single();
 
-      if (error) throw error;
-      return data;
+      if (error) {
+        if (!isMissingGuidedFlowColumnError(error)) throw error;
+
+        const fallbackState = persistOnboardingFallback(userId, updates);
+        const remoteSafeUpdates =
+          typeof updates.setup_completed === 'boolean'
+            ? { setup_completed: updates.setup_completed }
+            : null;
+
+        if (remoteSafeUpdates) {
+          const { error: safeUpdateError } = await supabase
+            .from('user_onboarding')
+            .update(remoteSafeUpdates)
+            .eq('user_id', userId);
+
+          if (safeUpdateError) throw safeUpdateError;
+        }
+
+        return mergeOnboardingWithFallback(existing, fallbackState, userId);
+      }
+
+      return mergeOnboardingWithFallback(data, null, userId);
     }
 
     const { data, error } = await supabase
@@ -124,8 +191,32 @@ export const onboardingService = {
       .select()
       .single();
 
-    if (error) throw error;
-    return data;
+    if (error) {
+      if (!isMissingGuidedFlowColumnError(error)) throw error;
+
+      const fallbackState = persistOnboardingFallback(userId, updates);
+      const remoteInsert =
+        typeof updates.setup_completed === 'boolean'
+          ? {
+              user_id: userId,
+              setup_completed: updates.setup_completed,
+            }
+          : {
+              user_id: userId,
+            };
+
+      const { data: safeData, error: safeUpsertError } = await supabase
+        .from('user_onboarding')
+        .upsert(remoteInsert, { onConflict: 'user_id' })
+        .select()
+        .single();
+
+      if (safeUpsertError) throw safeUpsertError;
+
+      return mergeOnboardingWithFallback(safeData, fallbackState, userId);
+    }
+
+    return mergeOnboardingWithFallback(data, null, userId);
   },
 
   async saveQuizAnswers(
@@ -137,9 +228,7 @@ export const onboardingService = {
     }
   ) {
     if (!supabase) {
-      const map = readMockOnboardingMap();
-      const nextValue: UserOnboarding = {
-        user_id: userId,
+      return persistOnboardingFallback(userId, {
         work_model: answers.work_model,
         operation_size: answers.operation_size,
         current_process: answers.current_process,
@@ -148,12 +237,7 @@ export const onboardingService = {
         guided_current_step: DEFAULT_GUIDED_TOUR_STEP_ID,
         guided_steps_completed: [],
         guided_flow_completed_at: null,
-      };
-      writeMockOnboardingMap({
-        ...map,
-        [userId]: nextValue,
       });
-      return nextValue;
     }
 
     const payload = {
@@ -174,8 +258,31 @@ export const onboardingService = {
       .select()
       .single();
 
-    if (error) throw error;
-    return data;
+    if (error) {
+      if (!isMissingGuidedFlowColumnError(error)) throw error;
+
+      const fallbackState = persistOnboardingFallback(userId, payload);
+      const safePayload = {
+        user_id: userId,
+        work_model: answers.work_model,
+        operation_size: answers.operation_size,
+        current_process: answers.current_process,
+        quiz_completed: true,
+        setup_completed: false,
+      };
+
+      const { data: safeData, error: safeUpsertError } = await supabase
+        .from('user_onboarding')
+        .upsert(safePayload, { onConflict: 'user_id' })
+        .select()
+        .single();
+
+      if (safeUpsertError) throw safeUpsertError;
+
+      return mergeOnboardingWithFallback(safeData, fallbackState, userId);
+    }
+
+    return mergeOnboardingWithFallback(data, null, userId);
   },
 
   async markSetupCompleted(userId: string) {
