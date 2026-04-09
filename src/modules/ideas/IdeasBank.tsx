@@ -22,6 +22,8 @@ import { useApp } from '../../app/context/AppContext';
 import { useProfile } from '../../app/context/ProfileContext';
 import { useAuth } from '../../app/context/AuthContext';
 import { supabase } from '../../shared/utils/supabase';
+import { TrialGuidedPopover } from '../onboarding/components/TrialGuidedPopover';
+import { useTrialGuidedFlow } from '../onboarding/hooks/useTrialGuidedFlow';
 
 interface Idea {
   id: string;
@@ -50,6 +52,8 @@ export const IdeasBank = () => {
   const { setActiveModule } = useApp();
   const { activeProfile } = useProfile();
   const { user } = useAuth();
+  const { currentStep, currentStepIndex, isActive, isCurrentStep, completeStepAndContinue, isSaving } =
+    useTrialGuidedFlow();
 
   const [ideas, setIdeas] = React.useState<Idea[]>([]);
   const [isLoadingIdeas, setIsLoadingIdeas] = React.useState(false);
@@ -300,6 +304,17 @@ export const IdeasBank = () => {
 
   return (
     <div className="space-y-8">
+      {isActive && isCurrentStep('ideas') && currentStep ? (
+        <TrialGuidedPopover
+          stepNumber={currentStepIndex + 1}
+          totalSteps={5}
+          title={currentStep.title}
+          description="Aqui o cliente acompanha como as referências viram pautas organizadas. Quando quiser seguir, clique em Próximo para ir ao Calendário."
+          nextLabel={currentStep.nextLabel}
+          onNext={() => completeStepAndContinue('ideas')}
+          isLoading={isSaving}
+        />
+      ) : null}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">

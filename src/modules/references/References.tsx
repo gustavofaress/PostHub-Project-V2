@@ -30,6 +30,8 @@ import { Button } from '../../shared/components/Button';
 import { Input } from '../../shared/components/Input';
 import { Badge } from '../../shared/components/Badge';
 import { cn } from '../../shared/utils/cn';
+import { TrialGuidedPopover } from '../onboarding/components/TrialGuidedPopover';
+import { useTrialGuidedFlow } from '../onboarding/hooks/useTrialGuidedFlow';
 import {
   renderCompressedVideo,
   TARGET_VIDEO_UPLOAD_SIZE,
@@ -211,6 +213,14 @@ const ReferenceImagePreview = ({
 export const References = () => {
   const { activeProfile } = useProfile();
   const profileId = activeProfile?.id;
+  const {
+    currentStep,
+    currentStepIndex,
+    isActive,
+    isCurrentStep,
+    completeStepAndContinue,
+    isSaving: isGuidedFlowSaving,
+  } = useTrialGuidedFlow();
 
   const [references, setReferences] = React.useState<ReferenceItem[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -819,6 +829,17 @@ export const References = () => {
 
   return (
     <div className="space-y-8">
+      {isActive && isCurrentStep('references') && currentStep ? (
+        <TrialGuidedPopover
+          stepNumber={currentStepIndex + 1}
+          totalSteps={5}
+          title={currentStep.title}
+          description="Este é o primeiro passo do teste guiado. Mostre ao cliente onde ele organiza referências e, quando estiver pronto, avance para Ideias."
+          nextLabel={currentStep.nextLabel}
+          onNext={() => completeStepAndContinue('references')}
+          isLoading={isGuidedFlowSaving}
+        />
+      ) : null}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold text-text-primary">

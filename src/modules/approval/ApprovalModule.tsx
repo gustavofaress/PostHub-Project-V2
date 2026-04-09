@@ -35,6 +35,8 @@ import { useProfile } from '../../app/context/ProfileContext';
 import { useAuth } from '../../app/context/AuthContext';
 import { approvalService } from './services/approvalService';
 import { InternalPreview } from './InternalPreview';
+import { TrialGuidedPopover } from '../onboarding/components/TrialGuidedPopover';
+import { useTrialGuidedFlow } from '../onboarding/hooks/useTrialGuidedFlow';
 
 export interface MediaState {
   id?: string;
@@ -475,6 +477,8 @@ export const loadComments = (): ApprovalComment[] => {
 };
 
 export const ApprovalModule = () => {
+  const { currentStep, currentStepIndex, isActive, isCurrentStep, completeStepAndContinue, isSaving } =
+    useTrialGuidedFlow();
   const { activeProfile } = useProfile();
   const { user } = useAuth();
 
@@ -1524,6 +1528,17 @@ export const ApprovalModule = () => {
 
   return (
     <>
+      {isActive && isCurrentStep('approval') && currentStep ? (
+        <TrialGuidedPopover
+          stepNumber={currentStepIndex + 1}
+          totalSteps={5}
+          title={currentStep.title}
+          description="Este é o fechamento do processo guiado. Aqui o cliente entende como acompanhar aprovações e encerrar o fluxo do setup."
+          nextLabel={currentStep.nextLabel}
+          onNext={() => completeStepAndContinue('approval')}
+          isLoading={isSaving}
+        />
+      ) : null}
       <div className="space-y-8">
         {!activeProfileId && (
           <Card className="border-amber-200 bg-amber-50 p-4">

@@ -11,6 +11,9 @@ interface UserOnboardingState {
   current_process: string | null;
   quiz_completed: boolean;
   setup_completed: boolean;
+  guided_current_step?: string | null;
+  guided_steps_completed?: string[];
+  guided_flow_completed_at?: string | null;
 }
 
 type UserAccessStatus =
@@ -169,6 +172,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 current_process: onboarding.current_process,
                 quiz_completed: onboarding.quiz_completed,
                 setup_completed: onboarding.setup_completed,
+                guided_current_step: onboarding.guided_current_step ?? null,
+                guided_steps_completed: onboarding.guided_steps_completed ?? [],
+                guided_flow_completed_at: onboarding.guided_flow_completed_at ?? null,
               }
             : null,
         };

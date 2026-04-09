@@ -19,6 +19,8 @@ import { Input } from '../../shared/components/Input';
 import { useProfile } from '../../app/context/ProfileContext';
 import { useAuth } from '../../app/context/AuthContext';
 import { supabase } from '../../shared/utils/supabase';
+import { TrialGuidedPopover } from '../onboarding/components/TrialGuidedPopover';
+import { useTrialGuidedFlow } from '../onboarding/hooks/useTrialGuidedFlow';
 
 interface KanbanColumn {
   id: string;
@@ -128,6 +130,8 @@ function mapColumnNameToStatus(columnName: string): string {
 export const KanbanBoard = () => {
   const { activeProfile } = useProfile();
   const { user } = useAuth();
+  const { currentStep, currentStepIndex, isActive, isCurrentStep, completeStepAndContinue, isSaving } =
+    useTrialGuidedFlow();
 
   const [columns, setColumns] = React.useState<KanbanColumn[]>([]);
   const [cards, setCards] = React.useState<KanbanCard[]>([]);
@@ -597,6 +601,17 @@ export const KanbanBoard = () => {
 
   return (
     <div className="space-y-8 h-[calc(100vh-160px)] flex flex-col">
+      {isActive && isCurrentStep('kanban') && currentStep ? (
+        <TrialGuidedPopover
+          stepNumber={currentStepIndex + 1}
+          totalSteps={5}
+          title={currentStep.title}
+          description="Agora o cliente vê o conteúdo andando pelas etapas de produção. Quando fizer sentido, avance para o módulo de Aprovação."
+          nextLabel={currentStep.nextLabel}
+          onNext={() => completeStepAndContinue('kanban')}
+          isLoading={isSaving}
+        />
+      ) : null}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">

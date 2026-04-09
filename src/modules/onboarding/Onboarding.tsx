@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import {
   Rocket,
   LayoutDashboard,
-  FileText,
   Calendar,
   Zap,
   Lightbulb,
   Check,
+  BookOpen,
+  Trello,
+  CheckCircle,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Card } from '../../shared/components/Card';
@@ -16,6 +18,8 @@ import { cn } from '../../shared/utils/cn';
 import { useApp } from '../../app/context/AppContext';
 import { useAuth } from '../../app/context/AuthContext';
 import { onboardingService } from '../../services/onboarding.service';
+import { GUIDED_FLOW_STEPS, type GuidedFlowStepId } from './guidedFlow';
+import { useTrialGuidedFlow } from './hooks/useTrialGuidedFlow';
 
 const QUIZ_QUESTIONS = [
   {
@@ -46,45 +50,6 @@ const QUIZ_QUESTIONS = [
   },
 ] as const;
 
-const CHECKLIST_STEPS = [
-  {
-    id: 'idea',
-    title: 'Criar sua primeira ideia',
-    description: 'Comece registrando uma ideia de conteúdo',
-    cta: 'Criar ideia',
-    icon: Lightbulb,
-    module: 'ideas',
-    path: '/workspace/ideas',
-  },
-  {
-    id: 'structure',
-    title: 'Estruturar seu conteúdo',
-    description: 'Transforme sua ideia em uma peça de conteúdo mais organizada',
-    cta: 'Estruturar conteúdo',
-    icon: FileText,
-    module: 'scripts',
-    path: '/workspace/scripts',
-  },
-  {
-    id: 'calendar',
-    title: 'Organizar no calendário',
-    description: 'Leve seu conteúdo para o calendário editorial',
-    cta: 'Abrir calendário',
-    icon: Calendar,
-    module: 'calendar',
-    path: '/workspace/calendar',
-  },
-  {
-    id: 'finish',
-    title: 'Finalizar configuração',
-    description: 'Conclua seu primeiro fluxo dentro da plataforma',
-    cta: 'Ir para dashboard',
-    icon: LayoutDashboard,
-    module: 'dashboard',
-    path: '/workspace/dashboard',
-  },
-] as const;
-
 type QuizAnswerKey = (typeof QUIZ_QUESTIONS)[number]['id'];
 
 type QuizAnswers = {
@@ -97,6 +62,15 @@ export const Onboarding = () => {
   const navigate = useNavigate();
   const { setActiveModule } = useApp();
   const { user } = useAuth();
+  const {
+    currentStep,
+    completedCount,
+    continueJourney,
+    goToStep,
+    isCurrentStep,
+    isStepCompleted,
+    steps,
+  } = useTrialGuidedFlow();
 
   const hasQuizCompleted = !!user?.onboarding?.quiz_completed;
 
@@ -110,7 +84,13 @@ export const Onboarding = () => {
     operation_size: user?.onboarding?.operation_size ?? '',
     current_process: user?.onboarding?.current_process ?? '',
   });
-  const [completedSteps, setCompletedSteps] = React.useState<string[]>([]);
+  const STEP_ICONS: Record<GuidedFlowStepId, typeof BookOpen> = {
+    references: BookOpen,
+    ideas: Lightbulb,
+    calendar: Calendar,
+    kanban: Trello,
+    approval: CheckCircle,
+  };
 
   React.useEffect(() => {
     if (hasQuizCompleted) {
@@ -201,33 +181,6 @@ export const Onboarding = () => {
     } finally {
       setIsSavingQuiz(false);
     }
-  };
-
-  const handleStepAction = async (step: (typeof CHECKLIST_STEPS)[number]) => {
-    if (step.id === 'finish') {
-      try {
-        if (user) {
-          await onboardingService.markSetupCompleted(user.id);
-        }
-      } catch (error) {
-        console.error('Erro ao finalizar setup:', error);
-      }
-
-      if (!completedSteps.includes(step.id)) {
-        setCompletedSteps((prev) => [...prev, step.id]);
-      }
-
-      setActiveModule('dashboard');
-      navigate('/workspace/dashboard');
-      return;
-    }
-
-    if (!completedSteps.includes(step.id)) {
-      setCompletedSteps((prev) => [...prev, step.id]);
-    }
-
-    setActiveModule(step.module);
-    navigate(step.path);
   };
 
   return (
@@ -384,6 +337,22 @@ export const Onboarding = () => {
           <p className="mx-auto max-w-2xl text-lg text-gray-500">
             Siga estes passos para configurar seu workspace e aprender a usar o PostHub
           </p>
+          <div className="flex justify-center">
+            <Button
+              className="rounded-xl bg-[#38B6FF] px-6 py-3 text-white hover:bg-[#38B6FF]/90"
+              onClick={() => {
+                if (currentStep) {
+                  continueJourney();
+                  return;
+                }
+
+                setActiveModule('dashboard');
+                navigate('/workspace/dashboard');
+              }}
+            >
+              {currentStep ? `Continuar em ${currentStep.title}` : 'Ir para dashboard'}
+            </Button>
+          </div>
         </div>
 
         {!shouldRenderQuiz && (
@@ -406,24 +375,23 @@ export const Onboarding = () => {
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-lg font-bold text-gray-900">Seu progresso</h2>
             <span className="text-sm font-medium text-[#38B6FF]">
-              {completedSteps.length}/{CHECKLIST_STEPS.length} etapas concluídas
+              {completedCount}/{steps.length} etapas concluídas
             </span>
           </div>
 
           <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
             <div
               className="h-full rounded-full bg-[#38B6FF] transition-all duration-500 ease-out"
-              style={{ width: `${(completedSteps.length / CHECKLIST_STEPS.length) * 100}%` }}
+              style={{ width: `${(completedCount / steps.length) * 100}%` }}
             />
           </div>
         </Card>
 
         <div className="space-y-4">
-          {CHECKLIST_STEPS.map((step, index) => {
-            const isCompleted = completedSteps.includes(step.id);
-            const isNext =
-              !isCompleted &&
-              (index === 0 || completedSteps.includes(CHECKLIST_STEPS[index - 1].id));
+          {GUIDED_FLOW_STEPS.map((step) => {
+            const isCompleted = isStepCompleted(step.id);
+            const isNext = isCurrentStep(step.id);
+            const StepIcon = STEP_ICONS[step.id];
 
             return (
               <Card
@@ -452,7 +420,7 @@ export const Onboarding = () => {
                       {isCompleted ? (
                         <Check className="h-6 w-6" />
                       ) : (
-                        <step.icon className="h-6 w-6" />
+                        <StepIcon className="h-6 w-6" />
                       )}
                     </div>
 
@@ -474,9 +442,9 @@ export const Onboarding = () => {
                       <Button
                         variant="outline"
                         className="w-full border-green-200 text-green-600 hover:bg-green-50 sm:w-auto"
-                        onClick={() => handleStepAction(step)}
+                        onClick={() => goToStep(step.id)}
                       >
-                        Refazer etapa
+                        Revisar etapa
                       </Button>
                     ) : (
                       <Button
@@ -486,9 +454,9 @@ export const Onboarding = () => {
                         )}
                         variant={isNext ? 'primary' : 'outline'}
                         disabled={!isNext}
-                        onClick={() => handleStepAction(step)}
+                        onClick={() => goToStep(step.id)}
                       >
-                        {step.cta}
+                        {isNext ? 'Abrir etapa' : 'Aguardando etapa anterior'}
                       </Button>
                     )}
                   </div>

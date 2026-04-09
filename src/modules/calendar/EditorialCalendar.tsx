@@ -26,6 +26,8 @@ import { Input } from '../../shared/components/Input';
 import { useProfile } from '../../app/context/ProfileContext';
 import { useAuth } from '../../app/context/AuthContext';
 import { supabase } from '../../shared/utils/supabase';
+import { TrialGuidedPopover } from '../onboarding/components/TrialGuidedPopover';
+import { useTrialGuidedFlow } from '../onboarding/hooks/useTrialGuidedFlow';
 
 interface CalendarPost {
   id: string;
@@ -70,6 +72,8 @@ function mapRowToPost(row: EditorialCalendarRow): CalendarPost {
 export const EditorialCalendar = () => {
   const { activeProfile } = useProfile();
   const { user } = useAuth();
+  const { currentStep, currentStepIndex, isActive, isCurrentStep, completeStepAndContinue, isSaving } =
+    useTrialGuidedFlow();
 
   const [currentDate, setCurrentDate] = React.useState(new Date());
   const [posts, setPosts] = React.useState<CalendarPost[]>([]);
@@ -357,6 +361,17 @@ export const EditorialCalendar = () => {
 
   return (
     <div className="space-y-8">
+      {isActive && isCurrentStep('calendar') && currentStep ? (
+        <TrialGuidedPopover
+          stepNumber={currentStepIndex + 1}
+          totalSteps={5}
+          title={currentStep.title}
+          description="Neste passo o cliente enxerga o planejamento editorial ganhando calendário e prioridade. Depois, avance para o Kanban."
+          nextLabel={currentStep.nextLabel}
+          onNext={() => completeStepAndContinue('calendar')}
+          isLoading={isSaving}
+        />
+      ) : null}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
