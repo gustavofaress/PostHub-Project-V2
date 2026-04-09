@@ -645,6 +645,21 @@ export const ApprovalModule = () => {
     [approvals, refreshApprovals, refreshCommentsForPost]
   );
 
+  const openInternalPreview = React.useCallback(async () => {
+    const previewSourceId = editingPostId ?? approvals[0]?.id ?? null;
+
+    if (!previewSourceId) {
+      setAlertMessage(
+        'Ainda não há uma solicitação disponível para visualizar na preview interna.'
+      );
+      return;
+    }
+
+    await refreshCommentsForPost(previewSourceId);
+    setPreviewPostId(previewSourceId);
+    setView('preview');
+  }, [approvals, editingPostId, refreshCommentsForPost]);
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
@@ -1265,6 +1280,15 @@ export const ApprovalModule = () => {
                 }}
               >
                 Cancelar
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                className="border-[#38B6FF]/20 text-[#38B6FF] hover:bg-[#38B6FF]/5"
+                onClick={() => void openInternalPreview()}
+                data-tour-id="approval-internal-preview-button"
+              >
+                Verificar preview interno
               </Button>
               <Button
                 size="lg"

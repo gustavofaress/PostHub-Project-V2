@@ -3,7 +3,7 @@ import { Button } from '../../../shared/components/Button';
 import { cn } from '../../../shared/utils/cn';
 import { useTrialGuidedFlow } from '../hooks/useTrialGuidedFlow';
 
-const POPOVER_WIDTH = 300;
+const POPOVER_WIDTH = 280;
 const POPOVER_GAP = 14;
 const VIEWPORT_PADDING = 16;
 
@@ -14,7 +14,6 @@ type RectState = {
   targetLeft: number;
   targetWidth: number;
   targetHeight: number;
-  usingFallback: boolean;
 };
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
@@ -32,15 +31,9 @@ export const TrialGuidedPopover = () => {
     }
 
     const updatePosition = () => {
-      const primaryTarget = document.querySelector<HTMLElement>(
+      const target = document.querySelector<HTMLElement>(
         `[data-tour-id="${currentTourStep.targetId}"]`
       );
-      const fallbackTarget = currentTourStep.fallbackTargetId
-        ? document.querySelector<HTMLElement>(
-            `[data-tour-id="${currentTourStep.fallbackTargetId}"]`
-          )
-        : null;
-      const target = primaryTarget ?? fallbackTarget;
 
       if (!target) {
         setRect(null);
@@ -97,7 +90,6 @@ export const TrialGuidedPopover = () => {
         targetLeft: targetRect.left,
         targetWidth: targetRect.width,
         targetHeight: targetRect.height,
-        usingFallback: !primaryTarget && !!fallbackTarget,
       });
     };
 
@@ -118,15 +110,10 @@ export const TrialGuidedPopover = () => {
     return null;
   }
 
-  const description =
-    rect.usingFallback && currentTourStep.fallbackDescription
-      ? currentTourStep.fallbackDescription
-      : currentTourStep.description;
-
   return (
     <div
       ref={popoverRef}
-      className="pointer-events-none fixed z-[120] w-[calc(100vw-2rem)] max-w-[300px]"
+      className="pointer-events-none fixed z-[120] w-[calc(100vw-2rem)] max-w-[280px]"
       style={{ top: rect.top, left: rect.left }}
     >
       <div
@@ -145,7 +132,7 @@ export const TrialGuidedPopover = () => {
       >
         <div className="h-full w-full animate-pulse rounded-[14px] border border-white/80" />
       </div>
-      <div className="pointer-events-auto relative rounded-[26px] bg-[#38B6FF] px-6 py-5 text-white shadow-[0_18px_45px_rgba(56,182,255,0.32)]">
+      <div className="pointer-events-auto relative rounded-[24px] bg-[#38B6FF] px-5 py-4 text-white shadow-[0_18px_45px_rgba(56,182,255,0.32)]">
         <span
           className={cn(
             'absolute h-6 w-6 rotate-45 bg-[#38B6FF]',
@@ -156,14 +143,14 @@ export const TrialGuidedPopover = () => {
         />
 
         <div className="relative z-10">
-          <p className="text-2xl font-bold leading-none tracking-tight">{currentTourStep.title}</p>
-          <p className="mt-3 text-base font-light leading-[1.35] text-white/95">
-            {description}
+          <p className="text-xl font-bold leading-none tracking-tight">{currentTourStep.title}</p>
+          <p className="mt-3 text-sm leading-[1.45] text-white/95">
+            {currentTourStep.description}
           </p>
           <div className="mt-4 flex justify-end">
             <Button
               variant="secondary"
-              className="rounded-[14px] border-none bg-white px-5 py-3 text-lg font-bold text-[#38B6FF] shadow-none hover:bg-white/90"
+              className="rounded-[14px] border-none bg-white px-4 py-2.5 text-base font-bold text-[#38B6FF] shadow-none hover:bg-white/90"
               isLoading={isSaving}
               onClick={() => void handleNext()}
             >

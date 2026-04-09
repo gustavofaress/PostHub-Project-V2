@@ -16,6 +16,8 @@ import {
   type GuidedTourStepId,
 } from '../guidedFlow';
 
+export const TOUR_COMPLETION_CELEBRATION_KEY = 'posthub_trial_guided_flow_celebration';
+
 export const useTrialGuidedFlow = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -57,7 +59,8 @@ export const useTrialGuidedFlow = () => {
     user.accessStatus === 'trial_active' &&
     hasCompletedQuiz &&
     !hasCompletedSetup &&
-    !location.pathname.startsWith('/workspace/onboarding');
+    (!location.pathname.startsWith('/workspace/onboarding') ||
+      currentTourStepId === 'setup-guide-start');
 
   const persistState = React.useCallback(
     async (
@@ -111,10 +114,7 @@ export const useTrialGuidedFlow = () => {
     const primaryTarget = document.querySelector<HTMLElement>(
       `[data-tour-id="${currentTourStep.targetId}"]`
     );
-    const fallbackTarget = currentTourStep.fallbackTargetId
-      ? document.querySelector<HTMLElement>(`[data-tour-id="${currentTourStep.fallbackTargetId}"]`)
-      : null;
-    const target = primaryTarget ?? fallbackTarget;
+    const target = primaryTarget;
 
     if (currentTourStep.nextAction === 'click_target' && target) {
       target.click();
@@ -127,8 +127,9 @@ export const useTrialGuidedFlow = () => {
       await persistState(nextTourStep?.id ?? null, nextCompletedSteps, !nextTourStep);
 
       if (!nextTourStep) {
-        setActiveModule('dashboard');
-        navigate('/workspace/dashboard');
+        window.sessionStorage.setItem(TOUR_COMPLETION_CELEBRATION_KEY, 'pending');
+        setActiveModule('onboarding');
+        navigate('/workspace/onboarding');
         return;
       }
 

@@ -1,4 +1,8 @@
-import type { GuidedFlowStepId, GuidedTourStepId } from '../modules/onboarding/guidedFlow';
+import {
+  DEFAULT_GUIDED_TOUR_STEP_ID,
+  type GuidedFlowStepId,
+  type GuidedTourStepId,
+} from '../modules/onboarding/guidedFlow';
 import { supabase } from '../shared/utils/supabase';
 
 export interface UserOnboarding {
@@ -87,6 +91,10 @@ export const onboardingService = {
       operation_size: answers.operation_size,
       current_process: answers.current_process,
       quiz_completed: true,
+      setup_completed: false,
+      guided_current_step: DEFAULT_GUIDED_TOUR_STEP_ID,
+      guided_steps_completed: [],
+      guided_flow_completed_at: null,
     };
 
     const { data, error } = await supabase

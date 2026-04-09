@@ -19,7 +19,10 @@ import { useApp } from '../../app/context/AppContext';
 import { useAuth } from '../../app/context/AuthContext';
 import { onboardingService } from '../../services/onboarding.service';
 import { GUIDED_FLOW_STEPS, type GuidedFlowStepId } from './guidedFlow';
-import { useTrialGuidedFlow } from './hooks/useTrialGuidedFlow';
+import {
+  TOUR_COMPLETION_CELEBRATION_KEY,
+  useTrialGuidedFlow,
+} from './hooks/useTrialGuidedFlow';
 
 const QUIZ_QUESTIONS = [
   {
@@ -58,10 +61,25 @@ type QuizAnswers = {
   current_process: string;
 };
 
+const CELEBRATION_CONFETTI = [
+  { left: '8%', color: '#38B6FF', delay: 0, rotate: -28 },
+  { left: '14%', color: '#FBBF24', delay: 0.12, rotate: 32 },
+  { left: '20%', color: '#34D399', delay: 0.24, rotate: -24 },
+  { left: '28%', color: '#F87171', delay: 0.1, rotate: 26 },
+  { left: '34%', color: '#A78BFA', delay: 0.28, rotate: -34 },
+  { left: '42%', color: '#38B6FF', delay: 0.18, rotate: 18 },
+  { left: '50%', color: '#FBBF24', delay: 0.36, rotate: -20 },
+  { left: '58%', color: '#34D399', delay: 0.06, rotate: 30 },
+  { left: '66%', color: '#F87171', delay: 0.21, rotate: -18 },
+  { left: '74%', color: '#38B6FF', delay: 0.3, rotate: 24 },
+  { left: '82%', color: '#A78BFA', delay: 0.14, rotate: -30 },
+  { left: '90%', color: '#FBBF24', delay: 0.4, rotate: 22 },
+] as const;
+
 export const Onboarding = () => {
   const navigate = useNavigate();
   const { setActiveModule } = useApp();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const {
     currentStep,
     completedCount,
@@ -79,6 +97,7 @@ export const Onboarding = () => {
   const [isSavingQuiz, setIsSavingQuiz] = React.useState(false);
   const [quizError, setQuizError] = React.useState('');
   const [quizStep, setQuizStep] = React.useState(-1);
+  const [showCelebration, setShowCelebration] = React.useState(false);
   const [quizAnswers, setQuizAnswers] = React.useState<QuizAnswers>({
     work_model: user?.onboarding?.work_model ?? '',
     operation_size: user?.onboarding?.operation_size ?? '',
@@ -110,6 +129,18 @@ export const Onboarding = () => {
     user?.onboarding?.operation_size,
     user?.onboarding?.current_process,
   ]);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const shouldCelebrate =
+      window.sessionStorage.getItem(TOUR_COMPLETION_CELEBRATION_KEY) === 'pending';
+
+    if (!shouldCelebrate) return;
+
+    window.sessionStorage.removeItem(TOUR_COMPLETION_CELEBRATION_KEY);
+    setShowCelebration(true);
+  }, [user?.onboarding?.guided_flow_completed_at]);
 
   const shouldRenderQuiz = showQuiz && !quizDismissedLocally && !hasQuizCompleted;
 
@@ -169,6 +200,7 @@ export const Onboarding = () => {
 
       const saved = await onboardingService.saveQuizAnswers(user.id, quizAnswers);
       console.log('Quiz salvo com sucesso:', saved);
+      await refreshUser();
 
       setQuizDismissedLocally(true);
       setShowQuiz(false);
@@ -326,6 +358,83 @@ export const Onboarding = () => {
         )}
       </AnimatePresence>
 
+      <AnimatePresence>
+        {showCelebration && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/40 px-4 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.96, opacity: 0, y: 10 }}
+              className="relative w-full max-w-[560px] overflow-hidden rounded-[32px] bg-white p-8 shadow-[0_24px_80px_rgba(15,23,42,0.18)]"
+            >
+              <div className="pointer-events-none absolute inset-0 overflow-hidden">
+                {CELEBRATION_CONFETTI.map((piece, index) => (
+                  <motion.span
+                    key={`${piece.left}-${index}`}
+                    className="absolute top-[-18%] h-4 w-2 rounded-full"
+                    style={{ left: piece.left, backgroundColor: piece.color }}
+                    initial={{ y: -40, opacity: 0, rotate: 0, scale: 0.8 }}
+                    animate={{
+                      y: [0, 110, 260],
+                      opacity: [0, 1, 1, 0],
+                      rotate: [0, piece.rotate, piece.rotate * 1.8],
+                      scale: [0.8, 1, 0.9],
+                    }}
+                    transition={{
+                      duration: 2.3,
+                      delay: piece.delay,
+                      ease: 'easeIn',
+                      repeat: Infinity,
+                      repeatDelay: 0.5,
+                    }}
+                  />
+                ))}
+              </div>
+
+              <div className="relative z-10 text-center">
+                <div className="mx-auto mb-4 inline-flex h-20 w-20 items-center justify-center rounded-full bg-[#38B6FF]/10 text-[#38B6FF]">
+                  <Rocket className="h-9 w-9" />
+                </div>
+                <p className="text-sm font-bold uppercase tracking-[0.24em] text-[#38B6FF]">
+                  Setup finalizado
+                </p>
+                <h2 className="mt-4 text-3xl font-bold leading-tight text-[#111827]">
+                  O seu PostHub está pronto para você agora! Parabéns
+                </h2>
+                <p className="mt-3 text-base text-gray-500">
+                  Seu tour guiado foi concluído e o setup guide já está com todas as etapas marcadas.
+                </p>
+
+                <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+                  <Button
+                    variant="outline"
+                    className="border-[#38B6FF]/20 text-[#38B6FF] hover:bg-[#38B6FF]/5"
+                    onClick={() => setShowCelebration(false)}
+                  >
+                    Fechar
+                  </Button>
+                  <Button
+                    className="bg-[#38B6FF] text-white hover:bg-[#38B6FF]/90"
+                    onClick={() => {
+                      setShowCelebration(false);
+                      setActiveModule('dashboard');
+                      navigate('/workspace/dashboard');
+                    }}
+                  >
+                    Ir para o dashboard
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="mx-auto max-w-4xl space-y-8 px-4 py-12">
         <div className="space-y-4 text-center">
           <div className="mb-2 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-[#38B6FF]/10 text-[#38B6FF]">
@@ -339,6 +448,7 @@ export const Onboarding = () => {
           </p>
           <div className="flex justify-center">
             <Button
+              data-tour-id="setup-guide-start-button"
               className="rounded-xl bg-[#38B6FF] px-6 py-3 text-white hover:bg-[#38B6FF]/90"
               onClick={() => {
                 if (currentStep) {

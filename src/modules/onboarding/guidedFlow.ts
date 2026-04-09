@@ -8,21 +8,18 @@ export type GuidedFlowStepId =
   | 'approval';
 
 export type GuidedTourStepId =
+  | 'setup-guide-start'
   | 'references-nav'
-  | 'references-open-add'
-  | 'references-save'
+  | 'references-add'
   | 'ideas-nav'
-  | 'ideas-open-add'
-  | 'ideas-save'
+  | 'ideas-add'
   | 'calendar-nav'
-  | 'calendar-open-add'
-  | 'calendar-save'
+  | 'calendar-schedule'
   | 'kanban-nav'
-  | 'kanban-open-add'
-  | 'kanban-save'
+  | 'kanban-add'
   | 'approval-nav'
-  | 'approval-open-create'
-  | 'approval-save';
+  | 'approval-create'
+  | 'approval-preview';
 
 export type GuidedPopoverPlacement = 'right' | 'bottom' | 'top';
 
@@ -38,10 +35,8 @@ export interface GuidedTourStep {
   id: GuidedTourStepId;
   parentStepId: GuidedFlowStepId;
   targetId: string;
-  fallbackTargetId?: string;
   title: string;
   description: string;
-  fallbackDescription?: string;
   buttonLabel: string;
   placement: GuidedPopoverPlacement;
   nextAction: 'click_target' | 'advance_only';
@@ -71,14 +66,14 @@ export const GUIDED_FLOW_STEPS: GuidedFlowStep[] = [
   },
   {
     id: 'kanban',
-    title: 'Kanban de Produção',
+    title: 'Kanban Editorial',
     description: 'Apresente o acompanhamento do conteúdo dentro da operação.',
     module: 'kanban',
     path: '/workspace/kanban',
   },
   {
     id: 'approval',
-    title: 'Aprovação',
+    title: 'Módulo de Aprovação',
     description: 'Finalize mostrando como o cliente acompanha e aprova as entregas.',
     module: 'approval',
     path: '/workspace/approval',
@@ -87,171 +82,128 @@ export const GUIDED_FLOW_STEPS: GuidedFlowStep[] = [
 
 export const GUIDED_TOUR_STEPS: GuidedTourStep[] = [
   {
-    id: 'references-nav',
+    id: 'setup-guide-start',
     parentStepId: 'references',
-    targetId: 'sidebar-references',
+    targetId: 'setup-guide-start-button',
     title: 'Passo #1',
-    description: 'Vá ao módulo de referência para começar o processo guiado.',
-    buttonLabel: 'Próximo',
-    placement: 'right',
-    nextAction: 'click_target',
-  },
-  {
-    id: 'references-open-add',
-    parentStepId: 'references',
-    targetId: 'references-add-button',
-    title: 'Passo #1',
-    description: 'Abra a criação de referência para adicionar uma nova sugestão de conteúdo.',
+    description: 'Comece pelo setup guide para iniciar o tour guiado do seu processo criativo.',
     buttonLabel: 'Próximo',
     placement: 'bottom',
     nextAction: 'click_target',
   },
   {
-    id: 'references-save',
+    id: 'references-nav',
     parentStepId: 'references',
-    targetId: 'references-save-button',
-    fallbackTargetId: 'references-add-button',
-    title: 'Passo #1',
-    description: 'Preencha os campos e clique em Próximo para salvar a referência.',
-    fallbackDescription:
-      'Abra o modal de referência novamente. Depois o balão vai seguir para o botão de salvar.',
+    targetId: 'sidebar-references',
+    title: 'Passo #2',
+    description: 'Abra o módulo de referências pela barra lateral.',
     buttonLabel: 'Próximo',
-    placement: 'top',
-    nextAction: 'advance_only',
+    placement: 'right',
+    nextAction: 'click_target',
+  },
+  {
+    id: 'references-add',
+    parentStepId: 'references',
+    targetId: 'references-add-button',
+    title: 'Passo #3',
+    description: 'Agora clique para adicionar uma nova referência.',
+    buttonLabel: 'Próximo',
+    placement: 'bottom',
+    nextAction: 'click_target',
   },
   {
     id: 'ideas-nav',
     parentStepId: 'ideas',
     targetId: 'sidebar-ideas',
-    title: 'Passo #2',
-    description: 'Agora vá ao banco de ideias para transformar a referência em pauta.',
+    title: 'Passo #4',
+    description: 'Siga para o banco de ideias pelo menu lateral.',
     buttonLabel: 'Próximo',
     placement: 'right',
     nextAction: 'click_target',
   },
   {
-    id: 'ideas-open-add',
+    id: 'ideas-add',
     parentStepId: 'ideas',
     targetId: 'ideas-add-button',
-    title: 'Passo #2',
-    description: 'Abra a criação de ideia para registrar uma nova sugestão.',
+    title: 'Passo #5',
+    description: 'Clique em adicionar ideia para abrir o próximo passo do processo.',
     buttonLabel: 'Próximo',
     placement: 'bottom',
     nextAction: 'click_target',
-  },
-  {
-    id: 'ideas-save',
-    parentStepId: 'ideas',
-    targetId: 'ideas-save-button',
-    fallbackTargetId: 'ideas-add-button',
-    title: 'Passo #2',
-    description: 'Preencha a ideia e clique em Próximo para salvar.',
-    fallbackDescription:
-      'Abra o modal de ideia novamente. Depois o balão vai acompanhar o botão de salvar.',
-    buttonLabel: 'Próximo',
-    placement: 'top',
-    nextAction: 'advance_only',
   },
   {
     id: 'calendar-nav',
     parentStepId: 'calendar',
     targetId: 'sidebar-calendar',
-    title: 'Passo #3',
-    description: 'Agora vá ao calendário editorial para planejar o conteúdo.',
+    title: 'Passo #6',
+    description: 'Agora vá para o calendário editorial na sidebar.',
     buttonLabel: 'Próximo',
     placement: 'right',
     nextAction: 'click_target',
   },
   {
-    id: 'calendar-open-add',
+    id: 'calendar-schedule',
     parentStepId: 'calendar',
     targetId: 'calendar-add-button',
-    title: 'Passo #3',
-    description: 'Abra o formulário de agendamento para criar um novo post.',
+    title: 'Passo #7',
+    description: 'Clique em agendar post para seguir com a organização editorial.',
     buttonLabel: 'Próximo',
     placement: 'bottom',
     nextAction: 'click_target',
-  },
-  {
-    id: 'calendar-save',
-    parentStepId: 'calendar',
-    targetId: 'calendar-save-button',
-    fallbackTargetId: 'calendar-add-button',
-    title: 'Passo #3',
-    description: 'Preencha o agendamento e clique em Próximo para salvar o post.',
-    fallbackDescription:
-      'Abra o modal do calendário novamente. Depois o balão vai seguir para salvar o post.',
-    buttonLabel: 'Próximo',
-    placement: 'top',
-    nextAction: 'advance_only',
   },
   {
     id: 'kanban-nav',
     parentStepId: 'kanban',
     targetId: 'sidebar-kanban',
-    title: 'Passo #4',
-    description: 'Vá ao Kanban para acompanhar o conteúdo dentro da operação.',
+    title: 'Passo #8',
+    description: 'Abra o kanban editorial pela barra lateral.',
     buttonLabel: 'Próximo',
     placement: 'right',
     nextAction: 'click_target',
   },
   {
-    id: 'kanban-open-add',
+    id: 'kanban-add',
     parentStepId: 'kanban',
     targetId: 'kanban-add-button',
-    title: 'Passo #4',
-    description: 'Abra a criação de tarefa para colocar esse conteúdo em produção.',
+    title: 'Passo #9',
+    description: 'Clique em adicionar tarefa para acompanhar a produção.',
     buttonLabel: 'Próximo',
     placement: 'bottom',
     nextAction: 'click_target',
-  },
-  {
-    id: 'kanban-save',
-    parentStepId: 'kanban',
-    targetId: 'kanban-save-button',
-    fallbackTargetId: 'kanban-add-button',
-    title: 'Passo #4',
-    description: 'Preencha a tarefa e clique em Próximo para salvar no Kanban.',
-    fallbackDescription:
-      'Abra o modal da tarefa novamente. Depois o balão vai seguir para salvar no Kanban.',
-    buttonLabel: 'Próximo',
-    placement: 'top',
-    nextAction: 'advance_only',
   },
   {
     id: 'approval-nav',
     parentStepId: 'approval',
     targetId: 'sidebar-approval',
-    title: 'Passo #5',
-    description: 'Agora vá ao módulo de aprovação para fechar o fluxo com o cliente.',
+    title: 'Passo #10',
+    description: 'Siga para o módulo de aprovação pela sidebar.',
     buttonLabel: 'Próximo',
     placement: 'right',
     nextAction: 'click_target',
   },
   {
-    id: 'approval-open-create',
+    id: 'approval-create',
     parentStepId: 'approval',
     targetId: 'approval-open-create-button',
-    title: 'Passo #5',
-    description: 'Abra a criação da solicitação de aprovação.',
+    title: 'Passo #11',
+    description: 'Clique em criar aprovação para abrir a área de revisão.',
     buttonLabel: 'Próximo',
     placement: 'bottom',
     nextAction: 'click_target',
   },
   {
-    id: 'approval-save',
+    id: 'approval-preview',
     parentStepId: 'approval',
-    targetId: 'approval-save-button',
-    fallbackTargetId: 'approval-open-create-button',
-    title: 'Passo #5',
-    description: 'Preencha a solicitação e clique em Próximo para concluir o setup.',
-    fallbackDescription:
-      'Abra a criação de aprovação novamente. Depois o balão vai acompanhar o botão de concluir.',
-    buttonLabel: 'Concluir',
+    targetId: 'approval-internal-preview-button',
+    title: 'Passo #12',
+    description: 'Agora verifique a preview interna para finalizar a configuração guiada.',
+    buttonLabel: 'Próximo',
     placement: 'top',
-    nextAction: 'advance_only',
+    nextAction: 'click_target',
   },
 ];
+
+export const DEFAULT_GUIDED_TOUR_STEP_ID = GUIDED_TOUR_STEPS[0].id;
 
 export const isGuidedFlowStepId = (value: string | null | undefined): value is GuidedFlowStepId =>
   GUIDED_FLOW_STEPS.some((step) => step.id === value);
@@ -295,6 +247,8 @@ export const getCurrentGuidedTourStepId = (
   if (isGuidedTourStepId(currentStep)) return currentStep;
   if (isGuidedFlowStepId(currentStep)) return getFirstTourStepForFlowStep(currentStep).id;
 
+  if (completedSteps.length === 0) return DEFAULT_GUIDED_TOUR_STEP_ID;
+
   const firstPendingStep = GUIDED_FLOW_STEPS.find((step) => !completedSteps.includes(step.id));
-  return firstPendingStep ? getFirstTourStepForFlowStep(firstPendingStep.id).id : GUIDED_TOUR_STEPS[0].id;
+  return firstPendingStep ? getFirstTourStepForFlowStep(firstPendingStep.id).id : null;
 };
