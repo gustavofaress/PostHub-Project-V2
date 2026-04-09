@@ -35,6 +35,7 @@ import { useProfile } from '../../app/context/ProfileContext';
 import { useAuth } from '../../app/context/AuthContext';
 import { approvalService } from './services/approvalService';
 import { InternalPreview } from './InternalPreview';
+import { useTrialGuidedFlow } from '../onboarding/hooks/useTrialGuidedFlow';
 
 export interface MediaState {
   id?: string;
@@ -475,6 +476,7 @@ export const loadComments = (): ApprovalComment[] => {
 };
 
 export const ApprovalModule = () => {
+  useTrialGuidedFlow();
   const { activeProfile } = useProfile();
   const { user } = useAuth();
 
@@ -642,6 +644,21 @@ export const ApprovalModule = () => {
     },
     [approvals, refreshApprovals, refreshCommentsForPost]
   );
+
+  const openInternalPreview = React.useCallback(async () => {
+    const previewSourceId = editingPostId ?? approvals[0]?.id ?? null;
+
+    if (!previewSourceId) {
+      setAlertMessage(
+        'Ainda não há uma solicitação disponível para visualizar na preview interna.'
+      );
+      return;
+    }
+
+    await refreshCommentsForPost(previewSourceId);
+    setPreviewPostId(previewSourceId);
+    setView('preview');
+  }, [approvals, editingPostId, refreshCommentsForPost]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -1265,11 +1282,21 @@ export const ApprovalModule = () => {
                 Cancelar
               </Button>
               <Button
+                variant="outline"
+                size="lg"
+                className="border-[#38B6FF]/20 text-[#38B6FF] hover:bg-[#38B6FF]/5"
+                onClick={() => void openInternalPreview()}
+                data-tour-id="approval-internal-preview-button"
+              >
+                Verificar preview interno
+              </Button>
+              <Button
                 size="lg"
                 onClick={handleSaveRequest}
                 className="px-8"
                 disabled={!newTitle.trim() || isSubmitting}
                 isLoading={isSubmitting}
+                data-tour-id="approval-save-button"
               >
                 {view === 'edit' ? 'Salvar alterações' : 'Criar solicitação'}
               </Button>
@@ -1544,7 +1571,7 @@ export const ApprovalModule = () => {
               Gerencie revisões de conteúdo e feedbacks dos clientes.
             </p>
           </div>
-          <Button onClick={() => setView('create')} className="gap-2">
+          <Button onClick={() => setView('create')} className="gap-2" data-tour-id="approval-open-create-button">
             <Plus className="h-4 w-4" />
             Criar solicitação de aprovação
           </Button>

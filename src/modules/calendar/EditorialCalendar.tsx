@@ -26,6 +26,7 @@ import { Input } from '../../shared/components/Input';
 import { useProfile } from '../../app/context/ProfileContext';
 import { useAuth } from '../../app/context/AuthContext';
 import { supabase } from '../../shared/utils/supabase';
+import { useTrialGuidedFlow } from '../onboarding/hooks/useTrialGuidedFlow';
 
 interface CalendarPost {
   id: string;
@@ -70,6 +71,7 @@ function mapRowToPost(row: EditorialCalendarRow): CalendarPost {
 export const EditorialCalendar = () => {
   const { activeProfile } = useProfile();
   const { user } = useAuth();
+  useTrialGuidedFlow();
 
   const [currentDate, setCurrentDate] = React.useState(new Date());
   const [posts, setPosts] = React.useState<CalendarPost[]>([]);
@@ -376,7 +378,7 @@ export const EditorialCalendar = () => {
             <Filter className="h-4 w-4" />
             Filtrar
           </Button>
-          <Button className="gap-2" onClick={() => openAddModal()}>
+          <Button className="gap-2" onClick={() => openAddModal()} data-tour-id="calendar-add-button">
             <Plus className="h-4 w-4" />
             Agendar Post
           </Button>
@@ -593,7 +595,7 @@ export const EditorialCalendar = () => {
               <Button variant="secondary" onClick={() => setIsModalOpen(false)} type="button">
                 Cancelar
               </Button>
-              <Button type="submit" isLoading={isSavingPost}>
+              <Button type="submit" isLoading={isSavingPost} data-tour-id="calendar-save-button">
                 {editingPostId ? 'Salvar Alterações' : 'Agendar'}
               </Button>
             </div>

@@ -22,6 +22,7 @@ import { useApp } from '../../app/context/AppContext';
 import { useProfile } from '../../app/context/ProfileContext';
 import { useAuth } from '../../app/context/AuthContext';
 import { supabase } from '../../shared/utils/supabase';
+import { useTrialGuidedFlow } from '../onboarding/hooks/useTrialGuidedFlow';
 
 interface Idea {
   id: string;
@@ -50,6 +51,7 @@ export const IdeasBank = () => {
   const { setActiveModule } = useApp();
   const { activeProfile } = useProfile();
   const { user } = useAuth();
+  useTrialGuidedFlow();
 
   const [ideas, setIdeas] = React.useState<Idea[]>([]);
   const [isLoadingIdeas, setIsLoadingIdeas] = React.useState(false);
@@ -316,7 +318,7 @@ export const IdeasBank = () => {
           )}
         </div>
 
-        <Button className="gap-2" onClick={openCreateModal}>
+        <Button className="gap-2" onClick={openCreateModal} data-tour-id="ideas-add-button">
           <Plus className="h-4 w-4" />
           Nova Ideia
         </Button>
@@ -466,7 +468,11 @@ export const IdeasBank = () => {
             title="Nenhuma ideia encontrada"
             description="Tente ajustar sua busca ou adicione uma nova inspiração ao seu banco."
             icon={Lightbulb}
-            action={<Button onClick={openCreateModal}>Adicionar Nova Ideia</Button>}
+            action={
+              <Button onClick={openCreateModal} data-tour-id="ideas-add-button">
+                Adicionar Nova Ideia
+              </Button>
+            }
           />
         </Card>
       )}
@@ -565,7 +571,7 @@ export const IdeasBank = () => {
             >
               Cancelar
             </Button>
-            <Button type="submit">
+            <Button type="submit" data-tour-id="ideas-save-button">
               {editingIdea ? 'Salvar Alterações' : 'Salvar Ideia'}
             </Button>
           </div>

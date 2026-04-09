@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { ModuleRenderer } from './components/ModuleRenderer';
+import { TrialGuidedPopover } from '../onboarding/components/TrialGuidedPopover';
 
 export const WorkspaceLayout = () => {
   return (
@@ -13,6 +14,7 @@ export const WorkspaceLayout = () => {
           <ModuleRenderer />
         </main>
       </div>
+      <TrialGuidedPopover />
     </div>
   );
 };

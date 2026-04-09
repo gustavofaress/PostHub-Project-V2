@@ -5,12 +5,14 @@ import { NAV_GROUPS, NavItem } from '../../../shared/constants/navigation';
 import { cn } from '../../../shared/utils/cn';
 import { useAuth } from '../../../app/context/AuthContext';
 import { hasAccess } from '../../../shared/constants/plans';
+import { useTrialGuidedFlow } from '../../onboarding/hooks/useTrialGuidedFlow';
 
 const HIDDEN_MODULE_IDS = ['consultant', 'scheduler'];
 
 export const Sidebar = () => {
   const location = useLocation();
   const { logout, user } = useAuth();
+  const { isActive: isGuidedFlowActive } = useTrialGuidedFlow();
 
   const [hoveredItem, setHoveredItem] = React.useState<{ item: NavItem; rect: DOMRect } | null>(
     null
@@ -35,12 +37,14 @@ export const Sidebar = () => {
   }, [user?.isAdmin]);
 
   const handleMouseEnter = (item: NavItem, e: React.MouseEvent) => {
+    if (isGuidedFlowActive) return;
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     const rect = e.currentTarget.getBoundingClientRect();
     setHoveredItem({ item, rect });
   };
 
   const handleMouseLeave = () => {
+    if (isGuidedFlowActive) return;
     timeoutRef.current = setTimeout(() => {
       setHoveredItem(null);
     }, 150);
@@ -92,6 +96,7 @@ export const Sidebar = () => {
                   <div key={item.id} className="flex w-full flex-col">
                     <Link
                       to={item.path}
+                      data-tour-id={`sidebar-${item.id}`}
                       onMouseEnter={(e) => handleMouseEnter(item, e)}
                       onMouseLeave={handleMouseLeave}
                       className={cn(
@@ -155,7 +160,8 @@ export const Sidebar = () => {
         </div>
       </aside>
 
-      {hoveredItem &&
+      {!isGuidedFlowActive &&
+        hoveredItem &&
         (() => {
           const isBottomHalf = hoveredItem.rect.top > window.innerHeight / 2;
           const availableHeight = isBottomHalf

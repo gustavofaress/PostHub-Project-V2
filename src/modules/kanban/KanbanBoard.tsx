@@ -19,6 +19,7 @@ import { Input } from '../../shared/components/Input';
 import { useProfile } from '../../app/context/ProfileContext';
 import { useAuth } from '../../app/context/AuthContext';
 import { supabase } from '../../shared/utils/supabase';
+import { useTrialGuidedFlow } from '../onboarding/hooks/useTrialGuidedFlow';
 
 interface KanbanColumn {
   id: string;
@@ -128,6 +129,7 @@ function mapColumnNameToStatus(columnName: string): string {
 export const KanbanBoard = () => {
   const { activeProfile } = useProfile();
   const { user } = useAuth();
+  useTrialGuidedFlow();
 
   const [columns, setColumns] = React.useState<KanbanColumn[]>([]);
   const [cards, setCards] = React.useState<KanbanCard[]>([]);
@@ -620,7 +622,12 @@ export const KanbanBoard = () => {
             <Plus className="h-4 w-4" />
             Adicionar Coluna
           </Button>
-          <Button className="gap-2" onClick={() => openAddModal()} disabled={columns.length === 0}>
+          <Button
+            className="gap-2"
+            onClick={() => openAddModal()}
+            disabled={columns.length === 0}
+            data-tour-id="kanban-add-button"
+          >
             <Plus className="h-4 w-4" />
             Adicionar Tarefa
           </Button>
@@ -879,7 +886,7 @@ export const KanbanBoard = () => {
               <Button variant="secondary" onClick={() => setIsModalOpen(false)} type="button">
                 Cancelar
               </Button>
-              <Button type="submit" isLoading={isSavingTask}>
+              <Button type="submit" isLoading={isSavingTask} data-tour-id="kanban-save-button">
                 {editingCardId ? 'Salvar Alterações' : 'Adicionar Tarefa'}
               </Button>
             </div>

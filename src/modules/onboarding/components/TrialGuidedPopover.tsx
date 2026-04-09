@@ -1,0 +1,167 @@
+import * as React from 'react';
+import { Button } from '../../../shared/components/Button';
+import { cn } from '../../../shared/utils/cn';
+import { useTrialGuidedFlow } from '../hooks/useTrialGuidedFlow';
+
+const POPOVER_WIDTH = 280;
+const POPOVER_GAP = 14;
+const VIEWPORT_PADDING = 16;
+
+type RectState = {
+  top: number;
+  left: number;
+  targetTop: number;
+  targetLeft: number;
+  targetWidth: number;
+  targetHeight: number;
+};
+
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
+export const TrialGuidedPopover = () => {
+  const { currentStep, currentStepIndex, currentTourStep, handleNext, isActive, isSaving } =
+    useTrialGuidedFlow();
+  const popoverRef = React.useRef<HTMLDivElement | null>(null);
+  const [rect, setRect] = React.useState<RectState | null>(null);
+
+  React.useLayoutEffect(() => {
+    if (!isActive || !currentTourStep) {
+      setRect(null);
+      return;
+    }
+
+    const updatePosition = () => {
+      const target = document.querySelector<HTMLElement>(
+        `[data-tour-id="${currentTourStep.targetId}"]`
+      );
+
+      if (!target) {
+        setRect(null);
+        return;
+      }
+
+      const targetRect = target.getBoundingClientRect();
+      const popoverHeight = popoverRef.current?.offsetHeight ?? 240;
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+
+      let nextTop = 0;
+      let nextLeft = 0;
+
+      if (currentTourStep.placement === 'right') {
+        nextTop = clamp(
+          targetRect.top + targetRect.height / 2 - popoverHeight / 2,
+          VIEWPORT_PADDING,
+          viewportHeight - popoverHeight - VIEWPORT_PADDING
+        );
+        nextLeft = clamp(
+          targetRect.right + POPOVER_GAP,
+          VIEWPORT_PADDING,
+          viewportWidth - POPOVER_WIDTH - VIEWPORT_PADDING
+        );
+      } else if (currentTourStep.placement === 'top') {
+        nextTop = clamp(
+          targetRect.top - popoverHeight - POPOVER_GAP,
+          VIEWPORT_PADDING,
+          viewportHeight - popoverHeight - VIEWPORT_PADDING
+        );
+        nextLeft = clamp(
+          targetRect.left + targetRect.width / 2 - POPOVER_WIDTH / 2,
+          VIEWPORT_PADDING,
+          viewportWidth - POPOVER_WIDTH - VIEWPORT_PADDING
+        );
+      } else {
+        nextTop = clamp(
+          targetRect.bottom + POPOVER_GAP,
+          VIEWPORT_PADDING,
+          viewportHeight - popoverHeight - VIEWPORT_PADDING
+        );
+        nextLeft = clamp(
+          targetRect.left + targetRect.width / 2 - POPOVER_WIDTH / 2,
+          VIEWPORT_PADDING,
+          viewportWidth - POPOVER_WIDTH - VIEWPORT_PADDING
+        );
+      }
+
+      setRect({
+        top: nextTop,
+        left: nextLeft,
+        targetTop: targetRect.top,
+        targetLeft: targetRect.left,
+        targetWidth: targetRect.width,
+        targetHeight: targetRect.height,
+      });
+    };
+
+    updatePosition();
+
+    const interval = window.setInterval(updatePosition, 250);
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [currentTourStep, isActive]);
+
+  if (!isActive || !currentStep || !currentTourStep || !rect) {
+    return null;
+  }
+
+  return (
+    <div
+      ref={popoverRef}
+      className="pointer-events-none fixed z-[120] w-[calc(100vw-2rem)] max-w-[280px]"
+      style={{ top: rect.top, left: rect.left }}
+    >
+      <div
+        className="fixed inset-0 z-[-1] bg-slate-950/10"
+        aria-hidden="true"
+      />
+      <div
+        className="fixed z-[119] rounded-[18px] border-2 border-[#38B6FF] bg-[#38B6FF]/10 shadow-[0_0_0_6px_rgba(56,182,255,0.15)] transition-all duration-300"
+        style={{
+          top: rect.targetTop - 6,
+          left: rect.targetLeft - 6,
+          width: rect.targetWidth + 12,
+          height: rect.targetHeight + 12,
+        }}
+        aria-hidden="true"
+      >
+        <div className="h-full w-full animate-pulse rounded-[14px] border border-white/80" />
+      </div>
+      <div className="pointer-events-auto relative rounded-[24px] bg-[#38B6FF] px-5 py-4 text-white shadow-[0_18px_45px_rgba(56,182,255,0.32)]">
+        <span
+          className={cn(
+            'absolute h-6 w-6 rotate-45 bg-[#38B6FF]',
+            currentTourStep.placement === 'right' && '-left-2.5 top-1/2 -translate-y-1/2 rounded-[6px]',
+            currentTourStep.placement === 'bottom' && 'left-8 -top-2.5 rounded-[6px]',
+            currentTourStep.placement === 'top' && 'bottom-[-10px] left-8 rounded-[6px]'
+          )}
+        />
+
+        <div className="relative z-10">
+          <p className="text-xl font-bold leading-none tracking-tight">{currentTourStep.title}</p>
+          <p className="mt-3 text-sm leading-[1.45] text-white/95">
+            {currentTourStep.description}
+          </p>
+          <div className="mt-4 flex justify-end">
+            <Button
+              variant="secondary"
+              className="rounded-[14px] border-none bg-white px-4 py-2.5 text-base font-bold text-[#38B6FF] shadow-none hover:bg-white/90"
+              isLoading={isSaving}
+              onClick={() => void handleNext()}
+            >
+              {currentTourStep.buttonLabel}
+            </Button>
+          </div>
+        </div>
+      </div>
+      <div className="mt-2 px-2 text-xs font-medium text-[#38B6FF]">
+        Etapa {currentStepIndex + 1} de 5
+      </div>
+    </div>
+  );
+};

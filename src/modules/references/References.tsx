@@ -30,6 +30,7 @@ import { Button } from '../../shared/components/Button';
 import { Input } from '../../shared/components/Input';
 import { Badge } from '../../shared/components/Badge';
 import { cn } from '../../shared/utils/cn';
+import { useTrialGuidedFlow } from '../onboarding/hooks/useTrialGuidedFlow';
 import {
   renderCompressedVideo,
   TARGET_VIDEO_UPLOAD_SIZE,
@@ -211,6 +212,7 @@ const ReferenceImagePreview = ({
 export const References = () => {
   const { activeProfile } = useProfile();
   const profileId = activeProfile?.id;
+  useTrialGuidedFlow();
 
   const [references, setReferences] = React.useState<ReferenceItem[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -834,7 +836,7 @@ export const References = () => {
           <Badge className="border-none bg-brand/10 text-brand">
             Profile ativo: {activeProfile?.name || profileId || '—'}
           </Badge>
-          <Button className="gap-2" onClick={openCreateModal}>
+          <Button className="gap-2" onClick={openCreateModal} data-tour-id="references-add-button">
             <Plus className="h-4 w-4" />
             Adicionar Referência
           </Button>
@@ -909,7 +911,7 @@ export const References = () => {
               Tente outro termo de busca ou adicione uma nova referência para este perfil.
             </p>
           </div>
-          <Button className="gap-2" onClick={openCreateModal}>
+          <Button className="gap-2" onClick={openCreateModal} data-tour-id="references-add-button">
             <Plus className="h-4 w-4" />
             Criar primeira referência
           </Button>
@@ -1423,7 +1425,7 @@ export const References = () => {
               >
                 Cancelar
               </Button>
-              <Button onClick={handleSaveReference} disabled={isSaving}>
+              <Button onClick={handleSaveReference} disabled={isSaving} data-tour-id="references-save-button">
                 {isSaving ? (
                   <span className="flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
