@@ -645,7 +645,7 @@ export const KanbanBoard = () => {
           <p className="text-text-secondary">Carregando Kanban...</p>
         </Card>
       ) : (
-        <div className="flex-1 flex gap-6 overflow-x-auto pb-4">
+        <div className="posthub-scrollbar posthub-scrollbar-thin flex-1 flex gap-6 overflow-x-auto pb-4 pr-2">
           {columns.map((column, colIdx) => (
             <div
               key={column.id}
@@ -718,7 +718,7 @@ export const KanbanBoard = () => {
                 </Dropdown>
               </div>
 
-              <div className="flex-1 space-y-4 rounded-xl bg-gray-100/50 p-3 overflow-y-auto">
+              <div className="posthub-scrollbar posthub-scrollbar-thin flex-1 space-y-4 overflow-y-auto rounded-xl bg-gray-100/50 p-3 pr-2">
                 {cards
                   .filter((t) => t.columnId === column.id)
                   .map((task) => (
