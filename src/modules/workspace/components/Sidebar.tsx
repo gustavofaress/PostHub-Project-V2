@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LogOut, ChevronRight, Lock } from 'lucide-react';
+import { LogOut, Lock } from 'lucide-react';
 import { NAV_GROUPS, NavItem } from '../../../shared/constants/navigation';
 import { cn } from '../../../shared/utils/cn';
 import { useAuth } from '../../../app/context/AuthContext';
@@ -208,24 +208,6 @@ export const Sidebar = () => {
                   </div>
                 ) : null}
 
-                {hoveredItem.item.subItems && hoveredItem.item.subItems.length > 0 && (
-                  <div className="space-y-1">
-                    <div className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-gray-400">
-                      Features
-                    </div>
-                    {hoveredItem.item.subItems.slice(0, 5).map((sub, idx) => (
-                      <Link
-                        key={idx}
-                        to={sub.path}
-                        onClick={() => setHoveredItem(null)}
-                        className="flex items-center gap-2 rounded-lg px-2 py-2 text-sm text-gray-600 transition-colors hover:bg-[#38B6FF]/5 hover:text-[#38B6FF]"
-                      >
-                        <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-50" />
-                        <span className="truncate">{sub.label}</span>
-                      </Link>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
           );
