@@ -51,7 +51,7 @@ export const IdeasBank = () => {
   const { setActiveModule } = useApp();
   const { activeProfile } = useProfile();
   const { user } = useAuth();
-  const { completeCurrentActionStep } = useTrialGuidedFlow();
+  useTrialGuidedFlow();
 
   const [ideas, setIdeas] = React.useState<Idea[]>([]);
   const [isLoadingIdeas, setIsLoadingIdeas] = React.useState(false);
@@ -259,7 +259,6 @@ export const IdeasBank = () => {
 
       setIsModalOpen(false);
       resetForm();
-      await completeCurrentActionStep('ideas-save');
     } catch (error: any) {
       console.error('[Ideas] Error saving idea:', error);
       setErrorMessage(error?.message || 'Não foi possível salvar a ideia.');

@@ -129,7 +129,7 @@ function mapColumnNameToStatus(columnName: string): string {
 export const KanbanBoard = () => {
   const { activeProfile } = useProfile();
   const { user } = useAuth();
-  const { completeCurrentActionStep } = useTrialGuidedFlow();
+  useTrialGuidedFlow();
 
   const [columns, setColumns] = React.useState<KanbanColumn[]>([]);
   const [cards, setCards] = React.useState<KanbanCard[]>([]);
@@ -517,7 +517,6 @@ export const KanbanBoard = () => {
       setNewTaskType('Video');
       setNewTaskDate(format(new Date(), 'yyyy-MM-dd'));
       setEditingCardId(null);
-      await completeCurrentActionStep('kanban-save');
     } catch (error: any) {
       console.error('[KanbanBoard] Error saving task:', error);
       setErrorMessage(error?.message || 'Não foi possível salvar a tarefa.');

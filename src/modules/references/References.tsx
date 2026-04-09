@@ -212,7 +212,7 @@ const ReferenceImagePreview = ({
 export const References = () => {
   const { activeProfile } = useProfile();
   const profileId = activeProfile?.id;
-  const { completeCurrentActionStep } = useTrialGuidedFlow();
+  useTrialGuidedFlow();
 
   const [references, setReferences] = React.useState<ReferenceItem[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -624,7 +624,6 @@ export const References = () => {
       }
       setShowCreateModal(false);
       resetForm();
-      await completeCurrentActionStep('references-save');
     } catch (error) {
       console.error('Erro ao salvar referência:', error);
       const message = error instanceof Error ? error.message : 'Erro desconhecido.';

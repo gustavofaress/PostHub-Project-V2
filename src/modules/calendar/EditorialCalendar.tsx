@@ -71,7 +71,7 @@ function mapRowToPost(row: EditorialCalendarRow): CalendarPost {
 export const EditorialCalendar = () => {
   const { activeProfile } = useProfile();
   const { user } = useAuth();
-  const { completeCurrentActionStep } = useTrialGuidedFlow();
+  useTrialGuidedFlow();
 
   const [currentDate, setCurrentDate] = React.useState(new Date());
   const [posts, setPosts] = React.useState<CalendarPost[]>([]);
@@ -250,7 +250,6 @@ export const EditorialCalendar = () => {
 
       setIsModalOpen(false);
       resetModalForm();
-      await completeCurrentActionStep('calendar-save');
     } catch (error: any) {
       console.error('[EditorialCalendar] Error saving post:', error);
       setErrorMessage(error?.message || 'Não foi possível salvar o post.');

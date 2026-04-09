@@ -476,7 +476,7 @@ export const loadComments = (): ApprovalComment[] => {
 };
 
 export const ApprovalModule = () => {
-  const { completeCurrentActionStep } = useTrialGuidedFlow();
+  useTrialGuidedFlow();
   const { activeProfile } = useProfile();
   const { user } = useAuth();
 
@@ -918,7 +918,6 @@ export const ApprovalModule = () => {
       setView('list');
       resetForm();
       setAlertMessage('Solicitação criada com sucesso.');
-      await completeCurrentActionStep('approval-save');
     } catch (e: any) {
       console.error('Failed to create/update post in Supabase:', e);
       setAlertMessage(
