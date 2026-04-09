@@ -49,11 +49,15 @@ export const useTrialGuidedFlow = () => {
   const currentStepIndex = currentStep
     ? GUIDED_FLOW_STEPS.findIndex((step) => step.id === currentStep.id)
     : -1;
+  const isPreviewRoute = location.pathname.startsWith('/workspace/onboarding');
+  const hasCompletedQuiz = user?.onboarding?.quiz_completed ?? true;
+  const hasCompletedSetup = !!user?.onboarding?.setup_completed;
 
   const isActive =
-    user?.accessStatus === 'trial_active' &&
-    !!user?.onboarding?.quiz_completed &&
-    !user?.onboarding?.setup_completed;
+    !!user &&
+    (user.accessStatus === 'trial_active' || isPreviewRoute) &&
+    (hasCompletedQuiz || isPreviewRoute) &&
+    (!hasCompletedSetup || isPreviewRoute);
 
   const persistState = React.useCallback(
     async (
@@ -86,13 +90,12 @@ export const useTrialGuidedFlow = () => {
   const continueJourney = React.useCallback(() => {
     if (!currentTourStep || !currentStep) return;
 
-    if (currentTourStep.id.endsWith('-nav')) {
+    if (!location.pathname.startsWith(currentStep.path)) {
+      goToStep(currentStep.id);
       return;
     }
 
-    if (!location.pathname.startsWith(currentStep.path)) {
-      goToStep(currentStep.id);
-    }
+    if (currentTourStep.id.endsWith('-nav')) return;
   }, [currentStep, currentTourStep, goToStep, location.pathname]);
 
   const handleNext = React.useCallback(async () => {
