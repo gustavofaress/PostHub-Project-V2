@@ -10,6 +10,10 @@ const VIEWPORT_PADDING = 16;
 type RectState = {
   top: number;
   left: number;
+  targetTop: number;
+  targetLeft: number;
+  targetWidth: number;
+  targetHeight: number;
   usingFallback: boolean;
 };
 
@@ -89,6 +93,10 @@ export const TrialGuidedPopover = () => {
       setRect({
         top: nextTop,
         left: nextLeft,
+        targetTop: targetRect.top,
+        targetLeft: targetRect.left,
+        targetWidth: targetRect.width,
+        targetHeight: targetRect.height,
         usingFallback: !primaryTarget && !!fallbackTarget,
       });
     };
@@ -121,6 +129,22 @@ export const TrialGuidedPopover = () => {
       className="pointer-events-none fixed z-[120] w-[calc(100vw-2rem)] max-w-[390px]"
       style={{ top: rect.top, left: rect.left }}
     >
+      <div
+        className="fixed inset-0 z-[-1] bg-slate-950/10"
+        aria-hidden="true"
+      />
+      <div
+        className="fixed z-[119] rounded-[22px] border-2 border-[#38B6FF] bg-[#38B6FF]/10 shadow-[0_0_0_8px_rgba(56,182,255,0.15)] transition-all duration-300"
+        style={{
+          top: rect.targetTop - 6,
+          left: rect.targetLeft - 6,
+          width: rect.targetWidth + 12,
+          height: rect.targetHeight + 12,
+        }}
+        aria-hidden="true"
+      >
+        <div className="h-full w-full animate-pulse rounded-[18px] border border-white/80" />
+      </div>
       <div className="pointer-events-auto relative rounded-[34px] bg-[#38B6FF] px-8 py-7 text-white shadow-[0_24px_60px_rgba(56,182,255,0.35)]">
         <span
           className={cn(
