@@ -101,6 +101,8 @@ export const useTrialGuidedFlow = () => {
   const handleNext = React.useCallback(async () => {
     if (!currentTourStep || isSaving) return;
 
+    const nextTourStep = getNextGuidedTourStep(currentTourStep.id);
+    const nextFlowStep = nextTourStep ? getGuidedFlowStepByTourStep(nextTourStep.id) : null;
     const primaryTarget = document.querySelector<HTMLElement>(
       `[data-tour-id="${currentTourStep.targetId}"]`
     );
@@ -109,22 +111,30 @@ export const useTrialGuidedFlow = () => {
       : null;
     const target = primaryTarget ?? fallbackTarget;
 
-    if (!target) {
-      if (!location.pathname.startsWith(currentStep?.path || '')) {
-        continueJourney();
-      }
-      return;
+    if (currentTourStep.nextAction === 'click_target' && target) {
+      target.click();
     }
 
-    target.click();
-
-    if (currentTourStep.advanceMode !== 'immediate' || !user?.id) return;
-
-    const nextTourStep = getNextGuidedTourStep(currentTourStep.id);
+    if (!user?.id) return;
 
     try {
       setIsSaving(true);
       await persistState(nextTourStep?.id ?? null, completedSteps, false);
+
+      if (!nextTourStep) {
+        setActiveModule('dashboard');
+        navigate('/workspace/dashboard');
+        return;
+      }
+
+      if (nextFlowStep && nextFlowStep.id !== currentStep?.id) {
+        goToStep(nextFlowStep.id);
+        return;
+      }
+
+      if (!target && !location.pathname.startsWith(currentStep?.path || '')) {
+        continueJourney();
+      }
     } finally {
       setIsSaving(false);
     }
@@ -133,9 +143,12 @@ export const useTrialGuidedFlow = () => {
     continueJourney,
     currentStep?.path,
     currentTourStep,
+    goToStep,
     isSaving,
     location.pathname,
+    navigate,
     persistState,
+    setActiveModule,
     user?.id,
   ]);
 

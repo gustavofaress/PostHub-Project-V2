@@ -3,8 +3,8 @@ import { Button } from '../../../shared/components/Button';
 import { cn } from '../../../shared/utils/cn';
 import { useTrialGuidedFlow } from '../hooks/useTrialGuidedFlow';
 
-const POPOVER_WIDTH = 390;
-const POPOVER_GAP = 18;
+const POPOVER_WIDTH = 300;
+const POPOVER_GAP = 14;
 const VIEWPORT_PADDING = 16;
 
 type RectState = {
@@ -126,7 +126,7 @@ export const TrialGuidedPopover = () => {
   return (
     <div
       ref={popoverRef}
-      className="pointer-events-none fixed z-[120] w-[calc(100vw-2rem)] max-w-[390px]"
+      className="pointer-events-none fixed z-[120] w-[calc(100vw-2rem)] max-w-[300px]"
       style={{ top: rect.top, left: rect.left }}
     >
       <div
@@ -134,7 +134,7 @@ export const TrialGuidedPopover = () => {
         aria-hidden="true"
       />
       <div
-        className="fixed z-[119] rounded-[22px] border-2 border-[#38B6FF] bg-[#38B6FF]/10 shadow-[0_0_0_8px_rgba(56,182,255,0.15)] transition-all duration-300"
+        className="fixed z-[119] rounded-[18px] border-2 border-[#38B6FF] bg-[#38B6FF]/10 shadow-[0_0_0_6px_rgba(56,182,255,0.15)] transition-all duration-300"
         style={{
           top: rect.targetTop - 6,
           left: rect.targetLeft - 6,
@@ -143,27 +143,27 @@ export const TrialGuidedPopover = () => {
         }}
         aria-hidden="true"
       >
-        <div className="h-full w-full animate-pulse rounded-[18px] border border-white/80" />
+        <div className="h-full w-full animate-pulse rounded-[14px] border border-white/80" />
       </div>
-      <div className="pointer-events-auto relative rounded-[34px] bg-[#38B6FF] px-8 py-7 text-white shadow-[0_24px_60px_rgba(56,182,255,0.35)]">
+      <div className="pointer-events-auto relative rounded-[26px] bg-[#38B6FF] px-6 py-5 text-white shadow-[0_18px_45px_rgba(56,182,255,0.32)]">
         <span
           className={cn(
-            'absolute h-8 w-8 rotate-45 bg-[#38B6FF]',
-            currentTourStep.placement === 'right' && '-left-3 top-1/2 -translate-y-1/2 rounded-[8px]',
-            currentTourStep.placement === 'bottom' && 'left-10 -top-3 rounded-[8px]',
-            currentTourStep.placement === 'top' && 'bottom-[-14px] left-10 rounded-[8px]'
+            'absolute h-6 w-6 rotate-45 bg-[#38B6FF]',
+            currentTourStep.placement === 'right' && '-left-2.5 top-1/2 -translate-y-1/2 rounded-[6px]',
+            currentTourStep.placement === 'bottom' && 'left-8 -top-2.5 rounded-[6px]',
+            currentTourStep.placement === 'top' && 'bottom-[-10px] left-8 rounded-[6px]'
           )}
         />
 
         <div className="relative z-10">
-          <p className="text-4xl font-bold leading-none tracking-tight">{currentTourStep.title}</p>
-          <p className="mt-5 text-[1.05rem] font-light leading-[1.35] text-white/95">
+          <p className="text-2xl font-bold leading-none tracking-tight">{currentTourStep.title}</p>
+          <p className="mt-3 text-base font-light leading-[1.35] text-white/95">
             {description}
           </p>
-          <div className="mt-6 flex justify-end">
+          <div className="mt-4 flex justify-end">
             <Button
               variant="secondary"
-              className="rounded-[18px] border-none bg-white px-8 py-4 text-2xl font-bold text-[#38B6FF] shadow-none hover:bg-white/90"
+              className="rounded-[14px] border-none bg-white px-5 py-3 text-lg font-bold text-[#38B6FF] shadow-none hover:bg-white/90"
               isLoading={isSaving}
               onClick={() => void handleNext()}
             >

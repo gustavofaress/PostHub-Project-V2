@@ -44,7 +44,7 @@ export interface GuidedTourStep {
   fallbackDescription?: string;
   buttonLabel: string;
   placement: GuidedPopoverPlacement;
-  advanceMode: 'immediate' | 'manual_success';
+  nextAction: 'click_target' | 'advance_only';
 }
 
 export const GUIDED_FLOW_STEPS: GuidedFlowStep[] = [
@@ -94,7 +94,7 @@ export const GUIDED_TOUR_STEPS: GuidedTourStep[] = [
     description: 'Vá ao módulo de referência para começar o processo guiado.',
     buttonLabel: 'Próximo',
     placement: 'right',
-    advanceMode: 'immediate',
+    nextAction: 'click_target',
   },
   {
     id: 'references-open-add',
@@ -104,7 +104,7 @@ export const GUIDED_TOUR_STEPS: GuidedTourStep[] = [
     description: 'Abra a criação de referência para adicionar uma nova sugestão de conteúdo.',
     buttonLabel: 'Próximo',
     placement: 'bottom',
-    advanceMode: 'immediate',
+    nextAction: 'click_target',
   },
   {
     id: 'references-save',
@@ -117,7 +117,7 @@ export const GUIDED_TOUR_STEPS: GuidedTourStep[] = [
       'Abra o modal de referência novamente. Depois o balão vai seguir para o botão de salvar.',
     buttonLabel: 'Próximo',
     placement: 'top',
-    advanceMode: 'manual_success',
+    nextAction: 'advance_only',
   },
   {
     id: 'ideas-nav',
@@ -127,7 +127,7 @@ export const GUIDED_TOUR_STEPS: GuidedTourStep[] = [
     description: 'Agora vá ao banco de ideias para transformar a referência em pauta.',
     buttonLabel: 'Próximo',
     placement: 'right',
-    advanceMode: 'immediate',
+    nextAction: 'click_target',
   },
   {
     id: 'ideas-open-add',
@@ -137,7 +137,7 @@ export const GUIDED_TOUR_STEPS: GuidedTourStep[] = [
     description: 'Abra a criação de ideia para registrar uma nova sugestão.',
     buttonLabel: 'Próximo',
     placement: 'bottom',
-    advanceMode: 'immediate',
+    nextAction: 'click_target',
   },
   {
     id: 'ideas-save',
@@ -150,7 +150,7 @@ export const GUIDED_TOUR_STEPS: GuidedTourStep[] = [
       'Abra o modal de ideia novamente. Depois o balão vai acompanhar o botão de salvar.',
     buttonLabel: 'Próximo',
     placement: 'top',
-    advanceMode: 'manual_success',
+    nextAction: 'advance_only',
   },
   {
     id: 'calendar-nav',
@@ -160,7 +160,7 @@ export const GUIDED_TOUR_STEPS: GuidedTourStep[] = [
     description: 'Agora vá ao calendário editorial para planejar o conteúdo.',
     buttonLabel: 'Próximo',
     placement: 'right',
-    advanceMode: 'immediate',
+    nextAction: 'click_target',
   },
   {
     id: 'calendar-open-add',
@@ -170,7 +170,7 @@ export const GUIDED_TOUR_STEPS: GuidedTourStep[] = [
     description: 'Abra o formulário de agendamento para criar um novo post.',
     buttonLabel: 'Próximo',
     placement: 'bottom',
-    advanceMode: 'immediate',
+    nextAction: 'click_target',
   },
   {
     id: 'calendar-save',
@@ -183,7 +183,7 @@ export const GUIDED_TOUR_STEPS: GuidedTourStep[] = [
       'Abra o modal do calendário novamente. Depois o balão vai seguir para salvar o post.',
     buttonLabel: 'Próximo',
     placement: 'top',
-    advanceMode: 'manual_success',
+    nextAction: 'advance_only',
   },
   {
     id: 'kanban-nav',
@@ -193,7 +193,7 @@ export const GUIDED_TOUR_STEPS: GuidedTourStep[] = [
     description: 'Vá ao Kanban para acompanhar o conteúdo dentro da operação.',
     buttonLabel: 'Próximo',
     placement: 'right',
-    advanceMode: 'immediate',
+    nextAction: 'click_target',
   },
   {
     id: 'kanban-open-add',
@@ -203,7 +203,7 @@ export const GUIDED_TOUR_STEPS: GuidedTourStep[] = [
     description: 'Abra a criação de tarefa para colocar esse conteúdo em produção.',
     buttonLabel: 'Próximo',
     placement: 'bottom',
-    advanceMode: 'immediate',
+    nextAction: 'click_target',
   },
   {
     id: 'kanban-save',
@@ -216,7 +216,7 @@ export const GUIDED_TOUR_STEPS: GuidedTourStep[] = [
       'Abra o modal da tarefa novamente. Depois o balão vai seguir para salvar no Kanban.',
     buttonLabel: 'Próximo',
     placement: 'top',
-    advanceMode: 'manual_success',
+    nextAction: 'advance_only',
   },
   {
     id: 'approval-nav',
@@ -226,7 +226,7 @@ export const GUIDED_TOUR_STEPS: GuidedTourStep[] = [
     description: 'Agora vá ao módulo de aprovação para fechar o fluxo com o cliente.',
     buttonLabel: 'Próximo',
     placement: 'right',
-    advanceMode: 'immediate',
+    nextAction: 'click_target',
   },
   {
     id: 'approval-open-create',
@@ -236,7 +236,7 @@ export const GUIDED_TOUR_STEPS: GuidedTourStep[] = [
     description: 'Abra a criação da solicitação de aprovação.',
     buttonLabel: 'Próximo',
     placement: 'bottom',
-    advanceMode: 'immediate',
+    nextAction: 'click_target',
   },
   {
     id: 'approval-save',
@@ -249,7 +249,7 @@ export const GUIDED_TOUR_STEPS: GuidedTourStep[] = [
       'Abra a criação de aprovação novamente. Depois o balão vai acompanhar o botão de concluir.',
     buttonLabel: 'Concluir',
     placement: 'top',
-    advanceMode: 'manual_success',
+    nextAction: 'advance_only',
   },
 ];
 
