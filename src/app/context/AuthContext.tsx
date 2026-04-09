@@ -63,6 +63,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = React.useState(true);
   const navigate = useNavigate();
 
+  const mapOnboardingState = React.useCallback((onboarding: any): UserOnboardingState | null => {
+    if (!onboarding) return null;
+
+    return {
+      work_model: onboarding.work_model ?? null,
+      operation_size: onboarding.operation_size ?? null,
+      current_process: onboarding.current_process ?? null,
+      quiz_completed: !!onboarding.quiz_completed,
+      setup_completed: !!onboarding.setup_completed,
+      guided_current_step: onboarding.guided_current_step ?? null,
+      guided_steps_completed: onboarding.guided_steps_completed ?? [],
+      guided_flow_completed_at: onboarding.guided_flow_completed_at ?? null,
+    };
+  }, []);
+
+  const syncMockUser = React.useCallback(
+    async (seedUser?: Partial<User> | null): Promise<User | null> => {
+      if (typeof window === 'undefined') return null;
+
+      const storedUserRaw = window.localStorage.getItem('posthub_user');
+      const storedUser = storedUserRaw ? (JSON.parse(storedUserRaw) as User) : null;
+      const mergedUser = seedUser
+        ? ({
+            ...storedUser,
+            ...seedUser,
+          } as User)
+        : storedUser;
+
+      if (!mergedUser?.id) {
+        setUser(null);
+        return null;
+      }
+
+      const onboarding = await onboardingService.getByUserId(mergedUser.id);
+      const nextUser: User = {
+        id: mergedUser.id,
+        name: mergedUser.name || 'User',
+        email: mergedUser.email || '',
+        currentPlan: mergedUser.currentPlan ?? 'start_7',
+        isAdmin: !!mergedUser.isAdmin,
+        trialExpiresAt: mergedUser.trialExpiresAt ?? null,
+        accessStatus: mergedUser.accessStatus ?? 'trial_active',
+        onboarding: mapOnboardingState(onboarding),
+      };
+
+      setUser(nextUser);
+      window.localStorage.setItem('posthub_user', JSON.stringify(nextUser));
+      return nextUser;
+    },
+    [mapOnboardingState]
+  );
+
   const mapSessionUser = React.useCallback((sessionUser: any): User => {
     return {
       id: sessionUser.id,
@@ -114,10 +166,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const baseUser = mapSessionUser(sessionUser);
 
       if (!supabase) {
+        const onboarding = await onboardingService.getByUserId(sessionUser.id);
         return {
           ...baseUser,
           currentPlan: 'start_7',
           accessStatus: 'trial_active',
+          onboarding: mapOnboardingState(onboarding),
         };
       }
 
@@ -165,18 +219,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           isAdmin,
           trialExpiresAt,
           accessStatus,
-          onboarding: onboarding
-            ? {
-                work_model: onboarding.work_model,
-                operation_size: onboarding.operation_size,
-                current_process: onboarding.current_process,
-                quiz_completed: onboarding.quiz_completed,
-                setup_completed: onboarding.setup_completed,
-                guided_current_step: onboarding.guided_current_step ?? null,
-                guided_steps_completed: onboarding.guided_steps_completed ?? [],
-                guided_flow_completed_at: onboarding.guided_flow_completed_at ?? null,
-              }
-            : null,
+          onboarding: mapOnboardingState(onboarding),
         };
       } catch (error) {
         console.error('Error building app user:', error);
@@ -190,7 +233,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
       }
     },
-    [getAccessStatus, mapSessionUser]
+    [getAccessStatus, mapOnboardingState, mapSessionUser]
   );
 
   const getPostLoginRoute = React.useCallback((appUser: User) => {
@@ -202,7 +245,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const refreshUser = React.useCallback(async () => {
-    if (!supabase) return;
+    if (!supabase) {
+      await syncMockUser();
+      return;
+    }
 
     const {
       data: { user: sessionUser },
@@ -221,15 +267,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const appUser = await buildAppUser(sessionUser);
     setUser(appUser);
-  }, [buildAppUser]);
+  }, [buildAppUser, syncMockUser]);
 
   React.useEffect(() => {
     const initializeAuth = async () => {
       if (!supabase) {
-        const storedUser = localStorage.getItem('posthub_user');
-        if (storedUser) {
-          setUser(JSON.parse(storedUser));
-        }
+        await syncMockUser();
         setIsLoading(false);
         return;
       }
@@ -278,7 +321,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     return () => subscription.unsubscribe();
-  }, [buildAppUser]);
+  }, [buildAppUser, syncMockUser]);
 
   const login = async (email: string, password?: string) => {
     if (!supabase) {
@@ -292,8 +335,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         accessStatus: 'trial_active',
         onboarding: null,
       };
-      setUser(mockUser);
-      localStorage.setItem('posthub_user', JSON.stringify(mockUser));
+      await syncMockUser(mockUser);
       navigate('/workspace/onboarding');
       return;
     }
@@ -379,8 +421,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         accessStatus: 'trial_active',
         onboarding: null,
       };
-      setUser(mockUser);
-      localStorage.setItem('posthub_user', JSON.stringify(mockUser));
+      await syncMockUser(mockUser);
       navigate('/workspace/onboarding');
       return;
     }
@@ -489,6 +530,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setUser(null);
       localStorage.removeItem('posthub_user');
+      onboardingService.clearMockOnboarding(user?.id);
       navigate('/login');
     }
   };
