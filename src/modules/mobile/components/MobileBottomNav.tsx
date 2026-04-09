@@ -17,7 +17,7 @@ const ITEMS: Array<{
   icon: React.ElementType;
   path?: string;
 }> = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/workspace/dashboard' },
+  { id: 'dashboard', label: 'Início', icon: LayoutDashboard, path: '/workspace/dashboard' },
   { id: 'ideas', label: 'Ideias', icon: Lightbulb, path: '/workspace/ideas' },
   { id: 'scripts', label: 'Roteiros', icon: FileText, path: '/workspace/scripts' },
   { id: 'calendar', label: 'Calendário', icon: Calendar, path: '/workspace/calendar' },
