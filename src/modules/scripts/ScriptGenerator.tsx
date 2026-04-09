@@ -1,13 +1,15 @@
 import * as React from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  Wand2,
-  ChevronRight,
-  ChevronLeft,
-  Copy,
+  Bot,
   Check,
-  Sparkles,
+  Copy,
   FileText,
+  MessageSquare,
+  Send,
+  Sparkles,
+  Wand2,
+  Zap,
 } from 'lucide-react';
 
 import { Card, CardTitle } from '../../shared/components/Card';
@@ -16,14 +18,9 @@ import { Input } from '../../shared/components/Input';
 import { Badge } from '../../shared/components/Badge';
 import { useProfile } from '../../app/context/ProfileContext';
 import { useAuth } from '../../app/context/AuthContext';
+import { useWorkspacePermissions } from '../../hooks/useWorkspacePermissions';
 import { supabase } from '../../shared/utils/supabase';
-
-const STEPS = [
-  { id: 1, title: 'Contexto', description: 'Sobre o que é isso?' },
-  { id: 2, title: 'Detalhes', description: 'Formato e público' },
-  { id: 3, title: 'Tom', description: 'Como deve soar?' },
-  { id: 4, title: 'Prévia', description: 'Revise e copie' },
-];
+import { cn } from '../../shared/utils/cn';
 
 interface ScriptDraft {
   id: string;
@@ -74,6 +71,7 @@ type ScriptHookType =
   | 'resultado';
 
 type ScriptDbField = 'hook' | 'context' | 'main_tips' | 'examples' | 'cta';
+type GenerationMode = 'ai' | 'template';
 
 interface ScriptTemplateStep {
   etapa: string;
@@ -93,6 +91,34 @@ interface ScriptTemplate {
   prioridade: number;
   estrutura: ScriptTemplateStep[];
 }
+
+interface GeneratedScript {
+  title: string;
+  hook: string;
+  content: string;
+  examples: string;
+  cta: string;
+  caption: string;
+  reasoning: string;
+}
+
+interface ChatMessage {
+  id: string;
+  role: 'assistant' | 'user';
+  content: string;
+  mode?: GenerationMode;
+  creditsUsed?: number;
+  script?: GeneratedScript;
+}
+
+const SCRIPT_GENERATION_CREDITS = 10;
+const INITIAL_CREDITS = 1240;
+const DRAFT_EXAMPLES_SEPARATOR = '\n\nLegenda / Social SEO:\n';
+const STARTER_PROMPTS = [
+  'Roteiro sobre constancia nas redes para social media',
+  'Roteiro para vender consultoria sem parecer forçado',
+  'Gancho forte para um Reels sobre posicionamento',
+];
 
 const SCRIPT_TEMPLATES: ScriptTemplate[] = [
   {
@@ -241,56 +267,42 @@ const SCRIPT_TEMPLATES: ScriptTemplate[] = [
   },
 ];
 
+const INITIAL_CHAT_MESSAGE: ChatMessage = {
+  id: 'assistant_welcome',
+  role: 'assistant',
+  content:
+    'Me passe um tema e eu monto um roteiro no formato PostHub: gancho contra-intuitivo, meio com retenção, CTA objetivo e legenda com Social SEO.',
+};
+
 export const ScriptGenerator = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const isSavedView = searchParams.get('tab') === 'saved';
 
   const { activeProfile } = useProfile();
   const { user } = useAuth();
+  const { canAccess, isLoadingPermissions } = useWorkspacePermissions();
+  const canManageScripts = canAccess('scripts');
 
-  const [currentStep, setCurrentStep] = React.useState(1);
+  const [generationMode, setGenerationMode] = React.useState<GenerationMode>('ai');
+  const [creditsBalance, setCreditsBalance] = React.useState(INITIAL_CREDITS);
   const [isGenerating, setIsGenerating] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
   const [isSaved, setIsSaved] = React.useState(false);
   const [editingDraftId, setEditingDraftId] = React.useState<string | null>(null);
   const [isLoadingDrafts, setIsLoadingDrafts] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
-
+  const [chatInput, setChatInput] = React.useState('');
+  const [chatMessages, setChatMessages] = React.useState<ChatMessage[]>([INITIAL_CHAT_MESSAGE]);
+  const [drafts, setDrafts] = React.useState<ScriptDraft[]>([]);
+  const [generatedScript, setGeneratedScript] = React.useState<GeneratedScript | null>(null);
   const [formData, setFormData] = React.useState({
-    topic: '',
     goal: 'Educational / Value',
     format: 'Short Video (Reels/TikTok)',
     audience: '',
     niche: '',
-    tone: '',
+    tone: 'Professional',
     keywords: '',
   });
-
-  const [errors, setErrors] = React.useState<Record<string, string>>({});
-  const [drafts, setDrafts] = React.useState<ScriptDraft[]>([]);
-
-  const [generatedScript, setGeneratedScript] = React.useState<{
-    hook: string;
-    content: string;
-    examples: string;
-    cta: string;
-  } | null>(null);
-
-  const validateStep = (step: number) => {
-    const newErrors: Record<string, string> = {};
-
-    if (step === 1) {
-      if (!formData.topic.trim()) newErrors.topic = 'O tema é obrigatório';
-    } else if (step === 2) {
-      if (!formData.audience.trim()) newErrors.audience = 'O público é obrigatório';
-      if (!formData.niche.trim()) newErrors.niche = 'O nicho é obrigatório';
-    } else if (step === 3) {
-      if (!formData.tone) newErrors.tone = 'Selecione um tom';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
 
   function normalizeString(value?: string) {
     if (!value) return '';
@@ -303,44 +315,51 @@ export const ScriptGenerator = () => {
   }
 
   function normalizeObjective(goal: string): ScriptObjective {
-    const v = normalizeString(goal);
+    const value = normalizeString(goal);
 
-    if (v.includes('sales') || v.includes('conversion')) return 'venda';
-    if (v.includes('engagement') || v.includes('community')) return 'engajamento';
-    if (v.includes('educational') || v.includes('value')) return 'autoridade';
-    if (v.includes('entertainment')) return 'conexao';
+    if (value.includes('sales') || value.includes('conversion')) return 'venda';
+    if (value.includes('engagement') || value.includes('community')) return 'engajamento';
+    if (value.includes('educational') || value.includes('value')) return 'autoridade';
+    if (value.includes('entertainment')) return 'conexao';
 
     return 'autoridade';
   }
 
   function normalizeFormat(format: string): ScriptFormat {
-    const v = normalizeString(format);
+    const value = normalizeString(format);
 
-    if (v.includes('short_video') || v.includes('reels') || v.includes('tiktok')) return 'video_falado';
-    if (v.includes('carousel')) return 'lista';
-    if (v.includes('youtube')) return 'storytelling';
-    if (v.includes('twitter') || v.includes('thread')) return 'lista';
+    if (value.includes('short_video') || value.includes('reels') || value.includes('tiktok')) return 'video_falado';
+    if (value.includes('carousel')) return 'lista';
+    if (value.includes('youtube')) return 'storytelling';
+    if (value.includes('twitter') || value.includes('thread')) return 'lista';
 
     return 'video_falado';
   }
 
   function normalizeTone(tone: string): ScriptTone {
-    const v = normalizeString(tone);
+    const value = normalizeString(tone);
 
-    if (v.includes('professional')) return 'didatico';
-    if (v.includes('casual')) return 'direto';
-    if (v.includes('energetic')) return 'inspirador';
-    if (v.includes('humorous')) return 'opinativo';
-    if (v.includes('empathetic')) return 'emocional';
-    if (v.includes('authoritative')) return 'provocativo';
+    if (value.includes('professional')) return 'didatico';
+    if (value.includes('casual')) return 'direto';
+    if (value.includes('energetic')) return 'inspirador';
+    if (value.includes('humorous')) return 'opinativo';
+    if (value.includes('empathetic')) return 'emocional';
+    if (value.includes('authoritative')) return 'provocativo';
 
     return 'direto';
   }
 
-  function inferHookType(): ScriptHookType {
+  function getKeywordsList() {
+    return formData.keywords
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  function inferHookType(topic: string): ScriptHookType {
     const objective = normalizeObjective(formData.goal);
     const tone = normalizeTone(formData.tone);
-    const keywordText = normalizeString(formData.keywords);
+    const keywordText = normalizeString(`${topic} ${formData.keywords}`);
 
     if (keywordText.includes('erro') || keywordText.includes('mistake')) return 'erro_comum';
     if (keywordText.includes('resultado') || keywordText.includes('result')) return 'resultado';
@@ -352,19 +371,19 @@ export const ScriptGenerator = () => {
     return 'curiosidade';
   }
 
-  function selectBestTemplate() {
-    const objetivo = normalizeObjective(formData.goal);
-    const formato = normalizeFormat(formData.format);
-    const tom = normalizeTone(formData.tone);
-    const gancho = inferHookType();
+  function selectBestTemplate(topic: string) {
+    const objective = normalizeObjective(formData.goal);
+    const format = normalizeFormat(formData.format);
+    const tone = normalizeTone(formData.tone);
+    const hookType = inferHookType(topic);
 
     const scored = SCRIPT_TEMPLATES.map((template) => {
       let score = template.prioridade;
 
-      if (template.objetivos.includes(objetivo)) score += 4;
-      if (template.formatos.includes(formato)) score += 5;
-      if (template.tons.includes(tom)) score += 3;
-      if (template.ganchos.includes(gancho)) score += 3;
+      if (template.objetivos.includes(objective)) score += 4;
+      if (template.formatos.includes(format)) score += 5;
+      if (template.tons.includes(tone)) score += 3;
+      if (template.ganchos.includes(hookType)) score += 3;
 
       return { template, score };
     });
@@ -375,12 +394,12 @@ export const ScriptGenerator = () => {
 
   function pick<T>(items: T[], seed: string): T {
     let hash = 0;
-    for (let i = 0; i < seed.length; i += 1) {
-      hash = (hash << 5) - hash + seed.charCodeAt(i);
+    for (let index = 0; index < seed.length; index += 1) {
+      hash = (hash << 5) - hash + seed.charCodeAt(index);
       hash |= 0;
     }
-    const index = Math.abs(hash) % items.length;
-    return items[index];
+    const itemIndex = Math.abs(hash) % items.length;
+    return items[itemIndex];
   }
 
   function appendField(base: string, next: string) {
@@ -389,183 +408,265 @@ export const ScriptGenerator = () => {
     return `${base.trim()}\n\n${next.trim()}`;
   }
 
-  function getKeywordsList() {
-    return formData.keywords
-      .split(',')
-      .map((item) => item.trim())
-      .filter(Boolean);
-  }
-
-  function buildSentenceForStep(step: ScriptTemplateStep, templateId: string) {
-    const topic = formData.topic || 'your topic';
-    const audience = formData.audience || 'your audience';
-    const niche = formData.niche || 'your niche';
-    const tone = formData.tone || 'your tone';
+  function buildSentenceForStep(step: ScriptTemplateStep, templateId: string, topic: string) {
+    const audience = formData.audience || 'o público certo';
+    const niche = formData.niche || 'o seu nicho';
+    const tone = formData.tone || 'seu tom';
     const keywords = getKeywordsList();
     const objective = normalizeObjective(formData.goal);
     const seed = `${templateId}_${step.etapa}_${topic}_${audience}_${niche}_${tone}_${formData.goal}_${formData.format}_${formData.keywords}`;
 
     const library: Record<string, string[]> = {
       hook: [
-        `Everyone is talking about ${topic} the wrong way.`,
-        `If you still think ${topic} is just about doing more, you're missing the point.`,
-        `Most people targeting ${audience} make the same mistake with ${topic}.`,
-        `There is a smarter way to approach ${topic} in ${niche}.`,
-        `What if the real problem with ${topic} is not what people think it is?`,
+        `Todo mundo fala de ${topic} do jeito errado.`,
+        `A maioria das pessoas que tenta falar de ${topic} está desperdiçando atenção.`,
+        `Se você ainda aborda ${topic} do jeito comum, provavelmente está ficando invisível.`,
       ],
       beneficio: [
-        `And once you understand this, everything becomes clearer and much easier to apply.`,
-        `Because this small shift can completely change the way you get results.`,
-        `This is the kind of insight that saves time, energy, and bad decisions.`,
+        'E quando você entende isso, a mensagem fica mais clara e muito mais forte.',
+        'Essa pequena mudança de abordagem altera completamente a percepção do público.',
       ],
       contexto: [
-        `In ${niche}, this shows up all the time.`,
-        `If you are creating for ${audience}, you have probably seen this pattern before.`,
-        `Most creators in ${niche} focus on volume first, and strategy second.`,
-        `The truth is that ${tone.toLowerCase()} content only works when the structure behind it makes sense.`,
+        `No universo de ${niche}, isso aparece o tempo todo.`,
+        `Se você cria para ${audience}, provavelmente já viu esse padrão acontecer.`,
       ],
       identificacao: [
-        `You may even be doing this right now without noticing.`,
-        `And that is why so many people stay stuck even while posting consistently.`,
-        `It feels right at first, but that is exactly what makes it dangerous.`,
+        'Talvez você esteja fazendo isso agora sem perceber.',
+        'É exatamente por isso que tanta gente se esforça e mesmo assim não prende atenção.',
       ],
       argumento: [
-        `The real game is not about doing more. It is about doing what makes sense for the right audience.`,
-        `Consistency without direction creates effort, not momentum.`,
-        `What actually moves the needle is clarity, structure, and intentional messaging.`,
+        'O jogo não é falar mais. É falar do jeito certo para a pessoa certa.',
+        'Constância sem direção vira esforço. Estrutura vira retenção.',
       ],
       explicacao: [
-        `The mistake is trying to improve performance without fixing the foundation first.`,
-        `When the message is unclear, even good content loses strength.`,
-        `If the structure is weak, attention drops before the value appears.`,
+        'Quando a promessa não é forte, o público abandona antes do valor aparecer.',
+        'Quando a estrutura é fraca, a mensagem perde potência mesmo sendo boa.',
       ],
       correcao: [
-        `The better move is to organize the message before trying to scale the output.`,
-        `You need a clearer hook, stronger development, and a more intentional CTA.`,
-        `Fix the thinking first, then optimize the execution.`,
+        'O caminho melhor é organizar a mensagem antes de acelerar a produção.',
+        'Você precisa de um gancho melhor, um meio mais ritmado e um CTA com direção clara.',
       ],
       aplicacao: [
-        `In practice, this means revisiting your opening, your angle, and the final action you want from the audience.`,
-        `Start with a sharper promise, build a cleaner line of reasoning, and finish with a clear direction.`,
-        `A simple adjustment in structure already improves how the audience receives the message.`,
+        'Na prática, comece afinando a abertura, o contraste e a ação final que você quer provocar.',
+        'Uma mudança simples na estrutura já melhora muito a forma como a audiência recebe a mensagem.',
       ],
       conflito: [
-        `But then a problem showed up: what seemed simple at first was not actually working in practice.`,
-        `That is when the gap between theory and execution became obvious.`,
-        `And right in the middle of the process, I realized the real issue was somewhere else.`,
+        'Mas aí aparece o problema: o que parecia simples não funciona do jeito que prometeram.',
+        'É nesse ponto que a diferença entre improviso e estratégia fica evidente.',
       ],
       virada: [
-        `Everything changed when the focus moved from content volume to content structure.`,
-        `The turning point came when strategy replaced improvisation.`,
-        `That shift completely changed how the message landed.`,
+        'A virada acontece quando a estrutura começa a trabalhar por você.',
+        'Tudo muda quando você troca volume por intenção.',
       ],
       aprendizado: [
-        `The lesson is simple: better content starts with better structure.`,
-        `In the end, the biggest win was not just performance. It was clarity.`,
-        `Once you understand this, every new piece of content gets easier to build.`,
+        'No fim, conteúdo melhor começa com uma estrutura melhor.',
+        'Quando você entende essa lógica, cada novo roteiro fica mais fácil de construir.',
       ],
       lista: [
-        `1. Start with a clearer angle around ${topic}.`,
-        `2. Speak directly to ${audience} instead of trying to please everyone.`,
-        `3. Use stronger examples from ${niche} to make the message land.`,
+        `1. Abra ${topic} com um contraste forte.`,
+        `2. Fale diretamente com ${audience}.`,
+        `3. Use um exemplo claro de ${niche} para aterrar a mensagem.`,
       ],
       rehook: [
-        `And the second point is where most people get it wrong.`,
-        `Now here is the part that really changes the game.`,
-        `This next detail is what separates average content from strategic content.`,
+        'E é justamente no segundo ponto que a maioria erra.',
+        'Agora vem a parte que realmente muda o jogo.',
       ],
       fechamento: [
-        `That is what makes content feel more strategic and less random.`,
-        `And this is where execution starts to become more predictable.`,
-        `When you do this consistently, your message becomes much stronger.`,
+        'É isso que faz o conteúdo parecer estratégico, e não aleatório.',
+        'Quando você repete isso com consistência, a mensagem ganha força.',
       ],
       problema: [
-        `The problem starts when people confuse effort with direction.`,
-        `Most creators stay stuck because they are producing without a clear structure.`,
-        `The issue is not lack of action. It is lack of alignment.`,
+        'O problema começa quando esforço vira sinônimo de estratégia.',
+        'Muita gente produz sem direção e depois chama isso de constância.',
       ],
       mudanca: [
-        `The shift happens when you replace improvisation with a process.`,
-        `Results improve when every part of the script has a clear job.`,
-        `This becomes easier once your structure is doing the heavy lifting.`,
+        'A mudança acontece quando cada parte do roteiro passa a ter uma função clara.',
+        'Os resultados melhoram quando a estrutura deixa de ser improvisada.',
       ],
       resultado: [
-        `That leads to more clarity, stronger retention, and better conversion potential.`,
-        `The result is content that feels more intentional and performs more predictably.`,
-        `That is when your script starts working with you instead of against you.`,
+        'Isso gera mais clareza, mais retenção e muito mais potencial de conversão.',
+        'O resultado é um conteúdo mais intencional e muito mais memorável.',
       ],
       reacao: [
-        `My first reaction was that most people would miss the real lesson here.`,
-        `At first glance this looks simple, but there is a deeper strategic layer behind it.`,
-        `The obvious takeaway is not the most valuable one.`,
+        'Minha primeira reação é: quase todo mundo vai ignorar a lição mais importante aqui.',
+        'Na superfície isso parece simples, mas por trás existe uma decisão estratégica forte.',
       ],
       analise: [
-        `Strategically, this shows how structure matters more than surface-level execution.`,
-        `What is interesting here is not just the format, but the reasoning behind it.`,
-        `The deeper insight is about positioning, clarity, and message sequencing.`,
+        'Estrategicamente, isso mostra que estrutura importa mais do que execução superficial.',
+        'O ponto central não é o formato em si, mas a lógica por trás da mensagem.',
       ],
       insight: [
-        `What few people notice is that attention comes from format, but retention comes from structure.`,
-        `The real advantage is not doing something flashy. It is making the message easier to understand.`,
-        `The hidden win is how this improves perception and action at the same time.`,
+        'O que pouca gente percebe é que formato chama atenção, mas estrutura segura a atenção.',
+        'O ganho oculto está em tornar a mensagem mais fácil de entender e agir.',
       ],
       passos: [
-        `Step 1: define the main promise of ${topic}.`,
-        `Step 2: organize the message so ${audience} understands it fast.`,
-        `Step 3: deliver a simple and practical path to action.`,
+        `Passo 1: defina a principal promessa sobre ${topic}.`,
+        `Passo 2: organize a explicação para ${audience} entender rápido.`,
+        'Passo 3: termine com um próximo passo muito claro.',
       ],
       simplificacao: [
-        `The good news is that this does not need to be complicated.`,
-        `The clearer the logic, the easier it becomes to repeat this consistently.`,
-        `Simple structure almost always beats messy complexity.`,
+        'A boa notícia é que isso não precisa ser complicado.',
+        'Quanto mais limpa a lógica, mais fácil fica repetir com qualidade.',
       ],
       erro: [
-        `The biggest mistake is trying to do everything at once.`,
-        `Most people overcomplicate before mastering the basics.`,
-        `A weak beginning can ruin a strong idea.`,
+        'O maior erro é querer dizer tudo de uma vez.',
+        'Um começo fraco consegue estragar até uma ótima ideia.',
       ],
       metodo: [
-        `The method was to define a stronger message, build cleaner blocks, and guide the audience more intentionally.`,
-        `What worked was replacing guesswork with a repeatable structure.`,
-        `The improvement came from making every part of the script serve a purpose.`,
+        'O método foi simples: promessa forte, blocos claros e direção objetiva.',
+        'O que funcionou foi parar de improvisar e começar a estruturar.',
       ],
       prova: [
-        `And the proof appears in better clarity, stronger retention, and more audience response.`,
-        `This is the kind of change that shows up in how people watch, react, and remember.`,
-        `The result is not random. It comes from a more intentional structure.`,
+        'E a prova aparece em mais retenção, mais clareza e mais resposta do público.',
+        'Esse tipo de melhora não é aleatório, ele nasce de uma estrutura melhor.',
       ],
       generalizacao: [
-        `And this logic is not limited to one niche. It can be adapted across different markets.`,
-        `That is why this works for more than one type of creator or business.`,
-        `The principle holds up because the audience always responds better to clarity.`,
+        'E essa lógica não funciona só em um nicho. Ela se adapta a mercados diferentes.',
+        'O princípio se sustenta porque toda audiência responde melhor à clareza.',
       ],
       cta: [
         objective === 'venda'
-          ? `If you want to apply this to your own content, send me a message or comment a keyword below.`
+          ? 'Se você quer aplicar essa estrutura no seu conteúdo, comenta "roteiro" aqui embaixo.'
           : objective === 'engajamento'
-          ? `Do you agree or disagree? Drop your opinion in the comments.`
-          : `Save this so you can use this structure in your next piece of content.`,
-        `If this helped, save it and send it to someone who needs this.`,
-        `Follow for more strategic content ideas like this.`,
+          ? 'Qual dessas estratégias você usa hoje? Me conta nos comentários.'
+          : 'Salve este vídeo para copiar essa estrutura no seu próximo roteiro.',
+        'Se isso te ajudou, salva agora e manda para alguém que precisa ver isso.',
+        'Segue para mais roteiros com estrutura de retenção real.',
       ],
     };
 
-    const options = library[step.etapa] ?? [`Strategic block about ${topic}.`];
+    const options = library[step.etapa] ?? [`Bloco estratégico sobre ${topic}.`];
     const text = pick(options, seed);
 
     if ((step.etapa === 'lista' || step.etapa === 'passos') && keywords.length > 0) {
       return `${text}\n${keywords
         .slice(0, 3)
-        .map((keyword, index) => `${index + 1}. Connect this idea to ${keyword}.`)
+        .map((keyword, index) => `${index + 1}. Amarre esse ponto com ${keyword}.`)
         .join('\n')}`;
     }
 
     return text;
   }
 
-  const generateStructuredScript = () => {
-    const template = selectBestTemplate();
+  function inferMyth(topic: string) {
+    const normalized = normalizeString(topic);
+    if (normalized.includes('constancia')) return 'achar que postar qualquer coisa todos os dias resolve';
+    if (normalized.includes('venda')) return 'achar que vender bem é só falar mais da oferta';
+    if (normalized.includes('engaj')) return 'achar que engajamento vem de truque e não de estrutura';
+    return `achar que ${topic} funciona melhor no improviso`;
+  }
 
+  function inferAudienceSophistication() {
+    const objective = normalizeObjective(formData.goal);
+    if (objective === 'venda') return 'Já ouviu promessas parecidas e está cansado do básico.';
+    if (objective === 'engajamento') return 'Consome muito conteúdo e só para quando sente contraste real.';
+    return 'Já escutou o conselho óbvio, então precisa de um ângulo novo para prestar atenção.';
+  }
+
+  function inferEmotion() {
+    const objective = normalizeObjective(formData.goal);
+    if (objective === 'venda') return 'urgência com clareza';
+    if (objective === 'engajamento') return 'curiosidade e confronto';
+    if (objective === 'conexao') return 'alívio e identificação';
+    return 'autoridade com sensação de descoberta';
+  }
+
+  function buildReasoning(topic: string) {
+    const myth = inferMyth(topic);
+    const sophistication = inferAudienceSophistication();
+    const emotion = inferEmotion();
+
+    return [
+      'Passo 1: Mapeamento Estratégico',
+      `Mito/inimigo comum: ${myth}.`,
+      `Nível de sofisticação: ${sophistication}`,
+      `Emoção central: ${emotion}.`,
+      '',
+      'Passo 2: Gancho de 3 segundos',
+      'Abrimos com contraste ou paradoxo para comprar atenção sem apresentar o tema de forma óbvia.',
+      '',
+      'Passo 3: Meio com retenção',
+      'O desenvolvimento é quebrado em frases curtas, com mecanismo claro e sugestões de respiro visual.',
+      '',
+      'Passo 4: Encerramento com CTA',
+      'O final traz uma ação única, alinhada ao objetivo do roteiro.',
+      '',
+      'Passo 5: Social SEO',
+      'A legenda reforça as palavras-chave que o público buscaria na plataforma.',
+    ].join('\n');
+  }
+
+  function buildCaption(topic: string) {
+    const keywordPool = [topic, formData.niche, formData.audience, ...getKeywordsList()].filter(Boolean);
+    const uniqueKeywords = Array.from(new Set(keywordPool)).slice(0, 5);
+    const hashtags = uniqueKeywords
+      .map((item) => `#${normalizeString(item).replace(/_/g, '')}`)
+      .filter(Boolean)
+      .slice(0, 4)
+      .join(' ');
+
+    return [
+      `${topic}: o ponto não é fazer mais, é estruturar melhor.`,
+      `Se você trabalha com ${formData.niche || 'conteúdo estratégico'} e quer falar com ${formData.audience || 'a audiência certa'}, use esse roteiro para criar retenção sem enrolação.`,
+      uniqueKeywords.length > 0
+        ? `Palavras-chave: ${uniqueKeywords.join(', ')}.`
+        : 'Palavras-chave: roteiro, retenção, conteúdo estratégico.',
+      hashtags,
+    ]
+      .filter(Boolean)
+      .join('\n');
+  }
+
+  function buildAiScript(topic: string): GeneratedScript {
+    const myth = inferMyth(topic);
+    const objective = normalizeObjective(formData.goal);
+    const audience = formData.audience || 'quem precisa de mais clareza para produzir conteúdo';
+    const niche = formData.niche || 'o seu mercado';
+    const emotion = inferEmotion();
+
+    const hook = `A pior coisa que você pode fazer com ${topic} hoje é seguir exatamente o que todo mundo manda.`;
+    const content = [
+      `Porque o problema não é falta de esforço. O problema é ${myth}.`,
+      '',
+      `Se você fala com ${audience}, precisa entender uma coisa: o público já ouviu o conselho óbvio.`,
+      'Então você não vence pela repetição. Você vence pelo contraste.',
+      '',
+      'Faz assim:',
+      '1. Comece quebrando uma crença comum.',
+      '2. Explique o mecanismo por trás do erro em frases curtas.',
+      '3. Mostre o jeito estratégico de executar no mundo real.',
+      '',
+      `No fim, a sensação que queremos gerar é ${emotion}, porque isso aumenta retenção e percepção de autoridade em ${niche}.`,
+    ].join('\n');
+
+    const examples = [
+      'B-roll 1: close falando a frase do gancho com corte seco.',
+      'B-roll 2: texto na tela destacando "erro comum" e "jeito estratégico".',
+      'B-roll 3: corte lateral com lista 1, 2, 3 aparecendo em sincronia.',
+      'B-roll 4: print, dashboard ou cena de bastidor para provar o argumento.',
+      'B-roll 5: tela limpa no CTA com palavra-chave destacada.',
+    ].join('\n');
+
+    const cta =
+      objective === 'venda'
+        ? 'Comenta "roteiro" aqui embaixo que eu te mostro como aplicar isso no seu conteúdo.'
+        : objective === 'engajamento'
+        ? 'Qual dessas estratégias você está usando hoje? Me conta aqui embaixo.'
+        : 'Salve esse vídeo para copiar essa estrutura no seu próximo roteiro.';
+
+    return {
+      title: topic,
+      hook,
+      content,
+      examples,
+      cta,
+      caption: buildCaption(topic),
+      reasoning: buildReasoning(topic),
+    };
+  }
+
+  function buildTemplateScript(topic: string): GeneratedScript {
+    const template = selectBestTemplate(topic);
     const fields: Record<ScriptDbField, string> = {
       hook: '',
       context: '',
@@ -575,8 +676,7 @@ export const ScriptGenerator = () => {
     };
 
     for (const step of template.estrutura) {
-      const sentence = buildSentenceForStep(step, template.id);
-
+      const sentence = buildSentenceForStep(step, template.id, topic);
       if (step.append) {
         fields[step.campo_db] = appendField(fields[step.campo_db], sentence);
       } else {
@@ -584,60 +684,101 @@ export const ScriptGenerator = () => {
       }
     }
 
-    const content = [fields.context, fields.main_tips]
-      .filter(Boolean)
-      .join('\n\n');
-
     return {
+      title: topic,
       hook: fields.hook,
-      content,
-      examples: fields.examples,
+      content: [fields.context, fields.main_tips].filter(Boolean).join('\n\n'),
+      examples: fields.examples || 'Use cortes rápidos, texto na tela e prova visual para reforçar a mensagem.',
       cta: fields.cta,
+      caption: buildCaption(topic),
+      reasoning: `Template escolhido: ${template.nome}. Estrutura aplicada com foco em ${template.quando_usar.join(', ')}.`,
     };
-  };
+  }
 
-  const buildContextText = () => {
+  function formatAssistantScriptMessage(script: GeneratedScript, mode: GenerationMode) {
+    const modeLabel = mode === 'ai' ? 'IA PostHub' : 'Template Inteligente';
     return [
+      `${modeLabel} pronta para o tema "${script.title}".`,
+      '',
+      'Gancho:',
+      script.hook,
+      '',
+      'Meio:',
+      script.content,
+      '',
+      'Encerramento:',
+      script.cta,
+      '',
+      'Legenda / Social SEO:',
+      script.caption,
+    ].join('\n');
+  }
+
+  function buildContextText(topic: string, mode: GenerationMode, prompt: string, script: GeneratedScript) {
+    return [
+      `Modo: ${mode === 'ai' ? 'IA PostHub' : 'Template Inteligente'}`,
+      `Tema: ${topic}`,
       `Objetivo: ${formData.goal}`,
       `Formato: ${formData.format}`,
-      `Público: ${formData.audience}`,
-      `Nicho: ${formData.niche}`,
-      `Tom: ${formData.tone}`,
+      `Público: ${formData.audience || '-'}`,
+      `Nicho: ${formData.niche || '-'}`,
+      `Tom: ${formData.tone || '-'}`,
       `Palavras-chave: ${formData.keywords || '-'}`,
+      '',
+      'Prompt do usuário:',
+      prompt,
+      '',
+      'Estrutura aplicada:',
+      script.reasoning,
     ].join('\n');
-  };
+  }
 
-  const buildFullContent = (script: {
-    hook: string;
-    content: string;
-    examples: string;
-    cta: string;
-  }) => {
-    return [script.hook, script.content, script.examples, script.cta]
-      .filter(Boolean)
-      .join('\n\n');
-  };
+  function serializeExamplesAndCaption(script: GeneratedScript) {
+    return `${script.examples}${DRAFT_EXAMPLES_SEPARATOR}${script.caption}`;
+  }
 
-  const resetForm = () => {
-    setFormData({
-      topic: '',
-      goal: 'Educational / Value',
-      format: 'Short Video (Reels/TikTok)',
-      audience: '',
-      niche: '',
-      tone: '',
-      keywords: '',
-    });
+  function parseDraftExamples(raw: string | null) {
+    if (!raw) {
+      return { examples: '', caption: '' };
+    }
+
+    if (!raw.includes(DRAFT_EXAMPLES_SEPARATOR)) {
+      return { examples: raw, caption: '' };
+    }
+
+    const [examples, caption] = raw.split(DRAFT_EXAMPLES_SEPARATOR);
+    return {
+      examples: examples.trim(),
+      caption: caption.trim(),
+    };
+  }
+
+  const buildFullContent = React.useCallback((script: GeneratedScript) => {
+    return [
+      'Gancho',
+      script.hook,
+      '',
+      'Meio',
+      script.content,
+      '',
+      'B-rolls e direção',
+      script.examples,
+      '',
+      'CTA',
+      script.cta,
+      '',
+      'Legenda / Social SEO',
+      script.caption,
+    ].join('\n');
+  }, []);
+
+  const resetComposer = React.useCallback(() => {
+    setChatInput('');
     setGeneratedScript(null);
-    setCurrentStep(1);
-    setErrors({});
     setEditingDraftId(null);
+    setIsSaved(false);
     setErrorMessage(null);
-  };
-
-  const handleReset = () => {
-    resetForm();
-  };
+  }, []);
 
   const loadDrafts = React.useCallback(async () => {
     if (!supabase || !user?.id) {
@@ -652,7 +793,6 @@ export const ScriptGenerator = () => {
       let query = supabase
         .from('script_drafts')
         .select('*')
-        .eq('user_id', user.id)
         .order('updated_at', { ascending: false });
 
       if (activeProfile?.id) {
@@ -660,7 +800,6 @@ export const ScriptGenerator = () => {
       }
 
       const { data, error } = await query;
-
       if (error) throw error;
 
       setDrafts((data ?? []) as ScriptDraft[]);
@@ -677,40 +816,70 @@ export const ScriptGenerator = () => {
     void loadDrafts();
   }, [loadDrafts]);
 
-  const handleNext = () => {
-    if (!validateStep(currentStep)) return;
-
-    if (currentStep === 3) {
-      if (generatedScript) {
-        setCurrentStep(4);
-      } else {
-        setIsGenerating(true);
-        setTimeout(() => {
-          setGeneratedScript(generateStructuredScript());
-          setIsGenerating(false);
-          setCurrentStep(4);
-        }, 1500);
-      }
-    } else if (currentStep === 4) {
-      handleReset();
-    } else {
-      setCurrentStep(currentStep + 1);
+  const handleGenerate = async (promptOverride?: string) => {
+    const prompt = (promptOverride ?? chatInput).trim();
+    if (!prompt) {
+      setErrorMessage('Escreva um tema ou pedido para gerar o roteiro.');
+      return;
     }
-  };
 
-  const handleBack = () => setCurrentStep(currentStep - 1);
+    if (generationMode === 'ai' && creditsBalance < SCRIPT_GENERATION_CREDITS) {
+      setErrorMessage('Você não tem créditos suficientes para gerar com IA.');
+      return;
+    }
+
+    setErrorMessage(null);
+
+    const userMessage: ChatMessage = {
+      id: `user_${Date.now()}`,
+      role: 'user',
+      content: prompt,
+    };
+
+    setChatMessages((prev) => [...prev, userMessage]);
+    setIsGenerating(true);
+    setChatInput('');
+
+    window.setTimeout(() => {
+      const nextScript =
+        generationMode === 'ai' ? buildAiScript(prompt) : buildTemplateScript(prompt);
+      const creditsUsed = generationMode === 'ai' ? SCRIPT_GENERATION_CREDITS : 0;
+
+      const assistantMessage: ChatMessage = {
+        id: `assistant_${Date.now()}`,
+        role: 'assistant',
+        mode: generationMode,
+        creditsUsed,
+        script: nextScript,
+        content: formatAssistantScriptMessage(nextScript, generationMode),
+      };
+
+      setGeneratedScript(nextScript);
+      setChatMessages((prev) => [...prev, assistantMessage]);
+      setIsGenerating(false);
+      setEditingDraftId(null);
+      setIsSaved(false);
+      if (creditsUsed > 0) {
+        setCreditsBalance((prev) => prev - creditsUsed);
+      }
+    }, 900);
+  };
 
   const handleCopy = () => {
     if (!generatedScript) return;
 
-    const text = buildFullContent(generatedScript);
-    navigator.clipboard.writeText(text);
+    navigator.clipboard.writeText(buildFullContent(generatedScript));
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    window.setTimeout(() => setCopied(false), 2000);
   };
 
   const handleSaveDraft = async () => {
     if (!generatedScript) return;
+
+    if (!canManageScripts) {
+      setErrorMessage('Seu acesso neste workspace não permite criar ou editar roteiros.');
+      return;
+    }
 
     if (!supabase) {
       setErrorMessage('Supabase não está configurado.');
@@ -727,20 +896,22 @@ export const ScriptGenerator = () => {
       return;
     }
 
-    setErrorMessage(null);
+    const latestPrompt =
+      [...chatMessages].reverse().find((message) => message.role === 'user')?.content ??
+      generatedScript.title;
 
     const payload = {
       user_id: user.id,
       profile_id: activeProfile.id,
-      title: formData.topic.trim() || 'Roteiro sem título',
+      title: generatedScript.title.trim() || 'Roteiro sem título',
       hook: generatedScript.hook,
-      context: buildContextText(),
+      context: buildContextText(generatedScript.title, generationMode, latestPrompt, generatedScript),
       main_tips: generatedScript.content,
-      examples: generatedScript.examples,
+      examples: serializeExamplesAndCaption(generatedScript),
       cta: generatedScript.cta,
       content: buildFullContent(generatedScript),
       updated_at: new Date().toISOString(),
-      source: 'manual_generator',
+      source: generationMode === 'ai' ? 'ai_chat_generator' : 'template_chat_generator',
       is_favorite: false,
     };
 
@@ -750,7 +921,6 @@ export const ScriptGenerator = () => {
           .from('script_drafts')
           .update(payload)
           .eq('id', editingDraftId)
-          .eq('user_id', user.id)
           .eq('profile_id', activeProfile.id)
           .select('*')
           .single();
@@ -780,7 +950,7 @@ export const ScriptGenerator = () => {
       }
 
       setIsSaved(true);
-      setTimeout(() => setIsSaved(false), 2000);
+      window.setTimeout(() => setIsSaved(false), 2000);
     } catch (error: any) {
       console.error('[Scripts] Error saving draft:', error);
       setErrorMessage(error?.message || 'Não foi possível salvar o roteiro.');
@@ -788,6 +958,11 @@ export const ScriptGenerator = () => {
   };
 
   const handleDeleteDraft = async (draftId: string) => {
+    if (!canManageScripts) {
+      setErrorMessage('Seu acesso neste workspace não permite excluir roteiros.');
+      return;
+    }
+
     if (!supabase || !user?.id) {
       setErrorMessage('Usuário não autenticado.');
       return;
@@ -798,14 +973,14 @@ export const ScriptGenerator = () => {
         .from('script_drafts')
         .delete()
         .eq('id', draftId)
-        .eq('user_id', user.id);
+        .eq('profile_id', activeProfile?.id);
 
       if (error) throw error;
 
       setDrafts((prev) => prev.filter((draft) => draft.id !== draftId));
 
       if (editingDraftId === draftId) {
-        resetForm();
+        resetComposer();
       }
     } catch (error: any) {
       console.error('[Scripts] Error deleting draft:', error);
@@ -814,47 +989,48 @@ export const ScriptGenerator = () => {
   };
 
   const loadDraft = (draft: ScriptDraft) => {
-    setEditingDraftId(draft.id);
-
-    setFormData({
-      topic: draft.title || '',
-      goal: 'Educational / Value',
-      format: 'Short Video (Reels/TikTok)',
-      audience: '',
-      niche: '',
-      tone: '',
-      keywords: '',
-    });
-
-    setGeneratedScript({
+    const parsed = parseDraftExamples(draft.examples);
+    const nextScript: GeneratedScript = {
+      title: draft.title || 'Roteiro sem título',
       hook: draft.hook || '',
       content: draft.main_tips || '',
-      examples: draft.examples || '',
+      examples: parsed.examples,
       cta: draft.cta || '',
-    });
+      caption: parsed.caption,
+      reasoning: draft.context || 'Rascunho carregado do histórico.',
+    };
 
-    setCurrentStep(4);
-    setErrors({});
+    setEditingDraftId(draft.id);
+    setGeneratedScript(nextScript);
+    setChatInput(draft.title || '');
+    setChatMessages((prev) => [
+      ...prev,
+      {
+        id: `assistant_loaded_${draft.id}`,
+        role: 'assistant',
+        mode: 'ai',
+        script: nextScript,
+        content: `Rascunho "${draft.title || 'sem título'}" carregado para edição.`,
+      },
+    ]);
     setErrorMessage(null);
     setSearchParams({ tab: 'ai' });
   };
 
+  const creditsAfterGeneration =
+    generationMode === 'ai' ? creditsBalance - SCRIPT_GENERATION_CREDITS : creditsBalance;
+
   if (isSavedView) {
     return (
-      <div className="max-w-4xl mx-auto space-y-8">
+      <div className="max-w-5xl mx-auto space-y-8">
         <div>
           <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
             <FileText className="h-6 w-6 text-brand" />
             Roteiros Salvos
           </h1>
           <p className="text-text-secondary">
-            Gerencie e edite seus roteiros gerados anteriormente.
+            Abra um rascunho para continuar a conversa, ajustar a estrutura e salvar novamente.
           </p>
-          {activeProfile && (
-            <p className="text-sm text-text-secondary mt-1">
-              Perfil ativo: <span className="font-medium">{activeProfile.name}</span>
-            </p>
-          )}
         </div>
 
         {errorMessage && (
@@ -863,54 +1039,58 @@ export const ScriptGenerator = () => {
           </Card>
         )}
 
+        {!canManageScripts && !isLoadingPermissions && (
+          <Card className="border-amber-200 bg-amber-50 p-4 text-amber-700">
+            Você pode visualizar os roteiros deste workspace, mas não pode criar, editar ou excluir.
+          </Card>
+        )}
+
         {isLoadingDrafts ? (
-          <Card className="flex flex-col items-center justify-center p-12 text-center min-h-[400px]">
+          <Card className="flex min-h-[320px] items-center justify-center">
             <p className="text-text-secondary">Carregando roteiros...</p>
           </Card>
         ) : drafts.length === 0 ? (
-          <Card className="flex flex-col items-center justify-center p-12 text-center min-h-[400px]">
-            <div className="h-12 w-12 rounded-full bg-brand/10 flex items-center justify-center mb-4">
+          <Card className="flex min-h-[320px] flex-col items-center justify-center text-center">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand/10">
               <Wand2 className="h-6 w-6 text-brand" />
             </div>
-            <h3 className="text-lg font-semibold text-text-primary mb-2">
+            <h3 className="mb-2 text-lg font-semibold text-text-primary">
               Ainda não há roteiros salvos
             </h3>
-            <p className="text-text-secondary max-w-sm mb-6">
-              Gere seu primeiro roteiro e salve-o como rascunho para vê-lo aqui.
+            <p className="mb-6 max-w-sm text-text-secondary">
+              Gere um roteiro no chat e salve como rascunho para vê-lo aqui.
             </p>
-            <Button onClick={() => setSearchParams({ tab: 'ai' })}>
-              Criar Novo Roteiro
-            </Button>
+            <Button onClick={() => setSearchParams({ tab: 'ai' })}>Abrir Gerador</Button>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {drafts.map((draft) => (
               <Card
                 key={draft.id}
-                className="cursor-pointer hover:border-brand transition-all flex flex-col"
+                className="cursor-pointer hover:border-brand transition-colors"
                 onClick={() => loadDraft(draft)}
               >
-                <div className="flex justify-between items-start mb-3 gap-3">
+                <div className="mb-3 flex items-start justify-between gap-3">
                   <Badge variant="brand">Rascunho</Badge>
                   <span className="text-xs text-text-secondary">
                     {new Date(draft.updated_at || draft.created_at).toLocaleDateString()}
                   </span>
                 </div>
 
-                <h3 className="font-semibold text-text-primary mb-2 line-clamp-1">
+                <h3 className="mb-2 line-clamp-1 font-semibold text-text-primary">
                   {draft.title || 'Roteiro sem título'}
                 </h3>
 
-                <p className="text-sm text-text-secondary line-clamp-3 flex-1">
+                <p className="line-clamp-4 text-sm text-text-secondary">
                   {draft.hook || draft.content}
                 </p>
 
-                <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center">
+                <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-4">
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
+                    onClick={(event) => {
+                      event.stopPropagation();
                       loadDraft(draft);
                     }}
                   >
@@ -920,10 +1100,11 @@ export const ScriptGenerator = () => {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
+                    onClick={(event) => {
+                      event.stopPropagation();
                       void handleDeleteDraft(draft.id);
                     }}
+                    disabled={!canManageScripts || isLoadingPermissions}
                   >
                     Excluir
                   </Button>
@@ -937,96 +1118,190 @@ export const ScriptGenerator = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      <div className="flex items-center justify-between">
+    <div className="mx-auto max-w-7xl space-y-8">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
-            <Wand2 className="h-6 w-6 text-brand" />
-            Gerador de Roteiros
+          <h1 className="flex items-center gap-2 text-2xl font-bold text-text-primary">
+            <MessageSquare className="h-6 w-6 text-brand" />
+            Gerador de Roteiros com IA
           </h1>
           <p className="text-text-secondary">
-            Gere roteiros de alta conversão para o seu conteúdo nas redes sociais.
+            Converse com a PostHub e receba roteiros com gancho forte, retenção, CTA e Social SEO.
           </p>
           {activeProfile && (
-            <p className="text-sm text-text-secondary mt-1">
+            <p className="mt-1 text-sm text-text-secondary">
               Perfil ativo: <span className="font-medium">{activeProfile.name}</span>
             </p>
           )}
         </div>
 
-        {currentStep > 1 && (
-          <Button variant="outline" size="sm" onClick={handleReset}>
-            Começar de Novo
+        <div className="flex flex-wrap items-center gap-3">
+          <Badge variant="brand">Saldo: {creditsBalance} créditos</Badge>
+          <Button variant="outline" size="sm" onClick={() => setSearchParams({ tab: 'saved' })}>
+            Ver Rascunhos
           </Button>
-        )}
+          <Button variant="ghost" size="sm" onClick={resetComposer}>
+            Nova conversa
+          </Button>
+        </div>
       </div>
 
       {errorMessage && (
-        <Card className="border-red-200 bg-red-50 text-red-700 p-4">
-          {errorMessage}
+        <Card className="border-red-200 bg-red-50 p-4 text-red-700">{errorMessage}</Card>
+      )}
+
+      {!canManageScripts && !isLoadingPermissions && (
+        <Card className="border-amber-200 bg-amber-50 p-4 text-amber-700">
+          Você pode visualizar os roteiros deste workspace, mas não pode salvar, editar ou excluir.
         </Card>
       )}
 
-      <div className="flex items-center justify-between px-4">
-        {STEPS.map((step) => (
-          <div key={step.id} className="flex items-center">
-            <div className="flex flex-col items-center gap-2">
-              <div
-                className={cn(
-                  'h-10 w-10 rounded-full flex items-center justify-center font-bold transition-all',
-                  currentStep === step.id
-                    ? 'bg-brand text-white shadow-lg shadow-brand/20'
-                    : currentStep > step.id
-                    ? 'bg-green-500 text-white'
-                    : 'bg-gray-200 text-gray-500'
-                )}
-              >
-                {currentStep > step.id ? <Check className="h-5 w-5" /> : step.id}
-              </div>
-              <span
-                className={cn(
-                  'text-xs font-medium',
-                  currentStep === step.id ? 'text-brand' : 'text-text-secondary'
-                )}
-              >
-                {step.title}
-              </span>
-            </div>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(360px,1fr)]">
+        <Card className="flex min-h-[780px] flex-col p-0">
+          <div className="border-b border-gray-100 px-6 py-5">
+            <CardTitle>Chat criativo</CardTitle>
+            <p className="mt-1 text-sm text-text-secondary">
+              Escreva o tema do vídeo e ajuste o contexto abaixo para refinar a resposta.
+            </p>
+          </div>
 
-            {step.id < 4 && (
+          <div className="flex-1 space-y-4 overflow-y-auto bg-[#FAFBFF] px-6 py-6">
+            {chatMessages.map((message) => (
               <div
+                key={message.id}
                 className={cn(
-                  'h-px w-16 mx-4 mb-6',
-                  currentStep > step.id ? 'bg-green-500' : 'bg-gray-200'
+                  'flex',
+                  message.role === 'user' ? 'justify-end' : 'justify-start'
                 )}
-              />
+              >
+                <div
+                  className={cn(
+                    'max-w-[90%] rounded-2xl px-4 py-3 shadow-sm',
+                    message.role === 'user'
+                      ? 'bg-brand text-white'
+                      : 'border border-gray-200 bg-white text-text-primary'
+                  )}
+                >
+                  <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] opacity-80">
+                    {message.role === 'user' ? (
+                      <>
+                        <Send className="h-3.5 w-3.5" />
+                        Você
+                      </>
+                    ) : (
+                      <>
+                        <Bot className="h-3.5 w-3.5" />
+                        {message.mode === 'ai' ? 'IA PostHub' : 'Assistente'}
+                      </>
+                    )}
+                  </div>
+
+                  <div className="whitespace-pre-wrap text-sm leading-6">{message.content}</div>
+
+                  {message.creditsUsed ? (
+                    <div className="mt-3 inline-flex rounded-full bg-brand/10 px-2.5 py-1 text-xs font-medium text-brand">
+                      {message.creditsUsed} créditos utilizados
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+
+            {isGenerating && (
+              <div className="flex justify-start">
+                <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
+                  <div className="flex items-center gap-2 text-sm text-text-secondary">
+                    <span className="h-2 w-2 animate-pulse rounded-full bg-brand" />
+                    Estruturando o roteiro com a engenharia da PostHub...
+                  </div>
+                </div>
+              </div>
             )}
           </div>
-        ))}
-      </div>
 
-      <Card className="min-h-[400px] flex flex-col">
-        <div className="flex-1">
-          {currentStep === 1 && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <CardTitle>Contexto e Objetivo</CardTitle>
-              <div className="space-y-4">
-                <Input
-                  label="Tema Principal"
-                  placeholder="Ex.: 5 dicas para melhorar a produtividade"
-                  value={formData.topic}
-                  onChange={(e) => setFormData({ ...formData, topic: e.target.value })}
-                  error={errors.topic}
-                />
+          <div className="border-t border-gray-100 bg-white px-6 py-6">
+            <div className="mb-4 flex flex-wrap gap-2">
+              {STARTER_PROMPTS.map((prompt) => (
+                <button
+                  key={prompt}
+                  onClick={() => setChatInput(prompt)}
+                  className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:border-brand hover:bg-brand/5 hover:text-brand"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
 
+            <textarea
+              className="min-h-[120px] w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm leading-6 text-text-primary placeholder:text-gray-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+              placeholder="Ex.: Crie um roteiro sobre constância nas redes para social medias que atendem pequenos negócios."
+              value={chatInput}
+              onChange={(event) => setChatInput(event.target.value)}
+            />
+
+            <div className="mt-4 flex flex-col gap-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => setGenerationMode('ai')}
+                  className={cn(
+                    'inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium transition-colors',
+                    generationMode === 'ai'
+                      ? 'border-brand bg-brand text-white'
+                      : 'border-gray-200 bg-white text-text-secondary hover:border-brand hover:text-brand'
+                  )}
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Usar inteligência
+                </button>
+                <button
+                  onClick={() => setGenerationMode('template')}
+                  className={cn(
+                    'inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium transition-colors',
+                    generationMode === 'template'
+                      ? 'border-brand bg-brand text-white'
+                      : 'border-gray-200 bg-white text-text-secondary hover:border-brand hover:text-brand'
+                  )}
+                >
+                  <Wand2 className="h-4 w-4" />
+                  Template inteligente
+                </button>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-brand/30 bg-white px-4 py-3">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-full bg-brand/10 p-2 text-brand">
+                    <Zap className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-text-primary">
+                      {generationMode === 'ai'
+                        ? `Esta geração usará ${SCRIPT_GENERATION_CREDITS} créditos`
+                        : 'Este modo não consome créditos'}
+                    </p>
+                    <p className="text-xs text-text-secondary">
+                      {generationMode === 'ai'
+                        ? `Saldo atual: ${creditsBalance}. Saldo após gerar: ${Math.max(
+                            creditsAfterGeneration,
+                            0
+                          )}.`
+                        : `Seu saldo permanece em ${creditsBalance} créditos.`}
+                    </p>
+                  </div>
+                </div>
+                <Badge variant="brand">
+                  {generationMode === 'ai' ? 'IA ativa' : 'Modo econômico'}
+                </Badge>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-text-primary">
-                    Qual é o objetivo principal?
-                  </label>
+                  <label className="text-sm font-medium text-text-primary">Objetivo</label>
                   <select
                     className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
                     value={formData.goal}
-                    onChange={(e) => setFormData({ ...formData, goal: e.target.value })}
+                    onChange={(event) =>
+                      setFormData((prev) => ({ ...prev, goal: event.target.value }))
+                    }
                   >
                     <option>Educational / Value</option>
                     <option>Sales / Conversion</option>
@@ -1034,22 +1309,15 @@ export const ScriptGenerator = () => {
                     <option>Engagement / Community</option>
                   </select>
                 </div>
-              </div>
-            </div>
-          )}
 
-          {currentStep === 2 && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <CardTitle>Formato e Público</CardTitle>
-              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-text-primary">
-                    Formato do Conteúdo
-                  </label>
+                  <label className="text-sm font-medium text-text-primary">Formato</label>
                   <select
-                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
                     value={formData.format}
-                    onChange={(e) => setFormData({ ...formData, format: e.target.value })}
+                    onChange={(event) =>
+                      setFormData((prev) => ({ ...prev, format: event.target.value }))
+                    }
                   >
                     <option>Short Video (Reels/TikTok)</option>
                     <option>Carousel Post</option>
@@ -1059,186 +1327,239 @@ export const ScriptGenerator = () => {
                 </div>
 
                 <Input
-                  label="Público-Alvo"
-                  placeholder="Ex.: Jovens empreendedores"
+                  label="Público-alvo"
+                  placeholder="Ex.: Social medias que atendem clínicas"
                   value={formData.audience}
-                  onChange={(e) => setFormData({ ...formData, audience: e.target.value })}
-                  error={errors.audience}
+                  onChange={(event) =>
+                    setFormData((prev) => ({ ...prev, audience: event.target.value }))
+                  }
+                />
+
+                <Input
+                  label="Nicho"
+                  placeholder="Ex.: Marketing para negócios locais"
+                  value={formData.niche}
+                  onChange={(event) =>
+                    setFormData((prev) => ({ ...prev, niche: event.target.value }))
+                  }
+                />
+
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-text-primary">Tom</label>
+                  <select
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                    value={formData.tone}
+                    onChange={(event) =>
+                      setFormData((prev) => ({ ...prev, tone: event.target.value }))
+                    }
+                  >
+                    <option>Professional</option>
+                    <option>Casual</option>
+                    <option>Energetic</option>
+                    <option>Humorous</option>
+                    <option>Empathetic</option>
+                    <option>Authoritative</option>
+                  </select>
+                </div>
+
+                <Input
+                  label="Palavras-chave"
+                  placeholder="Ex.: gestão de redes sociais, crescimento orgânico"
+                  value={formData.keywords}
+                  onChange={(event) =>
+                    setFormData((prev) => ({ ...prev, keywords: event.target.value }))
+                  }
                 />
               </div>
 
-              <Input
-                label="Nicho"
-                placeholder="Ex.: Marketing Digital"
-                value={formData.niche}
-                onChange={(e) => setFormData({ ...formData, niche: e.target.value })}
-                error={errors.niche}
-              />
-            </div>
-          )}
-
-          {currentStep === 3 && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <CardTitle>Tom e Estilo</CardTitle>
-
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  'Professional',
-                  'Casual',
-                  'Energetic',
-                  'Humorous',
-                  'Empathetic',
-                  'Authoritative',
-                ].map((tone) => (
-                  <button
-                    key={tone}
-                    onClick={() => setFormData({ ...formData, tone })}
-                    className={cn(
-                      'flex items-center justify-center rounded-lg border p-4 text-sm font-medium transition-all',
-                      formData.tone === tone
-                        ? 'border-brand bg-brand/10 text-brand'
-                        : 'border-gray-200 hover:border-brand hover:bg-brand/5'
-                    )}
-                  >
-                    {tone === 'Professional'
-                      ? 'Profissional'
-                      : tone === 'Casual'
-                      ? 'Casual'
-                      : tone === 'Energetic'
-                      ? 'Energético'
-                      : tone === 'Humorous'
-                      ? 'Humorístico'
-                      : tone === 'Empathetic'
-                      ? 'Empático'
-                      : 'Autoritativo'}
-                  </button>
-                ))}
+              <div className="flex justify-end">
+                <Button
+                  onClick={() => void handleGenerate()}
+                  isLoading={isGenerating}
+                  className="gap-2"
+                >
+                  {!isGenerating && <Send className="h-4 w-4" />}
+                  Gerar roteiro
+                </Button>
               </div>
-
-              {errors.tone && <p className="text-xs text-red-500">{errors.tone}</p>}
-
-              <Input
-                label="Palavras-chave específicas para incluir"
-                placeholder="Ex.: produtividade, hacks, gestão do tempo"
-                value={formData.keywords}
-                onChange={(e) => setFormData({ ...formData, keywords: e.target.value })}
-              />
             </div>
-          )}
+          </div>
+        </Card>
 
-          {currentStep === 4 && generatedScript && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="flex items-center justify-between">
-                <CardTitle>Roteiro Gerado</CardTitle>
+        <div className="space-y-6">
+          <Card className="space-y-4">
+            <div className="flex items-center justify-between">
+              <CardTitle>Estrutura da IA</CardTitle>
+              <Badge variant="brand">PostHub</Badge>
+            </div>
+            <div className="space-y-3 text-sm leading-6 text-text-secondary">
+              <p>
+                A resposta segue o seu raciocínio: mapeamento estratégico, gancho de 3 segundos,
+                meio com retenção, CTA específico e camada de Social SEO.
+              </p>
+              <p>
+                O foco não é gerar texto genérico. O foco é montar um roteiro que prenda atenção e
+                direcione a ação certa.
+              </p>
+            </div>
+          </Card>
 
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setIsGenerating(true);
-                      setTimeout(() => {
-                        setGeneratedScript(generateStructuredScript());
-                        setIsGenerating(false);
-                      }, 1500);
-                    }}
-                    className="gap-2"
-                    isLoading={isGenerating}
-                  >
-                    {!isGenerating && <Sparkles className="h-4 w-4" />}
-                    Regenerar
-                  </Button>
+          <Card className="space-y-4">
+            <div className="flex items-center justify-between">
+              <CardTitle>Roteiro atual</CardTitle>
+              {generatedScript ? <Badge variant="brand">Pronto para editar</Badge> : null}
+            </div>
 
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => void handleSaveDraft()}
-                    className="gap-2"
-                  >
-                    {isSaved ? <Check className="h-4 w-4" /> : null}
-                    {isSaved ? 'Salvo!' : 'Salvar Rascunho'}
-                  </Button>
+            {!generatedScript ? (
+              <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-5 text-sm text-text-secondary">
+                Envie um tema no chat para montar o roteiro. Quando a resposta chegar, você pode
+                editar os blocos aqui, copiar ou salvar como rascunho.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <Input
+                  label="Título"
+                  value={generatedScript.title}
+                  onChange={(event) =>
+                    setGeneratedScript((prev) =>
+                      prev ? { ...prev, title: event.target.value } : prev
+                    )
+                  }
+                />
 
-                  <Button variant="outline" size="sm" onClick={handleCopy} className="gap-2">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-text-primary">Gancho</label>
+                  <textarea
+                    className="min-h-[110px] w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm leading-6 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                    value={generatedScript.hook}
+                    onChange={(event) =>
+                      setGeneratedScript((prev) =>
+                        prev ? { ...prev, hook: event.target.value } : prev
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-text-primary">Meio / Retenção</label>
+                  <textarea
+                    className="min-h-[180px] w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm leading-6 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                    value={generatedScript.content}
+                    onChange={(event) =>
+                      setGeneratedScript((prev) =>
+                        prev ? { ...prev, content: event.target.value } : prev
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-text-primary">
+                    B-rolls / Direção de arte
+                  </label>
+                  <textarea
+                    className="min-h-[150px] w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm leading-6 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                    value={generatedScript.examples}
+                    onChange={(event) =>
+                      setGeneratedScript((prev) =>
+                        prev ? { ...prev, examples: event.target.value } : prev
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-text-primary">CTA</label>
+                  <textarea
+                    className="min-h-[90px] w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm leading-6 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                    value={generatedScript.cta}
+                    onChange={(event) =>
+                      setGeneratedScript((prev) =>
+                        prev ? { ...prev, cta: event.target.value } : prev
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-text-primary">Legenda / Social SEO</label>
+                  <textarea
+                    className="min-h-[160px] w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm leading-6 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                    value={generatedScript.caption}
+                    onChange={(event) =>
+                      setGeneratedScript((prev) =>
+                        prev ? { ...prev, caption: event.target.value } : prev
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                  <p className="mb-2 text-sm font-semibold text-text-primary">
+                    Engenharia aplicada
+                  </p>
+                  <pre className="whitespace-pre-wrap text-xs leading-6 text-text-secondary">
+                    {generatedScript.reasoning}
+                  </pre>
+                </div>
+
+                <div className="flex flex-wrap gap-3">
+                  <Button onClick={handleCopy} variant="outline" className="gap-2">
                     {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                    {copied ? 'Copiado!' : 'Copiar Roteiro'}
+                    {copied ? 'Copiado' : 'Copiar roteiro'}
+                  </Button>
+                  <Button
+                    onClick={() => void handleSaveDraft()}
+                    variant="secondary"
+                    className="gap-2"
+                    disabled={!canManageScripts || isLoadingPermissions}
+                  >
+                    {isSaved ? <Check className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
+                    {isSaved ? 'Salvo!' : editingDraftId ? 'Atualizar rascunho' : 'Salvar rascunho'}
                   </Button>
                 </div>
               </div>
-
-              <div className="space-y-4">
-                <textarea
-                  className="w-full rounded-lg bg-gray-50 p-4 font-mono text-sm leading-relaxed text-text-primary border border-gray-200 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 resize-y min-h-[100px]"
-                  value={generatedScript.hook}
-                  onChange={(e) =>
-                    setGeneratedScript({ ...generatedScript, hook: e.target.value })
-                  }
-                  placeholder="Gancho"
-                />
-
-                <textarea
-                  className="w-full rounded-lg bg-gray-50 p-4 font-mono text-sm leading-relaxed text-text-primary border border-gray-200 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 resize-y min-h-[120px]"
-                  value={generatedScript.content}
-                  onChange={(e) =>
-                    setGeneratedScript({ ...generatedScript, content: e.target.value })
-                  }
-                  placeholder="Desenvolvimento"
-                />
-
-                <textarea
-                  className="w-full rounded-lg bg-gray-50 p-4 font-mono text-sm leading-relaxed text-text-primary border border-gray-200 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 resize-y min-h-[120px]"
-                  value={generatedScript.examples}
-                  onChange={(e) =>
-                    setGeneratedScript({ ...generatedScript, examples: e.target.value })
-                  }
-                  placeholder="Exemplos"
-                />
-
-                <textarea
-                  className="w-full rounded-lg bg-gray-50 p-4 font-mono text-sm leading-relaxed text-text-primary border border-gray-200 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 resize-y min-h-[80px]"
-                  value={generatedScript.cta}
-                  onChange={(e) =>
-                    setGeneratedScript({ ...generatedScript, cta: e.target.value })
-                  }
-                  placeholder="Chamada para ação"
-                />
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="mt-8 flex items-center justify-between border-t border-gray-100 pt-6">
-          <Button
-            variant="ghost"
-            onClick={handleBack}
-            disabled={currentStep === 1 || isGenerating}
-            className="gap-2"
-          >
-            <ChevronLeft className="h-4 w-4" />
-            Voltar
-          </Button>
-
-          <Button onClick={handleNext} isLoading={isGenerating} className="gap-2">
-            {currentStep === 3 ? (
-              <>
-                {!generatedScript && <Sparkles className="h-4 w-4" />}
-                {generatedScript ? 'Próximo' : 'Gerar Roteiro'}
-              </>
-            ) : currentStep === 4 ? (
-              'Finalizar'
-            ) : (
-              <>
-                Próximo
-                <ChevronRight className="h-4 w-4" />
-              </>
             )}
-          </Button>
+          </Card>
+
+          <Card className="space-y-4">
+            <div className="flex items-center justify-between">
+              <CardTitle>Últimos rascunhos</CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => setSearchParams({ tab: 'saved' })}>
+                Ver todos
+              </Button>
+            </div>
+
+            {isLoadingDrafts ? (
+              <p className="text-sm text-text-secondary">Carregando rascunhos...</p>
+            ) : drafts.length === 0 ? (
+              <p className="text-sm text-text-secondary">
+                Seus próximos roteiros salvos aparecerão aqui.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {drafts.slice(0, 3).map((draft) => (
+                  <button
+                    key={draft.id}
+                    onClick={() => loadDraft(draft)}
+                    className="w-full rounded-xl border border-gray-200 p-4 text-left transition-colors hover:border-brand hover:bg-brand/5"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-medium text-text-primary">{draft.title || 'Sem título'}</p>
+                      <span className="text-xs text-text-secondary">
+                        {new Date(draft.updated_at || draft.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <p className="mt-2 line-clamp-2 text-sm text-text-secondary">
+                      {draft.hook || draft.content}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </Card>
         </div>
-      </Card>
+      </div>
     </div>
   );
 };
-
-function cn(...inputs: any[]) {
-  return inputs.filter(Boolean).join(' ');
-}
