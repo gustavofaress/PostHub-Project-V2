@@ -1,19 +1,24 @@
 import * as React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../../../app/context/AppContext';
 import { useAuth } from '../../../app/context/AuthContext';
 import { onboardingService } from '../../../services/onboarding.service';
 import {
-  getCurrentGuidedFlowStepId,
+  getCurrentGuidedTourStepId,
+  getFirstTourStepForFlowStep,
   getGuidedFlowStep,
-  getNextGuidedFlowStep,
+  getGuidedFlowStepByTourStep,
+  getGuidedTourStep,
+  getNextGuidedTourStep,
   GUIDED_FLOW_STEPS,
   normalizeCompletedGuidedSteps,
   type GuidedFlowStepId,
+  type GuidedTourStepId,
 } from '../guidedFlow';
 
 export const useTrialGuidedFlow = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { setActiveModule } = useApp();
   const { user, refreshUser } = useAuth();
   const [isSaving, setIsSaving] = React.useState(false);
@@ -23,9 +28,9 @@ export const useTrialGuidedFlow = () => {
     [user?.onboarding?.guided_steps_completed]
   );
 
-  const currentStepId = React.useMemo(
+  const currentTourStepId = React.useMemo(
     () =>
-      getCurrentGuidedFlowStepId(
+      getCurrentGuidedTourStepId(
         user?.onboarding?.guided_current_step,
         completedSteps,
         user?.onboarding?.setup_completed
@@ -37,14 +42,37 @@ export const useTrialGuidedFlow = () => {
     ]
   );
 
-  const currentStep = currentStepId ? getGuidedFlowStep(currentStepId) : null;
+  const currentTourStep = currentTourStepId ? getGuidedTourStep(currentTourStepId) : null;
+  const currentStep = currentTourStep
+    ? getGuidedFlowStepByTourStep(currentTourStep.id)
+    : null;
   const currentStepIndex = currentStep
     ? GUIDED_FLOW_STEPS.findIndex((step) => step.id === currentStep.id)
     : -1;
+
   const isActive =
     user?.accessStatus === 'trial_active' &&
     !!user?.onboarding?.quiz_completed &&
     !user?.onboarding?.setup_completed;
+
+  const persistState = React.useCallback(
+    async (
+      nextTourStepId: GuidedTourStepId | null,
+      nextCompletedSteps: GuidedFlowStepId[],
+      setupCompleted = false
+    ) => {
+      if (!user?.id) return;
+
+      await onboardingService.updateGuidedFlow(user.id, {
+        guided_current_step: nextTourStepId,
+        guided_steps_completed: nextCompletedSteps,
+        guided_flow_completed_at: setupCompleted ? new Date().toISOString() : null,
+        setup_completed: setupCompleted,
+      });
+      await refreshUser();
+    },
+    [refreshUser, user?.id]
+  );
 
   const goToStep = React.useCallback(
     (stepId: GuidedFlowStepId) => {
@@ -56,47 +84,107 @@ export const useTrialGuidedFlow = () => {
   );
 
   const continueJourney = React.useCallback(() => {
-    if (!currentStepId) return;
-    goToStep(currentStepId);
-  }, [currentStepId, goToStep]);
+    if (!currentTourStep || !currentStep) return;
 
-  const completeStepAndContinue = React.useCallback(
-    async (stepId: GuidedFlowStepId) => {
-      if (!user?.id || isSaving) return;
+    if (currentTourStep.id.endsWith('-nav')) {
+      return;
+    }
 
-      const uniqueCompletedSteps = Array.from(new Set([...completedSteps, stepId]));
-      const nextStep = getNextGuidedFlowStep(stepId);
+    if (!location.pathname.startsWith(currentStep.path)) {
+      goToStep(currentStep.id);
+    }
+  }, [currentStep, currentTourStep, goToStep, location.pathname]);
+
+  const handleNext = React.useCallback(async () => {
+    if (!currentTourStep || isSaving) return;
+
+    const primaryTarget = document.querySelector<HTMLElement>(
+      `[data-tour-id="${currentTourStep.targetId}"]`
+    );
+    const fallbackTarget = currentTourStep.fallbackTargetId
+      ? document.querySelector<HTMLElement>(`[data-tour-id="${currentTourStep.fallbackTargetId}"]`)
+      : null;
+    const target = primaryTarget ?? fallbackTarget;
+
+    if (!target) {
+      if (!location.pathname.startsWith(currentStep?.path || '')) {
+        continueJourney();
+      }
+      return;
+    }
+
+    target.click();
+
+    if (currentTourStep.advanceMode !== 'immediate' || !user?.id) return;
+
+    const nextTourStep = getNextGuidedTourStep(currentTourStep.id);
+
+    try {
+      setIsSaving(true);
+      await persistState(nextTourStep?.id ?? null, completedSteps, false);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [
+    completedSteps,
+    continueJourney,
+    currentStep?.path,
+    currentTourStep,
+    isSaving,
+    location.pathname,
+    persistState,
+    user?.id,
+  ]);
+
+  const completeCurrentActionStep = React.useCallback(
+    async (tourStepId: GuidedTourStepId) => {
+      if (!currentTourStep || currentTourStep.id !== tourStepId || !currentStep || !user?.id || isSaving) {
+        return;
+      }
+
+      const nextTourStep = getNextGuidedTourStep(currentTourStep.id);
+      const nextCompletedSteps = Array.from(new Set([...completedSteps, currentStep.id]));
+      const hasCompletedFlow = !nextTourStep;
 
       try {
         setIsSaving(true);
-        await onboardingService.updateGuidedFlow(user.id, {
-          guided_steps_completed: uniqueCompletedSteps,
-          guided_current_step: nextStep?.id ?? stepId,
-          guided_flow_completed_at: nextStep ? null : new Date().toISOString(),
-          setup_completed: !nextStep,
-        });
-        await refreshUser();
-
-        if (nextStep) {
-          goToStep(nextStep.id);
-          return;
+        await persistState(nextTourStep?.id ?? null, nextCompletedSteps, hasCompletedFlow);
+        if (hasCompletedFlow) {
+          setActiveModule('dashboard');
+          navigate('/workspace/dashboard');
         }
-
-        setActiveModule('dashboard');
-        navigate('/workspace/dashboard');
       } finally {
         setIsSaving(false);
       }
     },
     [
       completedSteps,
-      goToStep,
+      currentStep,
+      currentTourStep,
       isSaving,
       navigate,
-      refreshUser,
+      persistState,
       setActiveModule,
       user?.id,
     ]
+  );
+
+  const restartFromStep = React.useCallback(
+    async (stepId: GuidedFlowStepId) => {
+      if (!user?.id || isSaving) return;
+
+      const nextCompletedSteps = completedSteps.filter((completedStepId) => completedStepId !== stepId);
+      const firstTourStep = getFirstTourStepForFlowStep(stepId);
+
+      try {
+        setIsSaving(true);
+        await persistState(firstTourStep.id, nextCompletedSteps, false);
+        goToStep(stepId);
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [completedSteps, goToStep, isSaving, persistState, user?.id]
   );
 
   return {
@@ -104,14 +192,18 @@ export const useTrialGuidedFlow = () => {
     isSaving,
     steps: GUIDED_FLOW_STEPS,
     currentStep,
-    currentStepId,
+    currentStepId: currentStep?.id ?? null,
     currentStepIndex,
+    currentTourStep,
+    currentTourStepId,
     completedSteps,
     completedCount: completedSteps.length,
     continueJourney,
     goToStep,
-    completeStepAndContinue,
+    handleNext,
+    completeCurrentActionStep,
+    restartFromStep,
     isStepCompleted: (stepId: GuidedFlowStepId) => completedSteps.includes(stepId),
-    isCurrentStep: (stepId: GuidedFlowStepId) => currentStepId === stepId,
+    isCurrentStep: (stepId: GuidedFlowStepId) => currentStep?.id === stepId,
   };
 };

@@ -1,4 +1,4 @@
-import type { GuidedFlowStepId } from '../modules/onboarding/guidedFlow';
+import type { GuidedFlowStepId, GuidedTourStepId } from '../modules/onboarding/guidedFlow';
 import { supabase } from '../shared/utils/supabase';
 
 export interface UserOnboarding {
@@ -9,7 +9,7 @@ export interface UserOnboarding {
   current_process: string | null;
   quiz_completed: boolean;
   setup_completed: boolean;
-  guided_current_step?: GuidedFlowStepId | null;
+  guided_current_step?: GuidedFlowStepId | GuidedTourStepId | null;
   guided_steps_completed?: GuidedFlowStepId[];
   guided_flow_completed_at?: string | null;
   created_at?: string;

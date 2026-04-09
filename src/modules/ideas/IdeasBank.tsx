@@ -22,7 +22,6 @@ import { useApp } from '../../app/context/AppContext';
 import { useProfile } from '../../app/context/ProfileContext';
 import { useAuth } from '../../app/context/AuthContext';
 import { supabase } from '../../shared/utils/supabase';
-import { TrialGuidedPopover } from '../onboarding/components/TrialGuidedPopover';
 import { useTrialGuidedFlow } from '../onboarding/hooks/useTrialGuidedFlow';
 
 interface Idea {
@@ -52,8 +51,7 @@ export const IdeasBank = () => {
   const { setActiveModule } = useApp();
   const { activeProfile } = useProfile();
   const { user } = useAuth();
-  const { currentStep, currentStepIndex, isActive, isCurrentStep, completeStepAndContinue, isSaving } =
-    useTrialGuidedFlow();
+  const { completeCurrentActionStep } = useTrialGuidedFlow();
 
   const [ideas, setIdeas] = React.useState<Idea[]>([]);
   const [isLoadingIdeas, setIsLoadingIdeas] = React.useState(false);
@@ -261,6 +259,7 @@ export const IdeasBank = () => {
 
       setIsModalOpen(false);
       resetForm();
+      await completeCurrentActionStep('ideas-save');
     } catch (error: any) {
       console.error('[Ideas] Error saving idea:', error);
       setErrorMessage(error?.message || 'Não foi possível salvar a ideia.');
@@ -304,17 +303,6 @@ export const IdeasBank = () => {
 
   return (
     <div className="space-y-8">
-      {isActive && isCurrentStep('ideas') && currentStep ? (
-        <TrialGuidedPopover
-          stepNumber={currentStepIndex + 1}
-          totalSteps={5}
-          title={currentStep.title}
-          description="Aqui o cliente acompanha como as referências viram pautas organizadas. Quando quiser seguir, clique em Próximo para ir ao Calendário."
-          nextLabel={currentStep.nextLabel}
-          onNext={() => completeStepAndContinue('ideas')}
-          isLoading={isSaving}
-        />
-      ) : null}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
@@ -331,7 +319,7 @@ export const IdeasBank = () => {
           )}
         </div>
 
-        <Button className="gap-2" onClick={openCreateModal}>
+        <Button className="gap-2" onClick={openCreateModal} data-tour-id="ideas-add-button">
           <Plus className="h-4 w-4" />
           Nova Ideia
         </Button>
@@ -481,7 +469,11 @@ export const IdeasBank = () => {
             title="Nenhuma ideia encontrada"
             description="Tente ajustar sua busca ou adicione uma nova inspiração ao seu banco."
             icon={Lightbulb}
-            action={<Button onClick={openCreateModal}>Adicionar Nova Ideia</Button>}
+            action={
+              <Button onClick={openCreateModal} data-tour-id="ideas-add-button">
+                Adicionar Nova Ideia
+              </Button>
+            }
           />
         </Card>
       )}
@@ -580,7 +572,7 @@ export const IdeasBank = () => {
             >
               Cancelar
             </Button>
-            <Button type="submit">
+            <Button type="submit" data-tour-id="ideas-save-button">
               {editingIdea ? 'Salvar Alterações' : 'Salvar Ideia'}
             </Button>
           </div>

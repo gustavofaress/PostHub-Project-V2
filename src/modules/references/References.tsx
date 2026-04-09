@@ -30,7 +30,6 @@ import { Button } from '../../shared/components/Button';
 import { Input } from '../../shared/components/Input';
 import { Badge } from '../../shared/components/Badge';
 import { cn } from '../../shared/utils/cn';
-import { TrialGuidedPopover } from '../onboarding/components/TrialGuidedPopover';
 import { useTrialGuidedFlow } from '../onboarding/hooks/useTrialGuidedFlow';
 import {
   renderCompressedVideo,
@@ -213,14 +212,7 @@ const ReferenceImagePreview = ({
 export const References = () => {
   const { activeProfile } = useProfile();
   const profileId = activeProfile?.id;
-  const {
-    currentStep,
-    currentStepIndex,
-    isActive,
-    isCurrentStep,
-    completeStepAndContinue,
-    isSaving: isGuidedFlowSaving,
-  } = useTrialGuidedFlow();
+  const { completeCurrentActionStep } = useTrialGuidedFlow();
 
   const [references, setReferences] = React.useState<ReferenceItem[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -632,6 +624,7 @@ export const References = () => {
       }
       setShowCreateModal(false);
       resetForm();
+      await completeCurrentActionStep('references-save');
     } catch (error) {
       console.error('Erro ao salvar referência:', error);
       const message = error instanceof Error ? error.message : 'Erro desconhecido.';
@@ -829,17 +822,6 @@ export const References = () => {
 
   return (
     <div className="space-y-8">
-      {isActive && isCurrentStep('references') && currentStep ? (
-        <TrialGuidedPopover
-          stepNumber={currentStepIndex + 1}
-          totalSteps={5}
-          title={currentStep.title}
-          description="Este é o primeiro passo do teste guiado. Mostre ao cliente onde ele organiza referências e, quando estiver pronto, avance para Ideias."
-          nextLabel={currentStep.nextLabel}
-          onNext={() => completeStepAndContinue('references')}
-          isLoading={isGuidedFlowSaving}
-        />
-      ) : null}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold text-text-primary">
@@ -855,7 +837,7 @@ export const References = () => {
           <Badge className="border-none bg-brand/10 text-brand">
             Profile ativo: {activeProfile?.name || profileId || '—'}
           </Badge>
-          <Button className="gap-2" onClick={openCreateModal}>
+          <Button className="gap-2" onClick={openCreateModal} data-tour-id="references-add-button">
             <Plus className="h-4 w-4" />
             Adicionar Referência
           </Button>
@@ -930,7 +912,7 @@ export const References = () => {
               Tente outro termo de busca ou adicione uma nova referência para este perfil.
             </p>
           </div>
-          <Button className="gap-2" onClick={openCreateModal}>
+          <Button className="gap-2" onClick={openCreateModal} data-tour-id="references-add-button">
             <Plus className="h-4 w-4" />
             Criar primeira referência
           </Button>
@@ -1444,7 +1426,7 @@ export const References = () => {
               >
                 Cancelar
               </Button>
-              <Button onClick={handleSaveReference} disabled={isSaving}>
+              <Button onClick={handleSaveReference} disabled={isSaving} data-tour-id="references-save-button">
                 {isSaving ? (
                   <span className="flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />

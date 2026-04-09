@@ -19,7 +19,6 @@ import { Input } from '../../shared/components/Input';
 import { useProfile } from '../../app/context/ProfileContext';
 import { useAuth } from '../../app/context/AuthContext';
 import { supabase } from '../../shared/utils/supabase';
-import { TrialGuidedPopover } from '../onboarding/components/TrialGuidedPopover';
 import { useTrialGuidedFlow } from '../onboarding/hooks/useTrialGuidedFlow';
 
 interface KanbanColumn {
@@ -130,8 +129,7 @@ function mapColumnNameToStatus(columnName: string): string {
 export const KanbanBoard = () => {
   const { activeProfile } = useProfile();
   const { user } = useAuth();
-  const { currentStep, currentStepIndex, isActive, isCurrentStep, completeStepAndContinue, isSaving } =
-    useTrialGuidedFlow();
+  const { completeCurrentActionStep } = useTrialGuidedFlow();
 
   const [columns, setColumns] = React.useState<KanbanColumn[]>([]);
   const [cards, setCards] = React.useState<KanbanCard[]>([]);
@@ -519,6 +517,7 @@ export const KanbanBoard = () => {
       setNewTaskType('Video');
       setNewTaskDate(format(new Date(), 'yyyy-MM-dd'));
       setEditingCardId(null);
+      await completeCurrentActionStep('kanban-save');
     } catch (error: any) {
       console.error('[KanbanBoard] Error saving task:', error);
       setErrorMessage(error?.message || 'Não foi possível salvar a tarefa.');
@@ -601,17 +600,6 @@ export const KanbanBoard = () => {
 
   return (
     <div className="space-y-8 h-[calc(100vh-160px)] flex flex-col">
-      {isActive && isCurrentStep('kanban') && currentStep ? (
-        <TrialGuidedPopover
-          stepNumber={currentStepIndex + 1}
-          totalSteps={5}
-          title={currentStep.title}
-          description="Agora o cliente vê o conteúdo andando pelas etapas de produção. Quando fizer sentido, avance para o módulo de Aprovação."
-          nextLabel={currentStep.nextLabel}
-          onNext={() => completeStepAndContinue('kanban')}
-          isLoading={isSaving}
-        />
-      ) : null}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
@@ -635,7 +623,12 @@ export const KanbanBoard = () => {
             <Plus className="h-4 w-4" />
             Adicionar Coluna
           </Button>
-          <Button className="gap-2" onClick={() => openAddModal()} disabled={columns.length === 0}>
+          <Button
+            className="gap-2"
+            onClick={() => openAddModal()}
+            disabled={columns.length === 0}
+            data-tour-id="kanban-add-button"
+          >
             <Plus className="h-4 w-4" />
             Adicionar Tarefa
           </Button>
@@ -894,7 +887,7 @@ export const KanbanBoard = () => {
               <Button variant="secondary" onClick={() => setIsModalOpen(false)} type="button">
                 Cancelar
               </Button>
-              <Button type="submit" isLoading={isSavingTask}>
+              <Button type="submit" isLoading={isSavingTask} data-tour-id="kanban-save-button">
                 {editingCardId ? 'Salvar Alterações' : 'Adicionar Tarefa'}
               </Button>
             </div>
