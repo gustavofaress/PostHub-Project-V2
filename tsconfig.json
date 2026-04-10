@@ -24,7 +24,6 @@
     "noEmit": true
   },
   "exclude": [
-    "posthub-project-v2-clone",
     "supabase/functions"
   ]
 }
