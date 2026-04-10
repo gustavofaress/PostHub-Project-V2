@@ -4,6 +4,7 @@ import {
   Activity,
   ArrowUpRight,
   BarChart3,
+  ChevronRight,
   Instagram,
   RefreshCcw,
 } from 'lucide-react';
@@ -11,7 +12,6 @@ import { Card, CardDescription, CardTitle } from '../../shared/components/Card';
 import { Badge } from '../../shared/components/Badge';
 import { Button } from '../../shared/components/Button';
 import { EmptyState } from '../../shared/components/EmptyState';
-import { Modal } from '../../shared/components/Modal';
 import { Tabs } from '../../shared/components/Tabs';
 import { useProfile } from '../../app/context/ProfileContext';
 import { useAuth } from '../../app/context/AuthContext';
@@ -77,6 +77,13 @@ interface MetricsSummary {
   impressions: number;
   engagementRate: number;
   profileViews: number;
+}
+
+interface PerformanceSection {
+  id: 'overview' | 'instagram-uploads';
+  label: string;
+  description: string;
+  badge?: string;
 }
 
 function cn(...inputs: Array<string | boolean | null | undefined>) {
@@ -291,7 +298,6 @@ export const Performance = () => {
   const [isConnecting, setIsConnecting] = React.useState(false);
   const [isSyncing, setIsSyncing] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
-  const [isComingSoonModalOpen, setIsComingSoonModalOpen] = React.useState(true);
 
   const metaFeedback = React.useMemo(() => {
     const searchParams = new URLSearchParams(location.search);
@@ -419,6 +425,23 @@ export const Performance = () => {
 
   const hasConnections = connections.length > 0;
   const hasData = rows.length > 0;
+  const sections: PerformanceSection[] = React.useMemo(
+    () => [
+      {
+        id: 'overview',
+        label: 'Visão Geral',
+        description: 'Métricas atuais vindas da Meta e ranking do Instagram conectado.',
+      },
+      {
+        id: 'instagram-uploads',
+        label: 'Instagram Uploads',
+        description:
+          'Nova página para subir imagens e PDFs, revisar extrações e consolidar dashboard próprio.',
+        badge: 'Novo',
+      },
+    ],
+    []
+  );
   const activeTab = React.useMemo(() => {
     const searchParams = new URLSearchParams(location.search);
     return searchParams.get('tab') === 'instagram-uploads' ? 'instagram-uploads' : 'overview';
@@ -474,39 +497,76 @@ export const Performance = () => {
         />
       </div>
 
+      <Card className="border-gray-200 bg-white">
+        <div className="mb-4">
+          <CardTitle>Seções do módulo</CardTitle>
+          <CardDescription>
+            O Performance agora está dividido em páginas internas. Você pode navegar por aqui sem
+            depender da sidebar.
+          </CardDescription>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+          {sections.map((section) => {
+            const isActiveSection = activeTab === section.id;
+
+            return (
+              <button
+                key={section.id}
+                type="button"
+                onClick={() => handleTabChange(section.id)}
+                className={cn(
+                  'rounded-2xl border p-4 text-left transition-all',
+                  isActiveSection
+                    ? 'border-brand bg-brand/[0.05] shadow-sm'
+                    : 'border-gray-200 bg-gray-50/70 hover:border-brand/30 hover:bg-white'
+                )}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-text-primary">{section.label}</p>
+                      {section.badge ? <Badge variant="brand">{section.badge}</Badge> : null}
+                    </div>
+                    <p className="mt-1 text-sm leading-6 text-text-secondary">
+                      {section.description}
+                    </p>
+                  </div>
+                  <ChevronRight
+                    className={cn(
+                      'mt-1 h-4 w-4 shrink-0 transition-transform',
+                      isActiveSection ? 'translate-x-0 text-brand' : 'text-text-secondary'
+                    )}
+                  />
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </Card>
+
       {activeTab === 'instagram-uploads' ? (
         <PerformanceInstagramUploads />
       ) : (
         <>
-          <Modal
-            isOpen={isComingSoonModalOpen}
-            onClose={() => setIsComingSoonModalOpen(false)}
-            title="Analytics em breve"
-          >
-            <div className="space-y-5">
-              <div className="rounded-2xl border border-brand/10 bg-brand/5 p-5">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-brand shadow-sm">
-                  <BarChart3 className="h-6 w-6" />
-                </div>
-                <h4 className="mb-2 text-lg font-bold text-text-primary">
-                  A ferramenta de métricas está quase pronta
-                </h4>
-                <p className="text-sm leading-6 text-text-secondary">
-                  Estamos finalizando o módulo de Analytics para trazer dados de performance mais
-                  confiáveis, relatórios por perfil e insights conectados às integrações da PostHub.
-                </p>
+          <Card className="border-brand/15 bg-brand/[0.05]">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <CardTitle>Base atual do Analytics</CardTitle>
+                <CardDescription>
+                  Esta visão continua mostrando os dados sincronizados pela Meta. A nova página de
+                  Instagram Uploads fica disponível como uma seção separada dentro deste módulo.
+                </CardDescription>
               </div>
-
-              <p className="text-sm text-text-secondary">
-                Por enquanto, você já pode acompanhar as próximas conexões pelo módulo de
-                Integrações.
-              </p>
-
-              <div className="flex justify-end">
-                <Button onClick={() => setIsComingSoonModalOpen(false)}>Entendi</Button>
-              </div>
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => handleTabChange('instagram-uploads')}
+              >
+                Abrir Instagram Uploads
+              </Button>
             </div>
-          </Modal>
+          </Card>
 
           <div className="flex flex-wrap gap-3">
             <Button
