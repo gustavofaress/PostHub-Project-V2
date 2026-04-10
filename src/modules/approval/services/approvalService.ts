@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { supabase } from '../../../shared/utils/supabase';
-import { ApprovalPost, ApprovalComment } from '../ApprovalModule';
+import type { ApprovalPost, ApprovalComment } from '../ApprovalModule';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -46,6 +46,46 @@ const sanitizeFileName = (fileName: string): string => {
     .replace(/\s+/g, '-')
     .replace(/[^a-zA-Z0-9.\-_]/g, '')
     .toLowerCase();
+};
+
+const removeProfileSnapshotFromDbPost = (dbPost: Record<string, any>) => {
+  const sanitized = { ...dbPost };
+  delete sanitized.profile_name_snapshot;
+  delete sanitized.profile_avatar_url_snapshot;
+  return sanitized;
+};
+
+const hasMissingProfileSnapshotColumn = (error: any) => {
+  const message = String(error?.message || '').toLowerCase();
+  return (
+    message.includes('profile_name_snapshot') ||
+    message.includes('profile_avatar_url_snapshot')
+  );
+};
+
+const fetchProfileSnapshot = async (
+  client: any,
+  profileId?: string
+): Promise<{ profileName?: string; profileAvatarUrl?: string } | null> => {
+  if (!profileId) return null;
+
+  const { data, error } = await client
+    .from('client_profiles')
+    .select('profile_name, avatar_url')
+    .eq('id', profileId)
+    .maybeSingle();
+
+  if (error) {
+    console.warn('Unable to fetch approval profile snapshot:', error);
+    return null;
+  }
+
+  if (!data) return null;
+
+  return {
+    profileName: data.profile_name || undefined,
+    profileAvatarUrl: data.avatar_url || undefined,
+  };
 };
 
 export const approvalService = {
@@ -154,11 +194,20 @@ export const approvalService = {
 
     console.log('createApprovalPost payload:', dbPost);
 
-    const { data, error } = await client
+    let { data, error } = await client
       .from('approval_posts')
       .insert([dbPost])
       .select('*')
       .single();
+
+    if (error && hasMissingProfileSnapshotColumn(error)) {
+      const fallbackDbPost = removeProfileSnapshotFromDbPost(dbPost);
+      ({ data, error } = await client
+        .from('approval_posts')
+        .insert([fallbackDbPost])
+        .select('*')
+        .single());
+    }
 
     if (error) {
       console.error('Error creating approval post:', {
@@ -196,7 +245,7 @@ export const approvalService = {
       payload: dbPost,
     });
 
-    const { data, error } = await client
+    let { data, error } = await client
       .from('approval_posts')
       .update({
         ...dbPost,
@@ -206,6 +255,20 @@ export const approvalService = {
       .eq('profile_id', profileId)
       .select('*')
       .single();
+
+    if (error && hasMissingProfileSnapshotColumn(error)) {
+      const fallbackDbPost = removeProfileSnapshotFromDbPost(dbPost);
+      ({ data, error } = await client
+        .from('approval_posts')
+        .update({
+          ...fallbackDbPost,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .eq('profile_id', profileId)
+        .select('*')
+        .single());
+    }
 
     if (error) {
       console.error('Error updating approval post:', error);
@@ -258,7 +321,30 @@ export const approvalService = {
       throw buildReadableError('Não foi possível carregar a aprovação pública', error);
     }
 
-    return data ? mapDbToApprovalPost(data) : null;
+    if (!data) return null;
+
+    const mappedPost = mapDbToApprovalPost(data);
+
+    if (mappedPost.profileName || mappedPost.profileAvatarUrl) {
+      return mappedPost;
+    }
+
+    const profileSnapshot = await fetchProfileSnapshot(publicClient, mappedPost.profileId);
+
+    return {
+      ...mappedPost,
+      profileName: mappedPost.profileName || profileSnapshot?.profileName,
+      profileAvatarUrl:
+        mappedPost.profileAvatarUrl || profileSnapshot?.profileAvatarUrl,
+    };
+  },
+
+  async getApprovalProfileSummary(
+    profileId: string,
+    token?: string
+  ): Promise<{ profileName?: string; profileAvatarUrl?: string } | null> {
+    const client = token ? createPublicApprovalClient(token) : ensureSupabase();
+    return fetchProfileSnapshot(client, profileId);
   },
 
   async listApprovalFeedback(
@@ -388,6 +474,9 @@ function mapDbToApprovalPost(dbPost: DbApprovalPost): ApprovalPost {
       mediaItems[0]?.persistedPreview ||
       mediaItems[0]?.previewUrl ||
       '',
+    profileId: dbPost.profile_id || undefined,
+    profileName: dbPost.profile_name_snapshot || undefined,
+    profileAvatarUrl: dbPost.profile_avatar_url_snapshot || undefined,
     mediaItems,
     publicToken: dbPost.public_token,
     createdAt: dbPost.created_at,
@@ -429,6 +518,9 @@ function mapApprovalPostToDb(post: Partial<ApprovalPost>, profileId?: string): a
   if (post.status !== undefined) dbPost.status = post.status;
   if (post.mediaItems !== undefined) dbPost.media_urls = post.mediaItems;
   if (post.publicToken !== undefined) dbPost.public_token = post.publicToken;
+  if (post.profileName !== undefined) dbPost.profile_name_snapshot = post.profileName;
+  if (post.profileAvatarUrl !== undefined)
+    dbPost.profile_avatar_url_snapshot = post.profileAvatarUrl;
 
   if (
     post.thumbnail &&

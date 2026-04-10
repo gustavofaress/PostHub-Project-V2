@@ -68,6 +68,9 @@ export interface ApprovalPost {
   thumbnail: string;
   media?: string | MediaState;
   mediaItems?: MediaState[];
+  profileId?: string;
+  profileName?: string;
+  profileAvatarUrl?: string;
   publicToken?: string;
   createdAt: string;
   updatedAt: string;
@@ -847,7 +850,15 @@ export const ApprovalModule = () => {
       setApprovals(updatedApprovals);
 
       try {
-        await approvalService.updateApprovalPost(id, { publicToken: token }, profileId);
+        await approvalService.updateApprovalPost(
+          id,
+          {
+            publicToken: token,
+            profileName: activeProfile?.name,
+            profileAvatarUrl: activeProfile?.avatar_url,
+          },
+          profileId
+        );
       } catch (e) {
         console.error('Failed to save token to Supabase:', e);
         setApprovals(previousApprovals);
@@ -897,6 +908,8 @@ export const ApprovalModule = () => {
           caption: newCaption,
           platform: selectedPlatform,
           contentType: newContentType,
+          profileName: activeProfile?.name,
+          profileAvatarUrl: activeProfile?.avatar_url,
           mediaItems: newMediaItems,
           thumbnail:
             newMediaItems.length > 0
@@ -918,6 +931,8 @@ export const ApprovalModule = () => {
         platform: selectedPlatform,
         contentType: newContentType,
         status: 'pending',
+        profileName: activeProfile?.name,
+        profileAvatarUrl: activeProfile?.avatar_url,
         thumbnail:
           newMediaItems.length > 0
             ? newMediaItems[0].persistedPreview || newMediaItems[0].previewUrl

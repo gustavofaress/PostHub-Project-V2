@@ -1,19 +1,6 @@
 import * as React from 'react';
 import { useParams } from 'react-router-dom';
-import {
-  CheckCircle,
-  XCircle,
-  MessageSquare,
-  Video,
-  Send,
-  Heart,
-  MessageCircle,
-  Share,
-  Bookmark,
-  MoreHorizontal,
-  History,
-  Image as ImageIcon
-} from 'lucide-react';
+import { CheckCircle, XCircle, MessageSquare, Send, History } from 'lucide-react';
 import { Card } from '../shared/components/Card';
 import { Button } from '../shared/components/Button';
 import { Badge } from '../shared/components/Badge';
@@ -21,11 +8,11 @@ import { Avatar } from '../shared/components/Avatar';
 import { Modal } from '../shared/components/Modal';
 import { cn } from '../shared/utils/cn';
 import {
-  ApprovalPost,
-  ApprovalComment,
   loadApprovals,
   loadComments
 } from '../modules/approval/ApprovalModule';
+import { ApprovalContentMockup, getApprovalMockupProfile } from '../modules/approval/ApprovalContentMockup';
+import type { ApprovalPost, ApprovalComment } from '../modules/approval/ApprovalModule';
 import { approvalService } from '../modules/approval/services/approvalService';
 
 export const PublicApprovalPage = () => {
@@ -36,7 +23,6 @@ export const PublicApprovalPage = () => {
   const [post, setPost] = React.useState<ApprovalPost | null>(null);
   const [comments, setComments] = React.useState<ApprovalComment[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
-  const [carouselIndex, setCarouselIndex] = React.useState(0);
 
   const loadLocalFallback = React.useCallback((currentToken?: string) => {
     if (!currentToken) {
@@ -103,8 +89,24 @@ export const PublicApprovalPage = () => {
 
         const normalizedPost: ApprovalPost = {
           ...fetchedPost,
+          profileName: fetchedPost.profileName,
+          profileAvatarUrl: fetchedPost.profileAvatarUrl,
           mediaItems: normalizedItems
         };
+
+        if (normalizedPost.profileId && !normalizedPost.profileName) {
+          const profileSummary = await approvalService.getApprovalProfileSummary(
+            normalizedPost.profileId,
+            token
+          );
+
+          if (profileSummary) {
+            normalizedPost.profileName =
+              normalizedPost.profileName || profileSummary.profileName;
+            normalizedPost.profileAvatarUrl =
+              normalizedPost.profileAvatarUrl || profileSummary.profileAvatarUrl;
+          }
+        }
 
         setPost(normalizedPost);
 
@@ -123,10 +125,6 @@ export const PublicApprovalPage = () => {
 
     loadData();
   }, [token, loadLocalFallback]);
-
-  React.useEffect(() => {
-    setCarouselIndex(0);
-  }, [post?.id]);
 
   const handleStatusChange = async (
     newStatus: 'approved' | 'changes_requested' | 'rejected'
@@ -216,130 +214,6 @@ export const PublicApprovalPage = () => {
     }
   };
 
-  const getMediaItem = () => {
-    if (!post) return null;
-
-    if (
-      post.contentType === 'carousel' &&
-      post.mediaItems &&
-      post.mediaItems.length > 0
-    ) {
-      return post.mediaItems[carouselIndex];
-    }
-
-    if (post.mediaItems && post.mediaItems.length > 0) {
-      return post.mediaItems[0];
-    }
-
-    return null;
-  };
-
-  const mediaItem = getMediaItem();
-  const url =
-    mediaItem?.previewUrl || mediaItem?.persistedPreview || post?.thumbnail || '';
-  const isVideo =
-    mediaItem?.type === 'video' &&
-    !!mediaItem?.previewUrl &&
-    !url.includes('picsum.photos');
-  const isLostVideo = mediaItem?.type === 'video' && !mediaItem?.previewUrl;
-
-  const renderMedia = (className: string) => {
-    if (!post) return null;
-
-    if (!url) {
-      return (
-        <div
-          className={cn(
-            className,
-            'bg-gray-800 flex items-center justify-center text-gray-500'
-          )}
-        >
-          {isLostVideo ? (
-            <Video className="h-8 w-8 opacity-50" />
-          ) : (
-            <ImageIcon className="h-8 w-8 opacity-50" />
-          )}
-        </div>
-      );
-    }
-
-    const mediaElement = isVideo ? (
-      <video
-        src={url}
-        className={className}
-        controls
-        muted={false}
-        loop
-        playsInline
-        preload="metadata"
-      >
-        <p>Seu navegador não suporta vídeo HTML.</p>
-      </video>
-    ) : (
-      <div className="relative h-full w-full">
-        <img
-          src={url}
-          alt="Prévia"
-          className={className}
-          referrerPolicy="no-referrer"
-        />
-        {isLostVideo && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white p-4 text-center">
-            <Video className="h-12 w-12 mb-2 opacity-80" />
-            <p className="text-sm font-medium">
-              Prévia do vídeo indisponível após atualizar a página.
-            </p>
-            <p className="text-xs opacity-70 mt-1">
-              Anexe o arquivo novamente para reproduzi-lo.
-            </p>
-          </div>
-        )}
-      </div>
-    );
-
-    if (
-      post.contentType === 'carousel' &&
-      post.mediaItems &&
-      post.mediaItems.length > 1
-    ) {
-      return (
-        <div className="relative h-full w-full group">
-          {mediaElement}
-
-          <div className="absolute inset-0 flex items-center justify-between p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setCarouselIndex((prev) => Math.max(0, prev - 1));
-              }}
-              disabled={carouselIndex === 0}
-              className="p-1 rounded-full bg-black/50 text-white disabled:opacity-30 hover:bg-black/70 transition-colors"
-            >
-              ←
-            </button>
-
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setCarouselIndex((prev) =>
-                  Math.min((post.mediaItems?.length || 1) - 1, prev + 1)
-                );
-              }}
-              disabled={carouselIndex === (post.mediaItems?.length || 1) - 1}
-              className="p-1 rounded-full bg-black/50 text-white disabled:opacity-30 hover:bg-black/70 transition-colors"
-            >
-              →
-            </button>
-          </div>
-        </div>
-      );
-    }
-
-    return mediaElement;
-  };
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
@@ -364,12 +238,7 @@ export const PublicApprovalPage = () => {
     );
   }
 
-  const displayPost = {
-    ...post,
-    handle: '@acme_corp',
-    avatar: 'https://picsum.photos/seed/acme/100/100',
-    audio: 'Áudio Original - Acme Corp'
-  };
+  const displayProfile = getApprovalMockupProfile(post);
 
   return (
     <div className="min-h-screen bg-gray-100 py-12 px-4">
@@ -383,7 +252,7 @@ export const PublicApprovalPage = () => {
               <div>
                 <h1 className="font-bold text-text-primary">Aprovação PostHub</h1>
                 <p className="text-xs text-text-secondary">
-                  Revisando conteúdo para {displayPost.handle}
+                  Revisando conteúdo para {displayProfile.name}
                 </p>
               </div>
             </div>
@@ -399,48 +268,17 @@ export const PublicApprovalPage = () => {
                       : 'default'
               }
             >
-              {post.status.replace('_', ' ').toUpperCase()}
+              {post.status === 'approved'
+                ? 'APROVADO'
+                : post.status === 'changes_requested'
+                  ? 'AJUSTES SOLICITADOS'
+                  : post.status === 'rejected'
+                    ? 'REJEITADO'
+                    : 'PENDENTE'}
             </Badge>
           </div>
 
-          <div className="w-full max-w-[400px] bg-white rounded-xl border border-gray-200 shadow-xl overflow-hidden mx-auto">
-            <div className="flex items-center justify-between p-3 border-b border-gray-100">
-              <div className="flex items-center gap-2">
-                <Avatar src={displayPost.avatar} fallback="AC" size="sm" />
-                <span className="text-sm font-bold text-gray-900">
-                  {displayPost.handle}
-                </span>
-              </div>
-              <MoreHorizontal className="h-5 w-5 text-gray-500" />
-            </div>
-
-            <div
-              className={cn(
-                'relative bg-gray-100',
-                post.contentType === 'carousel' ? 'aspect-[4/5]' : 'aspect-square'
-              )}
-            >
-              {renderMedia('absolute inset-0 h-full w-full object-cover')}
-            </div>
-
-            <div className="p-3">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-4">
-                  <Heart className="h-6 w-6 text-gray-900" />
-                  <MessageCircle className="h-6 w-6 text-gray-900" />
-                  <Share className="h-6 w-6 text-gray-900" />
-                </div>
-                <Bookmark className="h-6 w-6 text-gray-900" />
-              </div>
-
-              <p className="text-sm font-bold text-gray-900 mb-1">1.234 curtidas</p>
-
-              <p className="text-sm text-gray-900">
-                <span className="font-bold mr-2">{displayPost.handle}</span>
-                {displayPost.caption}
-              </p>
-            </div>
-          </div>
+          <ApprovalContentMockup post={post} />
 
           <p className="mt-6 text-xs text-text-secondary">
             Esta é uma prévia de alta fidelidade de como seu post ficará no{' '}
