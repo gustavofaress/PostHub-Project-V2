@@ -35,6 +35,38 @@ export interface ScriptAiRequest {
   history: ScriptAiHistoryMessage[];
 }
 
+const resolveFunctionErrorMessage = async (error: unknown) => {
+  const fallback =
+    error instanceof Error
+      ? error.message
+      : 'Não foi possível gerar o roteiro com IA no momento.';
+
+  if (!error || typeof error !== 'object' || !('context' in error)) {
+    return fallback;
+  }
+
+  const response = (error as { context?: unknown }).context;
+  if (!(response instanceof Response)) {
+    return fallback;
+  }
+
+  const contentType = response.headers.get('content-type') || '';
+
+  if (contentType.includes('application/json')) {
+    const json = await response
+      .clone()
+      .json()
+      .catch(() => null as { error?: string } | null);
+
+    if (json?.error) {
+      return json.error;
+    }
+  }
+
+  const text = await response.clone().text().catch(() => '');
+  return text.trim() || fallback;
+};
+
 export const scriptAiService = {
   async generateScript(payload: ScriptAiRequest) {
     if (!supabase) {
@@ -46,7 +78,7 @@ export const scriptAiService = {
     });
 
     if (error) {
-      throw error;
+      throw new Error(await resolveFunctionErrorMessage(error));
     }
 
     if (!data?.script) {

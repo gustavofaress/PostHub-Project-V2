@@ -13,6 +13,7 @@ export const Sidebar = () => {
   const location = useLocation();
   const { logout, user } = useAuth();
   const { isActive: isGuidedFlowActive } = useTrialGuidedFlow();
+  const currentPathWithSearch = `${location.pathname}${location.search}`;
 
   const [hoveredItem, setHoveredItem] = React.useState<{ item: NavItem; rect: DOMRect } | null>(
     null
@@ -205,6 +206,37 @@ export const Sidebar = () => {
                 {!hasAccess(user?.currentPlan, hoveredItem.item.id, user?.isAdmin) ? (
                   <div className="mb-4 rounded-lg border border-brand/20 bg-brand/5 px-3 py-2 text-xs font-medium text-brand">
                     Disponível no plano PRO
+                  </div>
+                ) : null}
+
+                {hoveredItem.item.subItems?.length ? (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">
+                      Acessos rápidos
+                    </p>
+
+                    <div className="space-y-1">
+                      {hoveredItem.item.subItems.map((subItem) => {
+                        const isSubItemActive =
+                          currentPathWithSearch === subItem.path ||
+                          (location.pathname === subItem.path && !subItem.path.includes('?'));
+
+                        return (
+                          <Link
+                            key={subItem.path}
+                            to={subItem.path}
+                            className={cn(
+                              'flex items-center rounded-xl px-3 py-2 text-sm transition-colors',
+                              isSubItemActive
+                                ? 'bg-[#38B6FF]/10 font-medium text-[#38B6FF]'
+                                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                            )}
+                          >
+                            {subItem.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
                   </div>
                 ) : null}
 
