@@ -232,7 +232,7 @@ export const NAV_GROUPS: NavGroup[] = [
         path: '/workspace/performance',
         subItems: [
           { label: 'Visão Geral Multicanal', path: '/workspace/performance' },
-          { label: 'Instagram Uploads', path: '/workspace/performance?tab=instagram-uploads' },
+          { label: 'Instagram Uploads', path: '/workspace/performance/instagram' },
           { label: 'Demografia da Audiência', path: '/workspace/performance?tab=audience' },
           { label: 'Posts com Melhor Desempenho', path: '/workspace/performance?tab=top' },
           { label: 'Relatórios Personalizados', path: '/workspace/performance?tab=reports' },

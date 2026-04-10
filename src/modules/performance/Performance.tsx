@@ -80,10 +80,10 @@ interface MetricsSummary {
 }
 
 interface PerformanceSection {
-  id: 'overview' | 'instagram-uploads';
+  id: 'overview' | 'instagram';
   label: string;
   description: string;
-  badge?: string;
+  path: string;
 }
 
 function cn(...inputs: Array<string | boolean | null | undefined>) {
@@ -431,42 +431,52 @@ export const Performance = () => {
         id: 'overview',
         label: 'Visão Geral',
         description: 'Métricas atuais vindas da Meta e ranking do Instagram conectado.',
+        path: '/workspace/performance',
       },
       {
-        id: 'instagram-uploads',
+        id: 'instagram',
         label: 'Instagram Uploads',
-        description:
-          'Nova página para subir imagens e PDFs, revisar extrações e consolidar dashboard próprio.',
-        badge: 'Novo',
+        description: 'Uploads, revisão de posts e dashboard consolidado do Instagram.',
+        path: '/workspace/performance/instagram',
       },
     ],
     []
   );
-  const activeTab = React.useMemo(() => {
+  const activeSection = React.useMemo<PerformanceSection['id']>(() => {
+    if (location.pathname.startsWith('/workspace/performance/instagram')) {
+      return 'instagram';
+    }
+
+    return 'overview';
+  }, [location.pathname]);
+
+  React.useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
-    return searchParams.get('tab') === 'instagram-uploads' ? 'instagram-uploads' : 'overview';
-  }, [location.search]);
+
+    if (searchParams.get('tab') !== 'instagram-uploads') {
+      return;
+    }
+
+    searchParams.delete('tab');
+    const nextSearch = searchParams.toString();
+
+    navigate(
+      {
+        pathname: '/workspace/performance/instagram',
+        search: nextSearch ? `?${nextSearch}` : '',
+      },
+      { replace: true }
+    );
+  }, [location.search, navigate]);
 
   const handleTabChange = React.useCallback(
     (nextTab: string) => {
-      const searchParams = new URLSearchParams(location.search);
+      const nextSection =
+        sections.find((section) => section.id === nextTab) ?? sections[0];
 
-      if (nextTab === 'overview') {
-        searchParams.delete('tab');
-      } else {
-        searchParams.set('tab', nextTab);
-      }
-
-      const nextSearch = searchParams.toString();
-      navigate(
-        {
-          pathname: location.pathname,
-          search: nextSearch ? `?${nextSearch}` : '',
-        },
-        { replace: true }
-      );
+      navigate(nextSection.path);
     },
-    [location.pathname, location.search, navigate]
+    [navigate, sections]
   );
 
   return (
@@ -490,9 +500,9 @@ export const Performance = () => {
         <Tabs
           tabs={[
             { id: 'overview', label: 'Visão Geral' },
-            { id: 'instagram-uploads', label: 'Instagram Uploads' },
+            { id: 'instagram', label: 'Instagram Uploads' },
           ]}
-          activeTab={activeTab}
+          activeTab={activeSection}
           onChange={handleTabChange}
         />
       </div>
@@ -508,7 +518,7 @@ export const Performance = () => {
 
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           {sections.map((section) => {
-            const isActiveSection = activeTab === section.id;
+            const isActiveSection = activeSection === section.id;
 
             return (
               <button
@@ -524,10 +534,7 @@ export const Performance = () => {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-semibold text-text-primary">{section.label}</p>
-                      {section.badge ? <Badge variant="brand">{section.badge}</Badge> : null}
-                    </div>
+                    <p className="font-semibold text-text-primary">{section.label}</p>
                     <p className="mt-1 text-sm leading-6 text-text-secondary">
                       {section.description}
                     </p>
@@ -545,7 +552,7 @@ export const Performance = () => {
         </div>
       </Card>
 
-      {activeTab === 'instagram-uploads' ? (
+      {activeSection === 'instagram' ? (
         <PerformanceInstagramUploads />
       ) : (
         <>
@@ -561,7 +568,7 @@ export const Performance = () => {
               <Button
                 variant="outline"
                 className="gap-2"
-                onClick={() => handleTabChange('instagram-uploads')}
+                onClick={() => handleTabChange('instagram')}
               >
                 Abrir Instagram Uploads
               </Button>
