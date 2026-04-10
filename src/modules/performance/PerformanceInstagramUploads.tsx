@@ -1,6 +1,5 @@
 import * as React from 'react';
 import {
-  AlertCircle,
   CheckCircle2,
   FileImage,
   FileText,
@@ -351,14 +350,13 @@ export const PerformanceInstagramUploads = () => {
         <div>
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <Badge variant="brand">Instagram</Badge>
-            <Badge variant="info">Primeira versão</Badge>
-            <Badge variant="warning">Protótipo com extração simulada</Badge>
+            <Badge variant="info">Uploads</Badge>
+            <Badge variant="success">Dashboard</Badge>
           </div>
           <h2 className="text-2xl font-bold text-text-primary">Dashboard por uploads do Instagram</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-text-secondary">
-            Esta versão valida o fluxo da nova página: upload de imagens e PDFs, criação de um lote,
-            revisão dos posts detectados e geração do dashboard específico da plataforma. A próxima
-            etapa conecta IA real, storage e banco dedicado.
+            Suba imagens e PDFs de métricas do Instagram, organize os arquivos em lotes e consolide
+            um dashboard próprio da plataforma por perfil.
           </p>
           {activeProfile && (
             <p className="mt-2 text-sm text-text-secondary">
@@ -402,8 +400,8 @@ export const PerformanceInstagramUploads = () => {
             <div>
               <CardTitle>Preparar novo lote</CardTitle>
               <CardDescription>
-                Envie prints ou PDFs de métricas do Instagram. Nesta primeira versão, a extração é
-                simulada para validar a experiência da página.
+                Envie prints ou PDFs de métricas do Instagram para organizar a importação e revisar
+                os posts detectados.
               </CardDescription>
             </div>
 
@@ -423,9 +421,7 @@ export const PerformanceInstagramUploads = () => {
                   <p className="font-semibold text-text-primary">
                     Arraste arquivos ou selecione manualmente
                   </p>
-                  <p className="text-sm text-text-secondary">
-                    Tipos aceitos nesta versão: imagem e PDF
-                  </p>
+                  <p className="text-sm text-text-secondary">Tipos aceitos: imagem e PDF</p>
                 </div>
               </div>
 
@@ -458,7 +454,7 @@ export const PerformanceInstagramUploads = () => {
               ) : (
                 <EmptyState
                   title="Nenhum arquivo selecionado"
-                  description="Use a seleção de arquivos para montar um lote e ver o dashboard de preview."
+                  description="Selecione arquivos para montar um lote e visualizar o dashboard consolidado."
                   icon={Instagram}
                 />
               )}
@@ -467,34 +463,34 @@ export const PerformanceInstagramUploads = () => {
 
           <div className="space-y-4">
             <Card className="border-gray-200 bg-white">
-              <CardTitle className="mb-3">Como essa página deve evoluir</CardTitle>
+              <CardTitle className="mb-3">Fluxo de trabalho</CardTitle>
               <div className="space-y-3 text-sm text-text-secondary">
                 <div className="flex gap-3">
                   <Hash className="mt-0.5 h-4 w-4 text-brand" />
-                  <p>Upload vai para storage dedicado do Instagram.</p>
+                  <p>Organize os arquivos por lote, campanha ou período.</p>
                 </div>
                 <div className="flex gap-3">
                   <Sparkles className="mt-0.5 h-4 w-4 text-brand" />
-                  <p>IA extrai métricas por post e devolve JSON estruturado.</p>
+                  <p>Consolide as métricas por post dentro de um dashboard do Instagram.</p>
                 </div>
                 <div className="flex gap-3">
                   <CheckCircle2 className="mt-0.5 h-4 w-4 text-brand" />
-                  <p>Usuário revisa antes de consolidar no dashboard final.</p>
+                  <p>Revise os posts detectados antes de considerar a importação como final.</p>
                 </div>
                 <div className="flex gap-3">
                   <LayoutGrid className="mt-0.5 h-4 w-4 text-brand" />
-                  <p>A página do Instagram usa tabelas próprias, sem misturar com TikTok e YouTube.</p>
+                  <p>Mantenha o histórico separado por plataforma e por perfil ativo.</p>
                 </div>
               </div>
             </Card>
 
             <Card className="border-gray-200 bg-white">
-              <CardTitle className="mb-3">Próximas integrações</CardTitle>
+              <CardTitle className="mb-3">Métricas acompanhadas</CardTitle>
               <div className="flex flex-wrap gap-2">
-                <Badge variant="brand">Storage</Badge>
-                <Badge variant="brand">Edge Function</Badge>
-                <Badge variant="brand">IA multimodal</Badge>
-                <Badge variant="brand">Tabela dedicada</Badge>
+                <Badge variant="brand">Alcance</Badge>
+                <Badge variant="brand">Impressões</Badge>
+                <Badge variant="brand">Contas Engajadas</Badge>
+                <Badge variant="brand">Engajamento</Badge>
               </div>
             </Card>
           </div>
@@ -533,9 +529,7 @@ export const PerformanceInstagramUploads = () => {
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>
               <CardTitle>Lotes importados</CardTitle>
-              <CardDescription>
-                Cada lote representa uma futura importação real para a tabela do Instagram.
-              </CardDescription>
+              <CardDescription>Organize e consulte os uploads já processados do Instagram.</CardDescription>
             </div>
             <Badge variant="brand">{jobs.length} lote(s)</Badge>
           </div>
@@ -543,7 +537,7 @@ export const PerformanceInstagramUploads = () => {
           {!jobs.length ? (
             <EmptyState
               title="Nenhuma importação criada"
-              description="Selecione arquivos e processe um lote para visualizar o dashboard desta nova página."
+              description="Selecione arquivos e processe um lote para começar a consolidar as métricas."
               icon={Instagram}
             />
           ) : (
@@ -587,9 +581,7 @@ export const PerformanceInstagramUploads = () => {
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>
               <CardTitle>Dashboard consolidado do Instagram</CardTitle>
-              <CardDescription>
-                A prévia abaixo já simula como a página final vai responder às métricas da plataforma.
-              </CardDescription>
+              <CardDescription>Métricas consolidadas a partir dos posts revisados do Instagram.</CardDescription>
             </div>
             <Badge variant="brand">
               {approvedPosts.length ? 'Apenas aprovados' : 'Usando todos os posts'}
@@ -599,7 +591,7 @@ export const PerformanceInstagramUploads = () => {
           {!topPosts.length ? (
             <EmptyState
               title="Sem posts para consolidar"
-              description="Depois que um lote for processado, o dashboard específico do Instagram aparece aqui."
+              description="Os posts aprovados do lote aparecem aqui com o ranking de desempenho."
               icon={LayoutGrid}
             />
           ) : (
@@ -664,10 +656,7 @@ export const PerformanceInstagramUploads = () => {
         <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <CardTitle>Posts extraídos do lote</CardTitle>
-            <CardDescription>
-              Esta é a tabela que depois será salva em uma estrutura dedicada, como
-              `performance_posts_instagram`.
-            </CardDescription>
+            <CardDescription>Tabela operacional com os posts identificados em cada importação.</CardDescription>
           </div>
 
           {selectedJob && (
@@ -780,20 +769,6 @@ export const PerformanceInstagramUploads = () => {
             </table>
           </div>
         )}
-      </Card>
-
-      <Card className="border-yellow-200 bg-yellow-50">
-        <div className="flex gap-3">
-          <AlertCircle className="mt-0.5 h-5 w-5 text-yellow-700" />
-          <div>
-            <CardTitle className="text-yellow-900">O que esta primeira versão resolve</CardTitle>
-            <p className="mt-2 text-sm leading-6 text-yellow-800">
-              Ela já valida a nova IA de produto: cada rede social terá sua própria página, seu
-              próprio dashboard e sua própria tabela. Aqui, o fluxo do Instagram já está desenhado na
-              interface e pronto para receber backend real no próximo passo.
-            </p>
-          </div>
-        </div>
       </Card>
     </div>
   );

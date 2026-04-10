@@ -478,7 +478,7 @@ export const Performance = () => {
             Análise de Performance
           </h1>
           <p className="text-text-secondary">
-            Acompanhe métricas reais da Meta e evolua para dashboards dedicados por plataforma.
+            Acompanhe métricas do Instagram e navegue entre as seções do módulo por perfil.
           </p>
           {activeProfile && (
             <p className="mt-1 text-sm text-text-secondary">
@@ -554,8 +554,8 @@ export const Performance = () => {
               <div>
                 <CardTitle>Base atual do Analytics</CardTitle>
                 <CardDescription>
-                  Esta visão continua mostrando os dados sincronizados pela Meta. A nova página de
-                  Instagram Uploads fica disponível como uma seção separada dentro deste módulo.
+                  Esta seção mostra os dados sincronizados pela Meta. A área de Instagram Uploads
+                  fica disponível como uma seção separada do mesmo módulo.
                 </CardDescription>
               </div>
               <Button
