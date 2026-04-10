@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Activity,
   ArrowUpRight,
@@ -12,6 +12,7 @@ import { Badge } from '../../shared/components/Badge';
 import { Button } from '../../shared/components/Button';
 import { EmptyState } from '../../shared/components/EmptyState';
 import { Modal } from '../../shared/components/Modal';
+import { Tabs } from '../../shared/components/Tabs';
 import { useProfile } from '../../app/context/ProfileContext';
 import { useAuth } from '../../app/context/AuthContext';
 import { supabase } from '../../shared/utils/supabase';
@@ -19,6 +20,7 @@ import {
   InstagramConnection,
   metaInstagramService,
 } from '../../services/meta-instagram.service';
+import { PerformanceInstagramUploads } from './PerformanceInstagramUploads';
 
 interface InstagramMetricRow {
   id: string;
@@ -279,6 +281,7 @@ function formatConnectionStatus(connection: InstagramConnection) {
 
 export const Performance = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { activeProfile } = useProfile();
   const { user } = useAuth();
 
@@ -416,49 +419,43 @@ export const Performance = () => {
 
   const hasConnections = connections.length > 0;
   const hasData = rows.length > 0;
+  const activeTab = React.useMemo(() => {
+    const searchParams = new URLSearchParams(location.search);
+    return searchParams.get('tab') === 'instagram-uploads' ? 'instagram-uploads' : 'overview';
+  }, [location.search]);
+
+  const handleTabChange = React.useCallback(
+    (nextTab: string) => {
+      const searchParams = new URLSearchParams(location.search);
+
+      if (nextTab === 'overview') {
+        searchParams.delete('tab');
+      } else {
+        searchParams.set('tab', nextTab);
+      }
+
+      const nextSearch = searchParams.toString();
+      navigate(
+        {
+          pathname: location.pathname,
+          search: nextSearch ? `?${nextSearch}` : '',
+        },
+        { replace: true }
+      );
+    },
+    [location.pathname, location.search, navigate]
+  );
 
   return (
     <div className="space-y-8">
-      <Modal
-        isOpen={isComingSoonModalOpen}
-        onClose={() => setIsComingSoonModalOpen(false)}
-        title="Analytics em breve"
-      >
-        <div className="space-y-5">
-          <div className="rounded-2xl border border-brand/10 bg-brand/5 p-5">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-brand shadow-sm">
-              <BarChart3 className="h-6 w-6" />
-            </div>
-            <h4 className="mb-2 text-lg font-bold text-text-primary">
-              A ferramenta de métricas está quase pronta
-            </h4>
-            <p className="text-sm leading-6 text-text-secondary">
-              Estamos finalizando o módulo de Analytics para trazer dados de performance mais
-              confiáveis, relatórios por perfil e insights conectados às integrações da PostHub.
-            </p>
-          </div>
-
-          <p className="text-sm text-text-secondary">
-            Por enquanto, você já pode acompanhar as próximas conexões pelo módulo de Integrações.
-          </p>
-
-          <div className="flex justify-end">
-            <Button onClick={() => setIsComingSoonModalOpen(false)}>
-              Entendi
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="space-y-3">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold text-text-primary">
             <BarChart3 className="h-6 w-6 text-brand" />
             Análise de Performance
           </h1>
           <p className="text-text-secondary">
-            Conecte a Meta, sincronize métricas reais e acompanhe o crescimento do Instagram por
-            perfil.
+            Acompanhe métricas reais da Meta e evolua para dashboards dedicados por plataforma.
           </p>
           {activeProfile && (
             <p className="mt-1 text-sm text-text-secondary">
@@ -467,284 +464,336 @@ export const Performance = () => {
           )}
         </div>
 
-        <div className="flex flex-wrap gap-3">
-          <Button
-            variant="outline"
-            onClick={() => void handleConnectInstagram()}
-            isLoading={isConnecting}
-            className="gap-2"
-          >
-            <Instagram className="h-4 w-4" />
-            Conectar Instagram
-          </Button>
-          <Button
-            onClick={() => void handleSyncMetrics()}
-            isLoading={isSyncing}
-            disabled={!hasConnections}
-            className="gap-2"
-          >
-            <RefreshCcw className="h-4 w-4" />
-            Sincronizar Agora
-          </Button>
-        </div>
+        <Tabs
+          tabs={[
+            { id: 'overview', label: 'Visão Geral' },
+            { id: 'instagram-uploads', label: 'Instagram Uploads' },
+          ]}
+          activeTab={activeTab}
+          onChange={handleTabChange}
+        />
       </div>
 
-      {metaFeedback && (
-        <Card
-          className={cn(
-            'p-4',
-            metaFeedback.status === 'success'
-              ? 'border-green-200 bg-green-50 text-green-700'
-              : 'border-red-200 bg-red-50 text-red-700'
-          )}
-        >
-          {metaFeedback.message}
-        </Card>
-      )}
+      {activeTab === 'instagram-uploads' ? (
+        <PerformanceInstagramUploads />
+      ) : (
+        <>
+          <Modal
+            isOpen={isComingSoonModalOpen}
+            onClose={() => setIsComingSoonModalOpen(false)}
+            title="Analytics em breve"
+          >
+            <div className="space-y-5">
+              <div className="rounded-2xl border border-brand/10 bg-brand/5 p-5">
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-brand shadow-sm">
+                  <BarChart3 className="h-6 w-6" />
+                </div>
+                <h4 className="mb-2 text-lg font-bold text-text-primary">
+                  A ferramenta de métricas está quase pronta
+                </h4>
+                <p className="text-sm leading-6 text-text-secondary">
+                  Estamos finalizando o módulo de Analytics para trazer dados de performance mais
+                  confiáveis, relatórios por perfil e insights conectados às integrações da PostHub.
+                </p>
+              </div>
 
-      {errorMessage && (
-        <Card className="border-red-200 bg-red-50 p-4 text-red-700">{errorMessage}</Card>
-      )}
+              <p className="text-sm text-text-secondary">
+                Por enquanto, você já pode acompanhar as próximas conexões pelo módulo de
+                Integrações.
+              </p>
 
-      <Card>
-        <div className="mb-6 flex items-center justify-between gap-4">
-          <div>
-            <CardTitle>Contas Conectadas</CardTitle>
-            <CardDescription>
-              Cada conexão é vinculada ao `profile_id` ativo e sincronizada somente via Edge
-              Functions.
-            </CardDescription>
-          </div>
-          <Badge variant={hasConnections ? 'success' : 'default'}>
-            {hasConnections ? `${connections.length} conectada(s)` : 'Nenhuma conexão'}
-          </Badge>
-        </div>
-
-        {!hasConnections && !isLoading ? (
-          <EmptyState
-            title="Nenhuma conta do Instagram conectada"
-            description="Conecte uma conta Business vinculada a uma página do Facebook para liberar métricas reais no módulo de performance."
-            icon={Instagram}
-            action={
-              <Button onClick={() => void handleConnectInstagram()} isLoading={isConnecting}>
-                Conectar Instagram
-              </Button>
-            }
-          />
-        ) : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {connections.map((connection) => {
-              const status = formatConnectionStatus(connection);
-
-              return (
-                <Card key={connection.id} className="border-gray-200 bg-gray-50/40">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-sm">
-                        {connection.profile_picture_url ? (
-                          <img
-                            src={connection.profile_picture_url}
-                            alt={connection.username || 'Instagram'}
-                            className="h-12 w-12 rounded-full object-cover"
-                          />
-                        ) : (
-                          <Instagram className="h-5 w-5 text-brand" />
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-text-primary">
-                          @{connection.username || connection.instagram_user_id}
-                        </p>
-                        <p className="text-xs text-text-secondary">IG User ID: {connection.instagram_user_id}</p>
-                      </div>
-                    </div>
-                    <Badge variant={status.variant}>{status.label}</Badge>
-                  </div>
-
-                  <div className="mt-4 space-y-2 text-sm text-text-secondary">
-                    <p>Página vinculada: {connection.page_id}</p>
-                    <p>
-                      Última sincronização:{' '}
-                      {connection.last_synced_at
-                        ? new Date(connection.last_synced_at).toLocaleString()
-                        : 'Ainda não sincronizada'}
-                    </p>
-                    {connection.token_expires_at && (
-                      <p>Token expira em: {new Date(connection.token_expires_at).toLocaleDateString()}</p>
-                    )}
-                    {connection.last_sync_error && (
-                      <p className="text-red-600">{connection.last_sync_error}</p>
-                    )}
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
-        )}
-      </Card>
-
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {metrics.map((metric) => (
-          <Card key={metric.label}>
-            <p className="mb-1 text-sm text-text-secondary">{metric.label}</p>
-            <div className="flex items-end justify-between">
-              <h3 className="text-2xl font-bold text-text-primary">{metric.value}</h3>
-              <div
-                className={cn(
-                  'flex items-center gap-1 text-xs font-medium',
-                  metric.trend === 'up' ? 'text-green-600' : 'text-red-600'
-                )}
-              >
-                {metric.change}
-                <ArrowUpRight className="h-3 w-3" />
+              <div className="flex justify-end">
+                <Button onClick={() => setIsComingSoonModalOpen(false)}>Entendi</Button>
               </div>
             </div>
-          </Card>
-        ))}
-      </div>
+          </Modal>
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-        <Card className="flex h-80 flex-col">
-          <CardTitle className="mb-4">Crescimento de Audiência</CardTitle>
-          <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-gray-200 bg-gray-50">
-            {isLoading ? (
-              <p className="text-text-secondary">Carregando métricas...</p>
-            ) : hasAccountData ? (
-              <div className="flex h-full w-full flex-col justify-center p-6">
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-sm text-text-secondary">Crescimento de Seguidores</p>
-                    <p className="text-3xl font-bold text-text-primary">
-                      {followerGrowth >= 0 ? '+' : ''}
-                      {formatCompactNumber(followerGrowth)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-text-secondary">Alcance Total</p>
-                    <p className="text-2xl font-semibold text-text-primary">
-                      {formatCompactNumber(summary.reach)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-text-secondary">Visualizações de Perfil</p>
-                    <p className="text-2xl font-semibold text-text-primary">
-                      {formatCompactNumber(summary.profileViews)}
-                    </p>
-                  </div>
-                </div>
+          <div className="flex flex-wrap gap-3">
+            <Button
+              variant="outline"
+              onClick={() => void handleConnectInstagram()}
+              isLoading={isConnecting}
+              className="gap-2"
+            >
+              <Instagram className="h-4 w-4" />
+              Conectar Instagram
+            </Button>
+            <Button
+              onClick={() => void handleSyncMetrics()}
+              isLoading={isSyncing}
+              disabled={!hasConnections}
+              className="gap-2"
+            >
+              <RefreshCcw className="h-4 w-4" />
+              Sincronizar Agora
+            </Button>
+          </div>
+
+          {metaFeedback && (
+            <Card
+              className={cn(
+                'p-4',
+                metaFeedback.status === 'success'
+                  ? 'border-green-200 bg-green-50 text-green-700'
+                  : 'border-red-200 bg-red-50 text-red-700'
+              )}
+            >
+              {metaFeedback.message}
+            </Card>
+          )}
+
+          {errorMessage && (
+            <Card className="border-red-200 bg-red-50 p-4 text-red-700">{errorMessage}</Card>
+          )}
+
+          <Card>
+            <div className="mb-6 flex items-center justify-between gap-4">
+              <div>
+                <CardTitle>Contas Conectadas</CardTitle>
+                <CardDescription>
+                  Cada conexão é vinculada ao `profile_id` ativo e sincronizada somente via Edge
+                  Functions.
+                </CardDescription>
               </div>
-            ) : (
+              <Badge variant={hasConnections ? 'success' : 'default'}>
+                {hasConnections ? `${connections.length} conectada(s)` : 'Nenhuma conexão'}
+              </Badge>
+            </div>
+
+            {!hasConnections && !isLoading ? (
               <EmptyState
-                title="Ainda não há dados diários"
-                description="Depois de conectar a Meta e rodar a sincronização, o PostHub passa a preencher os snapshots diários da conta."
-                icon={Activity}
+                title="Nenhuma conta do Instagram conectada"
+                description="Conecte uma conta Business vinculada a uma página do Facebook para liberar métricas reais no módulo de performance."
+                icon={Instagram}
                 action={
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={!hasConnections}
-                    onClick={() => void handleSyncMetrics()}
-                  >
-                    Sincronizar agora
+                  <Button onClick={() => void handleConnectInstagram()} isLoading={isConnecting}>
+                    Conectar Instagram
                   </Button>
                 }
               />
-            )}
-          </div>
-        </Card>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {connections.map((connection) => {
+                  const status = formatConnectionStatus(connection);
 
-        <Card className="flex h-80 flex-col">
-          <CardTitle className="mb-4">Resumo de Engajamento</CardTitle>
-          <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-gray-200 bg-gray-50">
-            {isLoading ? (
-              <p className="text-text-secondary">Carregando métricas...</p>
-            ) : hasMediaData ? (
-              <div className="flex h-full w-full flex-col justify-center p-6">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-text-secondary">Impressões</span>
-                    <span className="font-semibold text-text-primary">
-                      {formatCompactNumber(summary.impressions)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-text-secondary">Taxa Média de Engajamento</span>
-                    <span className="font-semibold text-text-primary">
-                      {formatPercent(summary.engagementRate)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-text-secondary">Visualizações de Perfil</span>
-                    <span className="font-semibold text-text-primary">
-                      {formatCompactNumber(summary.profileViews)}
-                    </span>
-                  </div>
-                  <div className="pt-3">
-                    <Badge variant="brand">Métricas reais via Instagram Graph API</Badge>
+                  return (
+                    <Card key={connection.id} className="border-gray-200 bg-gray-50/40">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-sm">
+                            {connection.profile_picture_url ? (
+                              <img
+                                src={connection.profile_picture_url}
+                                alt={connection.username || 'Instagram'}
+                                className="h-12 w-12 rounded-full object-cover"
+                              />
+                            ) : (
+                              <Instagram className="h-5 w-5 text-brand" />
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-text-primary">
+                              @{connection.username || connection.instagram_user_id}
+                            </p>
+                            <p className="text-xs text-text-secondary">
+                              IG User ID: {connection.instagram_user_id}
+                            </p>
+                          </div>
+                        </div>
+                        <Badge variant={status.variant}>{status.label}</Badge>
+                      </div>
+
+                      <div className="mt-4 space-y-2 text-sm text-text-secondary">
+                        <p>Página vinculada: {connection.page_id}</p>
+                        <p>
+                          Última sincronização:{' '}
+                          {connection.last_synced_at
+                            ? new Date(connection.last_synced_at).toLocaleString()
+                            : 'Ainda não sincronizada'}
+                        </p>
+                        {connection.token_expires_at && (
+                          <p>
+                            Token expira em:{' '}
+                            {new Date(connection.token_expires_at).toLocaleDateString()}
+                          </p>
+                        )}
+                        {connection.last_sync_error && (
+                          <p className="text-red-600">{connection.last_sync_error}</p>
+                        )}
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
+
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+            {metrics.map((metric) => (
+              <Card key={metric.label}>
+                <p className="mb-1 text-sm text-text-secondary">{metric.label}</p>
+                <div className="flex items-end justify-between">
+                  <h3 className="text-2xl font-bold text-text-primary">{metric.value}</h3>
+                  <div
+                    className={cn(
+                      'flex items-center gap-1 text-xs font-medium',
+                      metric.trend === 'up' ? 'text-green-600' : 'text-red-600'
+                    )}
+                  >
+                    {metric.change}
+                    <ArrowUpRight className="h-3 w-3" />
                   </div>
                 </div>
-              </div>
-            ) : (
-              <EmptyState
-                title="Dados insuficientes"
-                description="Quando a Meta devolver métricas por mídia, os posts com insights reais vão aparecer aqui."
-                icon={BarChart3}
-              />
-            )}
+              </Card>
+            ))}
           </div>
-        </Card>
-      </div>
 
-      <Card>
-        <CardTitle className="mb-6">Posts com Melhor Performance</CardTitle>
-
-        {!isLoading && !hasData ? (
-          <EmptyState
-            title="Nenhuma métrica de post encontrada"
-            description="Conecte a conta, sincronize os dados e o ranking dos melhores posts será preenchido aqui."
-            icon={Activity}
-          />
-        ) : isLoading ? (
-          <div className="py-10 text-center text-text-secondary">Carregando posts...</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 text-text-secondary">
-                  <th className="pb-4 font-medium">Conteúdo</th>
-                  <th className="pb-4 font-medium">Plataforma</th>
-                  <th className="pb-4 font-medium">Alcance</th>
-                  <th className="pb-4 font-medium">Engajamento</th>
-                  <th className="pb-4 font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {topPosts.map((post) => (
-                  <tr key={post.id} className="group transition-colors hover:bg-gray-50/50">
-                    <td className="py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded bg-gray-100" />
-                        <div>
-                          <p className="line-clamp-1 font-medium text-text-primary">{post.title}</p>
-                          <p className="text-xs text-text-secondary">
-                            {new Date(post.createdAt).toLocaleDateString()}
-                          </p>
-                        </div>
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+            <Card className="flex h-80 flex-col">
+              <CardTitle className="mb-4">Crescimento de Audiência</CardTitle>
+              <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-gray-200 bg-gray-50">
+                {isLoading ? (
+                  <p className="text-text-secondary">Carregando métricas...</p>
+                ) : hasAccountData ? (
+                  <div className="flex h-full w-full flex-col justify-center p-6">
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-sm text-text-secondary">Crescimento de Seguidores</p>
+                        <p className="text-3xl font-bold text-text-primary">
+                          {followerGrowth >= 0 ? '+' : ''}
+                          {formatCompactNumber(followerGrowth)}
+                        </p>
                       </div>
-                    </td>
-                    <td className="py-4">{post.platform}</td>
-                    <td className="py-4">{formatCompactNumber(post.reach)}</td>
-                    <td className="py-4">{formatPercent(post.engagement)}</td>
-                    <td className="py-4">
-                      <Badge variant="success">Sincronizado</Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      <div>
+                        <p className="text-sm text-text-secondary">Alcance Total</p>
+                        <p className="text-2xl font-semibold text-text-primary">
+                          {formatCompactNumber(summary.reach)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-text-secondary">Visualizações de Perfil</p>
+                        <p className="text-2xl font-semibold text-text-primary">
+                          {formatCompactNumber(summary.profileViews)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <EmptyState
+                    title="Ainda não há dados diários"
+                    description="Depois de conectar a Meta e rodar a sincronização, o PostHub passa a preencher os snapshots diários da conta."
+                    icon={Activity}
+                    action={
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={!hasConnections}
+                        onClick={() => void handleSyncMetrics()}
+                      >
+                        Sincronizar agora
+                      </Button>
+                    }
+                  />
+                )}
+              </div>
+            </Card>
+
+            <Card className="flex h-80 flex-col">
+              <CardTitle className="mb-4">Resumo de Engajamento</CardTitle>
+              <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-gray-200 bg-gray-50">
+                {isLoading ? (
+                  <p className="text-text-secondary">Carregando métricas...</p>
+                ) : hasMediaData ? (
+                  <div className="flex h-full w-full flex-col justify-center p-6">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-text-secondary">Impressões</span>
+                        <span className="font-semibold text-text-primary">
+                          {formatCompactNumber(summary.impressions)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-text-secondary">Taxa Média de Engajamento</span>
+                        <span className="font-semibold text-text-primary">
+                          {formatPercent(summary.engagementRate)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-text-secondary">Visualizações de Perfil</span>
+                        <span className="font-semibold text-text-primary">
+                          {formatCompactNumber(summary.profileViews)}
+                        </span>
+                      </div>
+                      <div className="pt-3">
+                        <Badge variant="brand">Métricas reais via Instagram Graph API</Badge>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <EmptyState
+                    title="Dados insuficientes"
+                    description="Quando a Meta devolver métricas por mídia, os posts com insights reais vão aparecer aqui."
+                    icon={BarChart3}
+                  />
+                )}
+              </div>
+            </Card>
           </div>
-        )}
-      </Card>
+
+          <Card>
+            <CardTitle className="mb-6">Posts com Melhor Performance</CardTitle>
+
+            {!isLoading && !hasData ? (
+              <EmptyState
+                title="Nenhuma métrica de post encontrada"
+                description="Conecte a conta, sincronize os dados e o ranking dos melhores posts será preenchido aqui."
+                icon={Activity}
+              />
+            ) : isLoading ? (
+              <div className="py-10 text-center text-text-secondary">Carregando posts...</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100 text-text-secondary">
+                      <th className="pb-4 font-medium">Conteúdo</th>
+                      <th className="pb-4 font-medium">Plataforma</th>
+                      <th className="pb-4 font-medium">Alcance</th>
+                      <th className="pb-4 font-medium">Engajamento</th>
+                      <th className="pb-4 font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {topPosts.map((post) => (
+                      <tr key={post.id} className="group transition-colors hover:bg-gray-50/50">
+                        <td className="py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded bg-gray-100" />
+                            <div>
+                              <p className="line-clamp-1 font-medium text-text-primary">
+                                {post.title}
+                              </p>
+                              <p className="text-xs text-text-secondary">
+                                {new Date(post.createdAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-4">{post.platform}</td>
+                        <td className="py-4">{formatCompactNumber(post.reach)}</td>
+                        <td className="py-4">{formatPercent(post.engagement)}</td>
+                        <td className="py-4">
+                          <Badge variant="success">Sincronizado</Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        </>
+      )}
     </div>
   );
 };
