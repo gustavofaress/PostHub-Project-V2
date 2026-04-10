@@ -21,6 +21,11 @@ import { useAuth } from '../../app/context/AuthContext';
 import { useWorkspacePermissions } from '../../hooks/useWorkspacePermissions';
 import { supabase } from '../../shared/utils/supabase';
 import { cn } from '../../shared/utils/cn';
+import {
+  scriptAiService,
+  type ScriptAiDirectionTableRow,
+  type ScriptAiResult,
+} from '../../services/script-ai.service';
 
 interface ScriptDraft {
   id: string;
@@ -38,6 +43,8 @@ interface ScriptDraft {
   source: string | null;
   is_favorite: boolean | null;
 }
+
+interface DirectionTableRow extends ScriptAiDirectionTableRow {}
 
 type ScriptObjective =
   | 'engajamento'
@@ -94,11 +101,15 @@ interface ScriptTemplate {
 
 interface GeneratedScript {
   title: string;
+  strategyAnalysis: string;
+  storyLocks: string[];
+  directionTable: DirectionTableRow[];
   hook: string;
   content: string;
   examples: string;
   cta: string;
   caption: string;
+  hashtags: string[];
   reasoning: string;
 }
 
@@ -596,6 +607,119 @@ export const ScriptGenerator = () => {
     ].join('\n');
   }
 
+  function extractHashtags(text: string) {
+    return Array.from(new Set(text.match(/#[^\s#]+/g) ?? []));
+  }
+
+  function formatCaptionText(captionBody: string, hashtags: string[]) {
+    return [captionBody.trim(), hashtags.join(' ')].filter(Boolean).join('\n\n').trim();
+  }
+
+  function buildReasoningBlock(strategyAnalysis: string, storyLocks: string[]) {
+    return [
+      strategyAnalysis.trim(),
+      '',
+      'Story Locks aplicados:',
+      ...(storyLocks.length > 0
+        ? storyLocks.map((item) => `- ${item}`)
+        : ['- Negative Frames no gancho.', '- Loop Openers no meio.', '- CTA único no encerramento.']),
+    ]
+      .filter(Boolean)
+      .join('\n');
+  }
+
+  function splitNarrativeBlocks(text: string, maxItems = 4) {
+    return text
+      .split(/\n{2,}|\n/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .slice(0, maxItems);
+  }
+
+  function buildFallbackDirectionTable(
+    hook: string,
+    content: string,
+    examples: string,
+    cta: string
+  ): DirectionTableRow[] {
+    const timeRanges = [
+      '00:00 - 00:03',
+      '00:03 - 00:07',
+      '00:07 - 00:12',
+      '00:12 - 00:18',
+      '00:18 - 00:24',
+      '00:24 - 00:30',
+    ];
+
+    const middleBlocks = splitNarrativeBlocks(content, 4);
+    const visualBlocks = splitNarrativeBlocks(examples, 6);
+
+    const rows: DirectionTableRow[] = [
+      {
+        timeRange: timeRanges[0],
+        audio: hook,
+        visual:
+          visualBlocks[0] ??
+          'Close agressivo na câmera, texto em amarelo na tela e zoom in de quebra de padrão.',
+      },
+    ];
+
+    middleBlocks.forEach((block, index) => {
+      rows.push({
+        timeRange: timeRanges[index + 1] ?? `00:${String(7 + index * 4).padStart(2, '0')} - 00:${String(11 + index * 4).padStart(2, '0')}`,
+        audio: block,
+        visual:
+          visualBlocks[index + 1] ??
+          'Troque o enquadramento, insira B-roll contextual e reforce as palavras-chave na legenda.',
+      });
+    });
+
+    rows.push({
+      timeRange: timeRanges[Math.min(middleBlocks.length + 1, timeRanges.length - 1)],
+      audio: cta,
+      visual:
+        visualBlocks[middleBlocks.length + 1] ??
+        'Volte para a câmera principal, destaque o CTA na tela e finalize com um zoom rápido.',
+    });
+
+    return rows;
+  }
+
+  function formatDirectionTableMarkdown(rows: DirectionTableRow[]) {
+    const escapeCell = (value: string) =>
+      value
+        .replace(/\|/g, '\\|')
+        .replace(/\n/g, '<br />')
+        .trim();
+
+    return [
+      '| Tempo/Ritmo | O Áudio (Texto Falado) | A Engenharia Visual (O que aparece na tela) |',
+      '| --- | --- | --- |',
+      ...rows.map(
+        (row) =>
+          `| ${escapeCell(row.timeRange)} | ${escapeCell(row.audio)} | ${escapeCell(row.visual)} |`
+      ),
+    ].join('\n');
+  }
+
+  function buildScriptDocument(script: GeneratedScript) {
+    return [
+      '[ETAPA 1: O RAIO-X DA ESTRATEGIA]',
+      script.strategyAnalysis,
+      '',
+      'Story Locks escolhidos:',
+      ...(script.storyLocks.length > 0
+        ? script.storyLocks.map((item) => `- ${item}`)
+        : ['- Story Locks não informados.']),
+      '',
+      '[ETAPA 2: O ROTEIRO AUDIOVISUAL DE HIPER-RETENCAO (Tabela de Direcao)]',
+      formatDirectionTableMarkdown(script.directionTable),
+      '',
+      '[ETAPA 3: A LEGENDA OTIMIZADA PARA SOCIAL SEO]',
+      script.caption,
+    ].join('\n');
+  }
+
   function buildCaption(topic: string) {
     const keywordPool = [topic, formData.niche, formData.audience, ...getKeywordsList()].filter(Boolean);
     const uniqueKeywords = Array.from(new Set(keywordPool)).slice(0, 5);
@@ -617,51 +741,22 @@ export const ScriptGenerator = () => {
       .join('\n');
   }
 
-  function buildAiScript(topic: string): GeneratedScript {
-    const myth = inferMyth(topic);
-    const objective = normalizeObjective(formData.goal);
-    const audience = formData.audience || 'quem precisa de mais clareza para produzir conteúdo';
-    const niche = formData.niche || 'o seu mercado';
-    const emotion = inferEmotion();
-
-    const hook = `A pior coisa que você pode fazer com ${topic} hoje é seguir exatamente o que todo mundo manda.`;
-    const content = [
-      `Porque o problema não é falta de esforço. O problema é ${myth}.`,
-      '',
-      `Se você fala com ${audience}, precisa entender uma coisa: o público já ouviu o conselho óbvio.`,
-      'Então você não vence pela repetição. Você vence pelo contraste.',
-      '',
-      'Faz assim:',
-      '1. Comece quebrando uma crença comum.',
-      '2. Explique o mecanismo por trás do erro em frases curtas.',
-      '3. Mostre o jeito estratégico de executar no mundo real.',
-      '',
-      `No fim, a sensação que queremos gerar é ${emotion}, porque isso aumenta retenção e percepção de autoridade em ${niche}.`,
-    ].join('\n');
-
-    const examples = [
-      'B-roll 1: close falando a frase do gancho com corte seco.',
-      'B-roll 2: texto na tela destacando "erro comum" e "jeito estratégico".',
-      'B-roll 3: corte lateral com lista 1, 2, 3 aparecendo em sincronia.',
-      'B-roll 4: print, dashboard ou cena de bastidor para provar o argumento.',
-      'B-roll 5: tela limpa no CTA com palavra-chave destacada.',
-    ].join('\n');
-
-    const cta =
-      objective === 'venda'
-        ? 'Comenta "roteiro" aqui embaixo que eu te mostro como aplicar isso no seu conteúdo.'
-        : objective === 'engajamento'
-        ? 'Qual dessas estratégias você está usando hoje? Me conta aqui embaixo.'
-        : 'Salve esse vídeo para copiar essa estrutura no seu próximo roteiro.';
+  function buildGeneratedScriptFromAiResult(result: ScriptAiResult): GeneratedScript {
+    const caption = formatCaptionText(result.captionBody, result.hashtags);
+    const reasoning = buildReasoningBlock(result.strategyAnalysis, result.storyLocks);
 
     return {
-      title: topic,
-      hook,
-      content,
-      examples,
-      cta,
-      caption: buildCaption(topic),
-      reasoning: buildReasoning(topic),
+      title: result.title,
+      strategyAnalysis: result.strategyAnalysis,
+      storyLocks: result.storyLocks,
+      directionTable: result.directionTable,
+      hook: result.hook,
+      content: result.content,
+      examples: result.examples,
+      cta: result.cta,
+      caption,
+      hashtags: result.hashtags,
+      reasoning,
     };
   }
 
@@ -684,34 +779,42 @@ export const ScriptGenerator = () => {
       }
     }
 
+    const caption = buildCaption(topic);
+    const strategyAnalysis = buildReasoning(topic);
+    const storyLocks = [
+      'Negative Frame no gancho para quebrar o senso comum logo na abertura.',
+      'Contrast Words distribuídas no meio para renovar a curiosidade.',
+      'Loop Opener no desenvolvimento para evitar queda de retenção.',
+      'CTA único e direto no fechamento para concentrar a ação final.',
+    ];
+    const directionTable = buildFallbackDirectionTable(
+      fields.hook,
+      [fields.context, fields.main_tips].filter(Boolean).join('\n\n'),
+      fields.examples ||
+        'Alterne câmera principal, textos em amarelo e B-rolls curtos para resetar a atenção a cada 3 segundos.',
+      fields.cta
+    );
+
     return {
       title: topic,
+      strategyAnalysis,
+      storyLocks,
+      directionTable,
       hook: fields.hook,
       content: [fields.context, fields.main_tips].filter(Boolean).join('\n\n'),
       examples: fields.examples || 'Use cortes rápidos, texto na tela e prova visual para reforçar a mensagem.',
       cta: fields.cta,
-      caption: buildCaption(topic),
-      reasoning: `Template escolhido: ${template.nome}. Estrutura aplicada com foco em ${template.quando_usar.join(', ')}.`,
+      caption,
+      hashtags: extractHashtags(caption),
+      reasoning: buildReasoningBlock(
+        `${strategyAnalysis}\n\nTemplate escolhido: ${template.nome}. Estrutura aplicada com foco em ${template.quando_usar.join(', ')}.`,
+        storyLocks
+      ),
     };
   }
 
-  function formatAssistantScriptMessage(script: GeneratedScript, mode: GenerationMode) {
-    const modeLabel = mode === 'ai' ? 'IA PostHub' : 'Template Inteligente';
-    return [
-      `${modeLabel} pronta para o tema "${script.title}".`,
-      '',
-      'Gancho:',
-      script.hook,
-      '',
-      'Meio:',
-      script.content,
-      '',
-      'Encerramento:',
-      script.cta,
-      '',
-      'Legenda / Social SEO:',
-      script.caption,
-    ].join('\n');
+  function formatAssistantScriptMessage(script: GeneratedScript) {
+    return buildScriptDocument(script);
   }
 
   function buildContextText(topic: string, mode: GenerationMode, prompt: string, script: GeneratedScript) {
@@ -754,22 +857,7 @@ export const ScriptGenerator = () => {
   }
 
   const buildFullContent = React.useCallback((script: GeneratedScript) => {
-    return [
-      'Gancho',
-      script.hook,
-      '',
-      'Meio',
-      script.content,
-      '',
-      'B-rolls e direção',
-      script.examples,
-      '',
-      'CTA',
-      script.cta,
-      '',
-      'Legenda / Social SEO',
-      script.caption,
-    ].join('\n');
+    return buildScriptDocument(script);
   }, []);
 
   const resetComposer = React.useCallback(() => {
@@ -838,31 +926,62 @@ export const ScriptGenerator = () => {
 
     setChatMessages((prev) => [...prev, userMessage]);
     setIsGenerating(true);
-    setChatInput('');
 
-    window.setTimeout(() => {
-      const nextScript =
-        generationMode === 'ai' ? buildAiScript(prompt) : buildTemplateScript(prompt);
+    try {
+      let nextScript: GeneratedScript;
+
+      if (generationMode === 'ai') {
+        const result = await scriptAiService.generateScript({
+          prompt,
+          goal: formData.goal,
+          format: formData.format,
+          audience: formData.audience,
+          niche: formData.niche,
+          tone: formData.tone,
+          keywords: formData.keywords,
+          history: [...chatMessages, userMessage]
+            .filter((message) => message.role === 'assistant' || message.role === 'user')
+            .slice(-6)
+            .map((message) => ({
+              role: message.role,
+              content: message.content,
+            })),
+        });
+
+        nextScript = buildGeneratedScriptFromAiResult(result);
+      } else {
+        await new Promise((resolve) => window.setTimeout(resolve, 350));
+        nextScript = buildTemplateScript(prompt);
+      }
+
       const creditsUsed = generationMode === 'ai' ? SCRIPT_GENERATION_CREDITS : 0;
-
       const assistantMessage: ChatMessage = {
         id: `assistant_${Date.now()}`,
         role: 'assistant',
         mode: generationMode,
         creditsUsed,
         script: nextScript,
-        content: formatAssistantScriptMessage(nextScript, generationMode),
+        content: formatAssistantScriptMessage(nextScript),
       };
 
       setGeneratedScript(nextScript);
       setChatMessages((prev) => [...prev, assistantMessage]);
-      setIsGenerating(false);
       setEditingDraftId(null);
       setIsSaved(false);
+      setChatInput('');
+
       if (creditsUsed > 0) {
         setCreditsBalance((prev) => prev - creditsUsed);
       }
-    }, 900);
+    } catch (error: any) {
+      console.error('[Scripts] Error generating script:', error);
+      setErrorMessage(
+        error?.message ||
+          'Não foi possível gerar o roteiro com IA. Verifique a Edge Function e a GEMINI_API_KEY.'
+      );
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleCopy = () => {
@@ -990,14 +1109,26 @@ export const ScriptGenerator = () => {
 
   const loadDraft = (draft: ScriptDraft) => {
     const parsed = parseDraftExamples(draft.examples);
+    const directionTable = buildFallbackDirectionTable(
+      draft.hook || '',
+      draft.main_tips || '',
+      parsed.examples,
+      draft.cta || ''
+    );
+    const hashtags = extractHashtags(parsed.caption);
+    const reasoning = draft.context || 'Rascunho carregado do histórico.';
     const nextScript: GeneratedScript = {
       title: draft.title || 'Roteiro sem título',
+      strategyAnalysis: reasoning,
+      storyLocks: [],
+      directionTable,
       hook: draft.hook || '',
       content: draft.main_tips || '',
       examples: parsed.examples,
       cta: draft.cta || '',
       caption: parsed.caption,
-      reasoning: draft.context || 'Rascunho carregado do histórico.',
+      hashtags,
+      reasoning,
     };
 
     setEditingDraftId(draft.id);
@@ -1010,7 +1141,7 @@ export const ScriptGenerator = () => {
         role: 'assistant',
         mode: 'ai',
         script: nextScript,
-        content: `Rascunho "${draft.title || 'sem título'}" carregado para edição.`,
+        content: buildScriptDocument(nextScript),
       },
     ]);
     setErrorMessage(null);
