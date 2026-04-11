@@ -126,6 +126,13 @@ export const LoginPage = () => {
             Sign up for free
           </Link>
         </p>
+
+        <p className="mt-3 text-center text-sm text-text-secondary">
+          Received a member access?{' '}
+          <Link to="/member-login" className="font-semibold text-brand hover:underline">
+            Member login
+          </Link>
+        </p>
       </Card>
     </div>
   );

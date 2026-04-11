@@ -23,10 +23,16 @@ import { Button } from '../../shared/components/Button';
 import { Badge } from '../../shared/components/Badge';
 import { Modal } from '../../shared/components/Modal';
 import { Input } from '../../shared/components/Input';
+import { Tabs } from '../../shared/components/Tabs';
 import { useProfile } from '../../app/context/ProfileContext';
 import { useAuth } from '../../app/context/AuthContext';
 import { supabase } from '../../shared/utils/supabase';
 import { useTrialGuidedFlow } from '../onboarding/hooks/useTrialGuidedFlow';
+import { useWorkspaceMembers } from '../../hooks/useWorkspaceMembers';
+import { MemberAssignmentField } from '../../shared/components/MemberAssignmentField';
+import { TaskCommentsPanel } from '../../shared/components/TaskCommentsPanel';
+import { workspaceCollaborationService } from '../../services/workspace-collaboration.service';
+import type { WorkspaceTaskAssignment } from '../../shared/constants/workspaceCollaboration';
 
 interface CalendarPost {
   id: string;
@@ -71,6 +77,7 @@ function mapRowToPost(row: EditorialCalendarRow): CalendarPost {
 export const EditorialCalendar = () => {
   const { activeProfile } = useProfile();
   const { user } = useAuth();
+  const { activeMembers } = useWorkspaceMembers();
   useTrialGuidedFlow();
 
   const [currentDate, setCurrentDate] = React.useState(new Date());
@@ -87,6 +94,9 @@ export const EditorialCalendar = () => {
   const [newPostStatus, setNewPostStatus] = React.useState('Planned');
   const [isSavingPost, setIsSavingPost] = React.useState(false);
   const [isDeletingPost, setIsDeletingPost] = React.useState(false);
+  const [linkedMemberIds, setLinkedMemberIds] = React.useState<string[]>([]);
+  const [taskAssignments, setTaskAssignments] = React.useState<WorkspaceTaskAssignment[]>([]);
+  const [modalTab, setModalTab] = React.useState<'details' | 'comments'>('details');
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(monthStart);
@@ -108,6 +118,8 @@ export const EditorialCalendar = () => {
     setNewPostPlatform('Instagram');
     setNewPostStatus('Planned');
     setNewPostDate(format(new Date(), 'yyyy-MM-dd'));
+    setLinkedMemberIds([]);
+    setModalTab('details');
   }, []);
 
   const loadPosts = React.useCallback(async () => {
@@ -120,25 +132,26 @@ export const EditorialCalendar = () => {
     setErrorMessage(null);
 
     try {
-      let query = supabase
-        .from('editorial_calendar')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('scheduled_date', { ascending: true });
-
-      if (activeProfile?.id) {
-        query = query.eq('profile_id', activeProfile.id);
-      }
-
-      const { data, error } = await query;
+      const [{ data, error }, assignmentData] = await Promise.all([
+        supabase
+          .from('editorial_calendar')
+          .select('*')
+          .eq('profile_id', activeProfile?.id)
+          .order('scheduled_date', { ascending: true }),
+        activeProfile?.id
+          ? workspaceCollaborationService.listAssignments(activeProfile.id, 'editorial_calendar')
+          : Promise.resolve([]),
+      ]);
 
       if (error) throw error;
 
       const mappedPosts = ((data ?? []) as EditorialCalendarRow[]).map(mapRowToPost);
       setPosts(mappedPosts);
+      setTaskAssignments(assignmentData);
     } catch (error) {
       console.error('[EditorialCalendar] Error loading posts:', error);
       setPosts([]);
+      setTaskAssignments([]);
       setErrorMessage('Não foi possível carregar os posts do calendário.');
     } finally {
       setIsLoadingPosts(false);
@@ -166,6 +179,11 @@ export const EditorialCalendar = () => {
     setNewPostDate(format(post.scheduledDate, 'yyyy-MM-dd'));
     setNewPostPlatform(post.platform || 'Instagram');
     setNewPostStatus(post.status);
+    setLinkedMemberIds(
+      taskAssignments
+        .filter((assignment) => assignment.entityType === 'editorial_calendar' && assignment.entityId === post.id)
+        .map((assignment) => assignment.memberId)
+    );
     setErrorMessage(null);
     setIsModalOpen(true);
   };
@@ -211,7 +229,6 @@ export const EditorialCalendar = () => {
           .from('editorial_calendar')
           .update(payload)
           .eq('id', editingPostId)
-          .eq('user_id', user.id)
           .eq('profile_id', activeProfile.id)
           .select('*')
           .single();
@@ -220,6 +237,12 @@ export const EditorialCalendar = () => {
 
         const updatedPost = mapRowToPost(data as EditorialCalendarRow);
         updatedPost.platform = newPostPlatform;
+        await workspaceCollaborationService.setAssignedMembers(
+          activeProfile.id,
+          'editorial_calendar',
+          updatedPost.id,
+          linkedMemberIds
+        );
 
         setPosts((prev) =>
           prev.map((post) => (post.id === editingPostId ? updatedPost : post))
@@ -240,12 +263,26 @@ export const EditorialCalendar = () => {
 
         const createdPost = mapRowToPost(data as EditorialCalendarRow);
         createdPost.platform = newPostPlatform;
+        await workspaceCollaborationService.setAssignedMembers(
+          activeProfile.id,
+          'editorial_calendar',
+          createdPost.id,
+          linkedMemberIds
+        );
 
         setPosts((prev) =>
           [...prev, createdPost].sort(
             (a, b) => a.scheduledDate.getTime() - b.scheduledDate.getTime()
           )
         );
+      }
+
+      if (activeProfile?.id) {
+        const nextAssignments = await workspaceCollaborationService.listAssignments(
+          activeProfile.id,
+          'editorial_calendar'
+        );
+        setTaskAssignments(nextAssignments);
       }
 
       setIsModalOpen(false);
@@ -274,7 +311,7 @@ export const EditorialCalendar = () => {
         .from('editorial_calendar')
         .delete()
         .eq('id', editingPostId)
-        .eq('user_id', user.id);
+        .eq('profile_id', activeProfile?.id);
 
       if (error) throw error;
 
@@ -337,7 +374,7 @@ export const EditorialCalendar = () => {
           updated_at: new Date().toISOString(),
         })
         .eq('id', postId)
-        .eq('user_id', user.id)
+        .eq('profile_id', activeProfile?.id)
         .select('*')
         .single();
 
@@ -489,16 +526,34 @@ export const EditorialCalendar = () => {
                           <span className="text-[8px] text-text-secondary">
                             {post.platform || 'Conteúdo'}
                           </span>
-                          <div
-                            className={cn(
-                              'h-1.5 w-1.5 rounded-full',
-                              post.status === 'Published'
-                                ? 'bg-green-500'
-                                : post.status === 'Review'
-                                ? 'bg-yellow-500'
-                                : 'bg-brand'
-                            )}
-                          />
+                          <div className="flex items-center gap-1">
+                            {taskAssignments.some(
+                              (assignment) =>
+                                assignment.entityType === 'editorial_calendar' &&
+                                assignment.entityId === post.id
+                            ) ? (
+                              <span className="rounded bg-brand/10 px-1 py-0.5 text-[8px] font-medium text-brand">
+                                {
+                                  taskAssignments.filter(
+                                    (assignment) =>
+                                      assignment.entityType === 'editorial_calendar' &&
+                                      assignment.entityId === post.id
+                                  ).length
+                                }
+                                {' '}m
+                              </span>
+                            ) : null}
+                            <div
+                              className={cn(
+                                'h-1.5 w-1.5 rounded-full',
+                                post.status === 'Published'
+                                  ? 'bg-green-500'
+                                  : post.status === 'Review'
+                                  ? 'bg-yellow-500'
+                                  : 'bg-brand'
+                              )}
+                            />
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -514,67 +569,97 @@ export const EditorialCalendar = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={editingPostId ? 'Editar Post' : 'Agendar Post'}
+        className="max-w-3xl"
       >
         <form onSubmit={(e) => void handleSavePost(e)} className="space-y-4">
-          <Input
-            label="Título do Post"
-            placeholder="Sobre o que é este post?"
-            value={newPostTitle}
-            onChange={(e) => setNewPostTitle(e.target.value)}
-            required
+          <Tabs
+            tabs={[
+              { id: 'details', label: 'Detalhes' },
+              { id: 'comments', label: 'Comentários' },
+            ]}
+            activeTab={modalTab}
+            onChange={(value) => setModalTab(value as 'details' | 'comments')}
           />
 
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-text-primary">Descrição</label>
-            <textarea
-              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 min-h-[80px] resize-y"
-              placeholder="Adicione observações ou uma descrição..."
-              value={newPostDescription}
-              onChange={(e) => setNewPostDescription(e.target.value)}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-text-primary">Data</label>
-              <input
-                type="date"
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
-                value={newPostDate}
-                onChange={(e) => setNewPostDate(e.target.value)}
+          {modalTab === 'details' ? (
+            <div className="space-y-4">
+              <Input
+                label="Título do Post"
+                placeholder="Sobre o que é este post?"
+                value={newPostTitle}
+                onChange={(e) => setNewPostTitle(e.target.value)}
                 required
               />
-            </div>
 
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-text-primary">Plataforma</label>
-              <select
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
-                value={newPostPlatform}
-                onChange={(e) => setNewPostPlatform(e.target.value)}
-              >
-                <option value="Instagram">Instagram</option>
-                <option value="TikTok">TikTok</option>
-                <option value="LinkedIn">LinkedIn</option>
-                <option value="Twitter">Twitter</option>
-                <option value="YouTube">YouTube</option>
-              </select>
-            </div>
-          </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-text-primary">Descrição</label>
+                <textarea
+                  className="min-h-[80px] w-full resize-y rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                  placeholder="Adicione observações ou uma descrição..."
+                  value={newPostDescription}
+                  onChange={(e) => setNewPostDescription(e.target.value)}
+                />
+              </div>
 
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-text-primary">Status</label>
-            <select
-              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
-              value={newPostStatus}
-              onChange={(e) => setNewPostStatus(e.target.value)}
-            >
-              <option value="Draft">Rascunho</option>
-              <option value="Planned">Planejado</option>
-              <option value="Review">Revisão</option>
-              <option value="Published">Publicado</option>
-            </select>
-          </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-text-primary">Data</label>
+                  <input
+                    type="date"
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                    value={newPostDate}
+                    onChange={(e) => setNewPostDate(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-text-primary">Plataforma</label>
+                  <select
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                    value={newPostPlatform}
+                    onChange={(e) => setNewPostPlatform(e.target.value)}
+                  >
+                    <option value="Instagram">Instagram</option>
+                    <option value="TikTok">TikTok</option>
+                    <option value="LinkedIn">LinkedIn</option>
+                    <option value="Twitter">Twitter</option>
+                    <option value="YouTube">YouTube</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-text-primary">Status</label>
+                <select
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                  value={newPostStatus}
+                  onChange={(e) => setNewPostStatus(e.target.value)}
+                >
+                  <option value="Draft">Rascunho</option>
+                  <option value="Planned">Planejado</option>
+                  <option value="Review">Revisão</option>
+                  <option value="Published">Publicado</option>
+                </select>
+              </div>
+
+              <MemberAssignmentField
+                members={activeMembers}
+                value={linkedMemberIds}
+                onChange={setLinkedMemberIds}
+              />
+            </div>
+          ) : (
+            <TaskCommentsPanel
+              profileId={activeProfile?.id}
+              entityType="editorial_calendar"
+              entityId={editingPostId}
+              currentUserName={user?.name || 'Equipe'}
+              currentUserId={user?.id}
+              members={activeMembers}
+              assignedMemberIds={linkedMemberIds}
+            />
+          )}
 
           <div className="flex justify-between pt-4">
             {editingPostId ? (

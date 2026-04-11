@@ -7,6 +7,8 @@ import { Avatar } from '../../shared/components/Avatar';
 import { Modal } from '../../shared/components/Modal';
 import { cn } from '../../shared/utils/cn';
 import { useProfile } from '../../app/context/ProfileContext';
+import { useWorkspaceMembers } from '../../hooks/useWorkspaceMembers';
+import { buildMemberMentionHandle } from '../../shared/constants/workspaceCollaboration';
 import { ApprovalContentMockup, getApprovalMockupProfile } from './ApprovalContentMockup';
 import type { ApprovalPost, ApprovalComment } from './ApprovalModule';
 
@@ -26,6 +28,7 @@ export const InternalPreview: React.FC<InternalPreviewProps> = ({
   onCommentSubmit
 }) => {
   const { activeProfile } = useProfile();
+  const { activeMembers } = useWorkspaceMembers();
   const [comment, setComment] = React.useState('');
   const [alertMessage, setAlertMessage] = React.useState<string | null>(null);
   const displayProfile = getApprovalMockupProfile(post, {
@@ -48,6 +51,41 @@ export const InternalPreview: React.FC<InternalPreviewProps> = ({
     onCommentSubmit(comment);
     setComment('');
   };
+
+  const mentionMatch = comment.match(/(^|\s)@([a-z0-9.]*)$/i);
+  const mentionQuery = mentionMatch?.[2]?.toLowerCase() ?? '';
+  const mentionSuggestions = React.useMemo(() => {
+    if (!mentionMatch) return [];
+
+    return activeMembers.filter((member) => {
+      const handle = buildMemberMentionHandle(member);
+      const haystack = `${member.name} ${member.email} ${handle}`.toLowerCase();
+      return haystack.includes(mentionQuery);
+    });
+  }, [activeMembers, mentionMatch, mentionQuery]);
+
+  const insertMention = (member: (typeof activeMembers)[number]) => {
+    const handle = `@${buildMemberMentionHandle(member)}`;
+    setComment((current) => current.replace(/(^|\s)@([a-z0-9.]*)$/i, `$1${handle} `));
+  };
+
+  const renderCommentWithMentions = (content: string) =>
+    content.split(/(\s+)/).map((part, index) => {
+      if (!part.trim()) return <React.Fragment key={`${part}-${index}`}>{part}</React.Fragment>;
+
+      if (part.startsWith('@')) {
+        return (
+          <span
+            key={`${part}-${index}`}
+            className="rounded bg-brand/10 px-1.5 py-0.5 font-medium text-brand"
+          >
+            {part}
+          </span>
+        );
+      }
+
+      return <React.Fragment key={`${part}-${index}`}>{part}</React.Fragment>;
+    });
 
   return (
     <div className="space-y-6">
@@ -147,6 +185,20 @@ export const InternalPreview: React.FC<InternalPreviewProps> = ({
                   }}
                 />
               </div>
+              {mentionSuggestions.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {mentionSuggestions.map((member) => (
+                    <button
+                      key={member.id}
+                      type="button"
+                      onClick={() => insertMention(member)}
+                      className="rounded-full border border-brand/20 bg-white px-3 py-1 text-xs font-medium text-brand transition-colors hover:bg-brand/5"
+                    >
+                      Mencionar {member.name}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
               <Button variant="secondary" className="w-full gap-2" disabled={!comment.trim()} onClick={handleSubmitFeedback}>
                 <Send className="h-4 w-4" />
                 Enviar Feedback
@@ -191,7 +243,7 @@ export const InternalPreview: React.FC<InternalPreviewProps> = ({
                             ? "text-text-secondary bg-gray-50 rounded-tl-none"
                             : "text-white bg-brand rounded-tr-none" 
                         )}>
-                          {comment.content}
+                          {renderCommentWithMentions(comment.content)}
                         </p>
                       </div>
                     </div>

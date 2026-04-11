@@ -16,6 +16,7 @@ export type TeamPermissionId =
   | 'approval'
   | 'calendar'
   | 'kanban'
+  | 'references'
   | 'scheduler'
   | 'reports'
   | 'performance';
@@ -72,6 +73,12 @@ export const WORKSPACE_PERMISSION_OPTIONS: TeamPermissionOption[] = [
     label: 'Kanban',
     description: 'Atualizar status e acompanhar produção das tarefas.',
     icon: KanbanSquare,
+  },
+  {
+    id: 'references',
+    label: 'Referências',
+    description: 'Organizar referências visuais, links e materiais de apoio.',
+    icon: Sparkles,
   },
   {
     id: 'scheduler',

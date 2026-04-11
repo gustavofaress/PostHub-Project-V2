@@ -4,6 +4,7 @@ import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { SignupPage } from './pages/auth/SignupPage';
 import { AcceptInvitePage } from './pages/auth/AcceptInvitePage';
+import { MemberLoginPage } from './pages/auth/MemberLoginPage';
 import { PublicApprovalPage } from './pages/PublicApprovalPage';
 import { PricingPage } from './pages/PricingPage';
 import { ResponsiveWorkspaceLayout } from './modules/workspace/ResponsiveWorkspaceLayout';
@@ -28,6 +29,7 @@ export default function App() {
       {/* Public Routes */}
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/member-login" element={<MemberLoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/pricing" element={<PricingPage />} />
       <Route path="/invite/:token" element={<AcceptInvitePage />} />

@@ -1,0 +1,240 @@
+import { createClient } from 'npm:@supabase/supabase-js@2.56.0';
+import { corsHeaders } from '../_shared/cors.ts';
+
+type MemberRole = 'admin' | 'editor' | 'reviewer';
+
+interface InviteWorkspaceMemberPayload {
+  mode?: 'invite' | 'resend';
+  profileId?: string;
+  memberId?: string;
+  email?: string;
+  fullName?: string | null;
+  role?: MemberRole;
+  permissions?: string[];
+  generatedPassword?: string;
+  loginUrl?: string;
+}
+
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'application/json',
+    },
+  });
+
+const buildPassword = () => {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
+  return Array.from({ length: 12 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join(
+    ''
+  );
+};
+
+Deno.serve(async (request) => {
+  if (request.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+    const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+
+    if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
+      return json({ error: 'Supabase env vars ausentes.' }, 500);
+    }
+
+    const authHeader = request.headers.get('Authorization') ?? '';
+
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: {
+          Authorization: authHeader,
+        },
+      },
+    });
+
+    const serviceClient = createClient(supabaseUrl, supabaseServiceRoleKey);
+
+    const {
+      data: { user },
+      error: authError,
+    } = await userClient.auth.getUser();
+
+    if (authError || !user) {
+      return json({ error: 'Usuário não autenticado.' }, 401);
+    }
+
+    const payload = (await request.json()) as InviteWorkspaceMemberPayload;
+    const mode = payload.mode ?? 'invite';
+    const profileId = payload.profileId;
+
+    if (!profileId) {
+      return json({ error: 'profileId é obrigatório.' }, 400);
+    }
+
+    const { data: canManageMembers, error: manageError } = await userClient.rpc(
+      'current_user_can_manage_workspace_members',
+      {
+        target_profile_id: profileId,
+      }
+    );
+
+    if (manageError) {
+      return json({ error: manageError.message }, 400);
+    }
+
+    if (!canManageMembers) {
+      return json({ error: 'Sem permissão para gerenciar membros deste workspace.' }, 403);
+    }
+
+    const { data: profile, error: profileError } = await serviceClient
+      .from('client_profiles')
+      .select('id, user_id')
+      .eq('id', profileId)
+      .single();
+
+    if (profileError || !profile) {
+      return json({ error: 'Workspace não encontrado.' }, 404);
+    }
+
+    const { data: ownerRecord, error: ownerError } = await serviceClient
+      .from('usuarios')
+      .select('current_plan, is_admin')
+      .eq('id', profile.user_id)
+      .maybeSingle();
+
+    if (ownerError) {
+      return json({ error: ownerError.message }, 400);
+    }
+
+    const isOwnerPro =
+      !!ownerRecord?.is_admin || (ownerRecord?.current_plan || '').toLowerCase() === 'pro';
+
+    if (!isOwnerPro) {
+      return json({ error: 'Somente workspaces do plano PRO podem adicionar membros.' }, 403);
+    }
+
+    if (mode === 'resend') {
+      if (!payload.memberId) {
+        return json({ error: 'memberId é obrigatório para reenvio.' }, 400);
+      }
+
+      const { data: updatedMember, error: updateError } = await serviceClient
+        .from('workspace_members')
+        .update({
+          invite_sent_at: new Date().toISOString(),
+        })
+        .eq('id', payload.memberId)
+        .eq('profile_id', profileId)
+        .select('id, user_id, email, full_name, role, status, permissions, created_at, invite_sent_at')
+        .single();
+
+      if (updateError) {
+        return json({ error: updateError.message }, 400);
+      }
+
+      return json({
+        member: updatedMember,
+        loginUrl: payload.loginUrl,
+      });
+    }
+
+    const email = payload.email?.trim().toLowerCase();
+    const permissions = payload.permissions ?? [];
+    const role = payload.role ?? 'editor';
+    const fullName = payload.fullName?.trim() || null;
+    const generatedPassword = payload.generatedPassword || buildPassword();
+
+    if (!email) {
+      return json({ error: 'email é obrigatório.' }, 400);
+    }
+
+    const { data: existingMember, error: existingMemberError } = await serviceClient
+      .from('workspace_members')
+      .select('id, user_id')
+      .eq('profile_id', profileId)
+      .eq('email', email)
+      .maybeSingle();
+
+    if (existingMemberError) {
+      return json({ error: existingMemberError.message }, 400);
+    }
+
+    let authUserId = existingMember?.user_id ?? null;
+
+    if (!authUserId) {
+      const { data: createdUser, error: createUserError } = await serviceClient.auth.admin.createUser({
+        email,
+        password: generatedPassword,
+        email_confirm: true,
+        user_metadata: {
+          full_name: fullName,
+          workspace_member: true,
+        },
+      });
+
+      if (createUserError || !createdUser.user?.id) {
+        return json(
+          {
+            error:
+              createUserError?.message ||
+              'Não foi possível criar o usuário de autenticação para o membro.',
+          },
+          400
+        );
+      }
+
+      authUserId = createdUser.user.id;
+    }
+
+    const memberPayload = {
+      profile_id: profileId,
+      user_id: authUserId,
+      email,
+      full_name: fullName,
+      role,
+      status: 'active',
+      permissions,
+      invite_sent_at: new Date().toISOString(),
+    };
+
+    const memberQuery = existingMember?.id
+      ? serviceClient
+          .from('workspace_members')
+          .update(memberPayload)
+          .eq('id', existingMember.id)
+          .eq('profile_id', profileId)
+      : serviceClient.from('workspace_members').insert(memberPayload);
+
+    const { data: member, error: memberError } = await memberQuery
+      .select('id, user_id, email, full_name, role, status, permissions, created_at, invite_sent_at')
+      .single();
+
+    if (memberError) {
+      return json({ error: memberError.message }, 400);
+    }
+
+    const origin =
+      payload.loginUrl ||
+      Deno.env.get('APP_URL') ||
+      Deno.env.get('POSTHUB_APP_URL') ||
+      request.headers.get('origin') ||
+      '';
+
+    return json({
+      member,
+      generatedPassword,
+      loginUrl: origin || `/member-login?email=${encodeURIComponent(email)}`,
+    });
+  } catch (error) {
+    console.error('[invite-workspace-member] unexpected error', error);
+    return json(
+      {
+        error: error instanceof Error ? error.message : 'Erro inesperado ao criar o membro.',
+      },
+      500
+    );
+  }
+});

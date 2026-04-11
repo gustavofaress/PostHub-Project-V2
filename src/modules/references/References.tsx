@@ -29,6 +29,7 @@ import { Card } from '../../shared/components/Card';
 import { Button } from '../../shared/components/Button';
 import { Input } from '../../shared/components/Input';
 import { Badge } from '../../shared/components/Badge';
+import { Tabs } from '../../shared/components/Tabs';
 import { cn } from '../../shared/utils/cn';
 import { useTrialGuidedFlow } from '../onboarding/hooks/useTrialGuidedFlow';
 import {
@@ -36,8 +37,14 @@ import {
   TARGET_VIDEO_UPLOAD_SIZE,
 } from '../../shared/utils/mediaProcessing';
 import { useProfile } from '../../app/context/ProfileContext';
+import { useAuth } from '../../app/context/AuthContext';
 import { referencesService } from '../../services/references.service';
 import type { ReferenceItem, ReferenceType } from '../../types/reference.types';
+import { useWorkspaceMembers } from '../../hooks/useWorkspaceMembers';
+import { MemberAssignmentField } from '../../shared/components/MemberAssignmentField';
+import { TaskCommentsPanel } from '../../shared/components/TaskCommentsPanel';
+import { workspaceCollaborationService } from '../../services/workspace-collaboration.service';
+import type { WorkspaceTaskAssignment } from '../../shared/constants/workspaceCollaboration';
 
 type ViewMode = 'grid' | 'list';
 type CreateTab = 'link' | 'image' | 'video' | 'screen_recording';
@@ -211,6 +218,8 @@ const ReferenceImagePreview = ({
 
 export const References = () => {
   const { activeProfile } = useProfile();
+  const { user } = useAuth();
+  const { activeMembers } = useWorkspaceMembers();
   const profileId = activeProfile?.id;
   useTrialGuidedFlow();
 
@@ -227,6 +236,10 @@ export const References = () => {
   const [showDeleteModal, setShowDeleteModal] = React.useState(false);
   const [referenceToDelete, setReferenceToDelete] = React.useState<ReferenceItem | null>(null);
   const [menuOpenId, setMenuOpenId] = React.useState<string | null>(null);
+  const [linkedMemberIds, setLinkedMemberIds] = React.useState<string[]>([]);
+  const [taskAssignments, setTaskAssignments] = React.useState<WorkspaceTaskAssignment[]>([]);
+  const [selectedReferenceTab, setSelectedReferenceTab] =
+    React.useState<'overview' | 'comments'>('overview');
 
   const [activeTab, setActiveTab] = React.useState<CreateTab>('link');
   const [form, setForm] = React.useState<FormState>(EMPTY_FORM);
@@ -250,11 +263,16 @@ export const References = () => {
     setIsLoading(true);
 
     try {
-      const data = await referencesService.listByProfile(profileId);
+      const [data, assignmentData] = await Promise.all([
+        referencesService.listByProfile(profileId),
+        workspaceCollaborationService.listAssignments(profileId, 'reference'),
+      ]);
       setReferences(data);
+      setTaskAssignments(assignmentData);
     } catch (error) {
       console.error('Erro ao carregar referências:', error);
       setReferences([]);
+      setTaskAssignments([]);
     } finally {
       setIsLoading(false);
     }
@@ -336,6 +354,7 @@ export const References = () => {
     setFilePreviewLabel('');
     setLinkPreviewUrl('');
     setLinkPreviewPlatform('');
+    setLinkedMemberIds([]);
   };
 
   const clearSelectedMaterial = () => {
@@ -382,9 +401,20 @@ export const References = () => {
       reference.type === 'link' && !isGeneratedPreviewUrl(reference.thumbnail_url) ? reference.thumbnail_url || '' : ''
     );
     setLinkPreviewPlatform(reference.platform || reference.source || '');
+    setLinkedMemberIds(
+      taskAssignments
+        .filter((assignment) => assignment.entityType === 'reference' && assignment.entityId === reference.id)
+        .map((assignment) => assignment.memberId)
+    );
     setShowCreateModal(true);
     setMenuOpenId(null);
   };
+
+  React.useEffect(() => {
+    if (selectedReference) {
+      setSelectedReferenceTab('overview');
+    }
+  }, [selectedReference]);
 
   const handleGenerateLinkPreview = () => {
     const url = form.sourceUrl.trim();
@@ -534,7 +564,7 @@ export const References = () => {
           setMaterialRenderStatus('Salvando referência...');
         }
 
-        await referencesService.update({
+        const updatedReference = await referencesService.update({
           id: editingReference.id,
           title,
           description: form.description.trim(),
@@ -558,9 +588,15 @@ export const References = () => {
           file_size_mb: uploadData?.fileSizeMb || editingReference.file_size_mb || undefined,
           type: activeTab as ReferenceType,
         });
+        await workspaceCollaborationService.setAssignedMembers(
+          profileId,
+          'reference',
+          updatedReference.id,
+          linkedMemberIds
+        );
       } else {
         if (activeTab === 'link') {
-          await referencesService.create({
+          const createdReference = await referencesService.create({
             profile_id: profileId,
             title,
             description: form.description.trim(),
@@ -575,6 +611,12 @@ export const References = () => {
             format: form.format.trim() || undefined,
             notes: form.notes.trim() || undefined,
           });
+          await workspaceCollaborationService.setAssignedMembers(
+            profileId,
+            'reference',
+            createdReference.id,
+            linkedMemberIds
+          );
         } else if (selectedFile) {
           setMaterialRenderProgress(35);
           setMaterialRenderStatus('Preparando material...');
@@ -585,7 +627,7 @@ export const References = () => {
           setMaterialRenderProgress(98);
           setMaterialRenderStatus('Salvando referência...');
 
-          await referencesService.create({
+          const createdReference = await referencesService.create({
             profile_id: profileId,
             title,
             description: form.description.trim(),
@@ -603,6 +645,12 @@ export const References = () => {
             file_name: upload.fileName,
             file_size_mb: upload.fileSizeMb,
           });
+          await workspaceCollaborationService.setAssignedMembers(
+            profileId,
+            'reference',
+            createdReference.id,
+            linkedMemberIds
+          );
         } else {
           setNotice({
             title: 'Material obrigatório',
@@ -661,6 +709,14 @@ export const References = () => {
 
     try {
       await referencesService.remove(referenceToDelete.id);
+      if (profileId) {
+        await workspaceCollaborationService.setAssignedMembers(
+          profileId,
+          'reference',
+          referenceToDelete.id,
+          []
+        );
+      }
       await loadReferences();
 
       if (selectedReference?.id === referenceToDelete.id) {
@@ -1027,6 +1083,19 @@ export const References = () => {
                         {ref.format}
                       </span>
                     )}
+                    {taskAssignments.some(
+                      (assignment) => assignment.entityType === 'reference' && assignment.entityId === ref.id
+                    ) && (
+                      <span className="rounded bg-brand/10 px-2 py-0.5 text-[10px] font-medium text-brand">
+                        {
+                          taskAssignments.filter(
+                            (assignment) =>
+                              assignment.entityType === 'reference' && assignment.entityId === ref.id
+                          ).length
+                        }{' '}
+                        membro(s)
+                      </span>
+                    )}
                   </div>
 
                   <div className="mt-auto flex flex-wrap gap-1.5">
@@ -1361,6 +1430,12 @@ export const References = () => {
                     className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none transition-colors focus:border-brand"
                   />
                 </div>
+
+                <MemberAssignmentField
+                  members={activeMembers}
+                  value={linkedMemberIds}
+                  onChange={setLinkedMemberIds}
+                />
               </div>
 
               <div className="min-w-0 space-y-4">
@@ -1462,6 +1537,18 @@ export const References = () => {
               </button>
             </div>
 
+            <div className="border-b border-gray-100 px-6 pt-4">
+              <Tabs
+                tabs={[
+                  { id: 'overview', label: 'Visão geral' },
+                  { id: 'comments', label: 'Comentários' },
+                ]}
+                activeTab={selectedReferenceTab}
+                onChange={(value) => setSelectedReferenceTab(value as 'overview' | 'comments')}
+              />
+            </div>
+
+            {selectedReferenceTab === 'overview' ? (
             <div className="grid grid-cols-1 gap-6 px-6 py-6 lg:grid-cols-[1.2fr_0.8fr]">
               <div className="overflow-hidden rounded-2xl bg-gray-100">
                 {selectedReference.type === 'image' && getPreviewImage(selectedReference) ? (
@@ -1639,6 +1726,25 @@ export const References = () => {
                 </div>
               </div>
             </div>
+            ) : (
+              <div className="px-6 py-6">
+                <TaskCommentsPanel
+                  profileId={profileId}
+                  entityType="reference"
+                  entityId={selectedReference.id}
+                  currentUserName={user?.name || 'Equipe'}
+                  currentUserId={user?.id}
+                  members={activeMembers}
+                  assignedMemberIds={taskAssignments
+                    .filter(
+                      (assignment) =>
+                        assignment.entityType === 'reference' &&
+                        assignment.entityId === selectedReference.id
+                    )
+                    .map((assignment) => assignment.memberId)}
+                />
+              </div>
+            )}
           </div>
         </div>
       )}

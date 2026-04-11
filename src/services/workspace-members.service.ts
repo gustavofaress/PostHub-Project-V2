@@ -6,6 +6,7 @@ import {
   TeamPermissionId,
 } from '../shared/constants/workspaceMembers';
 import { teamMembersStorage } from '../modules/settings/teamMembers.storage';
+import { memberAuthStorage } from '../modules/settings/memberAuth.storage';
 
 interface WorkspaceMemberRow {
   id: string;
@@ -25,6 +26,13 @@ interface InviteWorkspaceMemberInput {
   name?: string;
   role: Exclude<TeamMemberRole, 'owner'>;
   permissions: TeamPermissionId[];
+  generatedPassword?: string;
+}
+
+export interface InviteWorkspaceMemberResult {
+  member: TeamMember;
+  generatedPassword: string;
+  loginUrl: string;
 }
 
 const normalizeMember = (row: WorkspaceMemberRow): TeamMember => ({
@@ -54,6 +62,23 @@ const buildFallbackMember = (input: InviteWorkspaceMemberInput): TeamMember => (
   userId: null,
 });
 
+const generateMemberPassword = () => {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
+  return Array.from({ length: 12 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join(
+    ''
+  );
+};
+
+const buildMemberLoginUrl = (email: string) => {
+  if (typeof window === 'undefined') {
+    return `/member-login?email=${encodeURIComponent(email.trim().toLowerCase())}`;
+  }
+
+  return `${window.location.origin}/member-login?email=${encodeURIComponent(
+    email.trim().toLowerCase()
+  )}`;
+};
+
 export const workspaceMembersService = {
   async list(profileId: string): Promise<TeamMember[]> {
     if (!supabase) {
@@ -73,12 +98,29 @@ export const workspaceMembersService = {
     return ((data ?? []) as WorkspaceMemberRow[]).map(normalizeMember);
   },
 
-  async invite(input: InviteWorkspaceMemberInput): Promise<TeamMember> {
+  async invite(input: InviteWorkspaceMemberInput): Promise<InviteWorkspaceMemberResult> {
+    const generatedPassword = input.generatedPassword || generateMemberPassword();
+    const loginUrl = buildMemberLoginUrl(input.email);
+
     if (!supabase) {
       const currentMembers = teamMembersStorage.list(input.profileId);
       const nextMember = buildFallbackMember(input);
       teamMembersStorage.save(input.profileId, [nextMember, ...currentMembers]);
-      return nextMember;
+      memberAuthStorage.save({
+        email: nextMember.email,
+        password: generatedPassword,
+        fullName: nextMember.name,
+        profileId: input.profileId,
+        role: input.role,
+        permissions: input.permissions,
+        createdAt: new Date().toISOString(),
+      });
+
+      return {
+        member: nextMember,
+        generatedPassword,
+        loginUrl,
+      };
     }
 
     const { data, error } = await supabase.functions.invoke('invite-workspace-member', {
@@ -89,12 +131,18 @@ export const workspaceMembersService = {
         fullName: input.name?.trim() || null,
         role: input.role,
         permissions: input.permissions,
+        generatedPassword,
+        loginUrl,
       },
     });
 
     if (error) throw error;
 
-    return normalizeMember(data.member as WorkspaceMemberRow);
+    return {
+      member: normalizeMember(data.member as WorkspaceMemberRow),
+      generatedPassword: data.generatedPassword || generatedPassword,
+      loginUrl: data.loginUrl || loginUrl,
+    };
   },
 
   async resendInvite(profileId: string, member: TeamMember): Promise<TeamMember> {

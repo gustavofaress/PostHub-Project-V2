@@ -16,10 +16,16 @@ import { Avatar } from '../../shared/components/Avatar';
 import { Dropdown, DropdownItem } from '../../shared/components/Dropdown';
 import { Modal } from '../../shared/components/Modal';
 import { Input } from '../../shared/components/Input';
+import { Tabs } from '../../shared/components/Tabs';
 import { useProfile } from '../../app/context/ProfileContext';
 import { useAuth } from '../../app/context/AuthContext';
 import { supabase } from '../../shared/utils/supabase';
 import { useTrialGuidedFlow } from '../onboarding/hooks/useTrialGuidedFlow';
+import { useWorkspaceMembers } from '../../hooks/useWorkspaceMembers';
+import { MemberAssignmentField } from '../../shared/components/MemberAssignmentField';
+import { TaskCommentsPanel } from '../../shared/components/TaskCommentsPanel';
+import { workspaceCollaborationService } from '../../services/workspace-collaboration.service';
+import type { WorkspaceTaskAssignment } from '../../shared/constants/workspaceCollaboration';
 
 interface KanbanColumn {
   id: string;
@@ -129,6 +135,7 @@ function mapColumnNameToStatus(columnName: string): string {
 export const KanbanBoard = () => {
   const { activeProfile } = useProfile();
   const { user } = useAuth();
+  const { activeMembers } = useWorkspaceMembers();
   useTrialGuidedFlow();
 
   const [columns, setColumns] = React.useState<KanbanColumn[]>([]);
@@ -144,6 +151,9 @@ export const KanbanBoard = () => {
   const [newTaskDate, setNewTaskDate] = React.useState(format(new Date(), 'yyyy-MM-dd'));
   const [isSavingTask, setIsSavingTask] = React.useState(false);
   const [isDeletingTask, setIsDeletingTask] = React.useState(false);
+  const [linkedMemberIds, setLinkedMemberIds] = React.useState<string[]>([]);
+  const [taskAssignments, setTaskAssignments] = React.useState<WorkspaceTaskAssignment[]>([]);
+  const [modalTab, setModalTab] = React.useState<'details' | 'comments'>('details');
 
   const [editingColumnId, setEditingColumnId] = React.useState<string | null>(null);
   const [editingColumnName, setEditingColumnName] = React.useState('');
@@ -160,20 +170,23 @@ export const KanbanBoard = () => {
     setErrorMessage(null);
 
     try {
-      const [{ data: columnsData, error: columnsError }, { data: cardsData, error: cardsError }] =
-        await Promise.all([
-          supabase
-            .from('editorial_columns')
-            .select('*')
-            .eq('profile_id', activeProfile.id)
-            .order('position', { ascending: true }),
-          supabase
-            .from('editorial_calendar')
-            .select('*')
-            .eq('user_id', user.id)
-            .eq('profile_id', activeProfile.id)
-            .order('updated_at', { ascending: false }),
-        ]);
+      const [
+        { data: columnsData, error: columnsError },
+        { data: cardsData, error: cardsError },
+        assignmentData,
+      ] = await Promise.all([
+        supabase
+          .from('editorial_columns')
+          .select('*')
+          .eq('profile_id', activeProfile.id)
+          .order('position', { ascending: true }),
+        supabase
+          .from('editorial_calendar')
+          .select('*')
+          .eq('profile_id', activeProfile.id)
+          .order('updated_at', { ascending: false }),
+        workspaceCollaborationService.listAssignments(activeProfile.id, 'editorial_calendar'),
+      ]);
 
       if (columnsError) throw columnsError;
       if (cardsError) throw cardsError;
@@ -216,10 +229,12 @@ export const KanbanBoard = () => {
 
       setColumns(mappedColumns);
       setCards(mappedCards);
+      setTaskAssignments(assignmentData);
     } catch (error) {
       console.error('[KanbanBoard] Error loading board:', error);
       setColumns([]);
       setCards([]);
+      setTaskAssignments([]);
       setErrorMessage('Não foi possível carregar o Kanban deste perfil.');
     } finally {
       setIsLoadingBoard(false);
@@ -403,7 +418,7 @@ export const KanbanBoard = () => {
           updated_at: new Date().toISOString(),
         })
         .eq('id', taskId)
-        .eq('user_id', user?.id)
+        .eq('profile_id', activeProfile?.id)
         .select('*')
         .single();
 
@@ -421,7 +436,7 @@ export const KanbanBoard = () => {
   };
 
   const deleteTask = async (taskId: string) => {
-    if (!supabase || !user?.id) {
+    if (!supabase || !activeProfile?.id) {
       setErrorMessage('Usuário não autenticado.');
       return;
     }
@@ -434,11 +449,20 @@ export const KanbanBoard = () => {
         .from('editorial_calendar')
         .delete()
         .eq('id', taskId)
-        .eq('user_id', user.id);
+        .eq('profile_id', activeProfile.id);
 
       if (error) throw error;
 
       setCards((prev) => prev.filter((t) => t.id !== taskId));
+      await workspaceCollaborationService.setAssignedMembers(
+        activeProfile.id,
+        'editorial_calendar',
+        taskId,
+        []
+      );
+      setTaskAssignments((prev) =>
+        prev.filter((assignment) => assignment.entityId !== taskId)
+      );
     } catch (error: any) {
       console.error('[KanbanBoard] Error deleting task:', error);
       setErrorMessage(error?.message || 'Não foi possível excluir a tarefa.');
@@ -479,7 +503,6 @@ export const KanbanBoard = () => {
           .from('editorial_calendar')
           .update(payload)
           .eq('id', editingCardId)
-          .eq('user_id', user.id)
           .eq('profile_id', activeProfile.id)
           .select('*')
           .single();
@@ -488,6 +511,12 @@ export const KanbanBoard = () => {
 
         let updatedCard = mapCardRow(data as EditorialCalendarRow);
         updatedCard = { ...updatedCard, type: newTaskType };
+        await workspaceCollaborationService.setAssignedMembers(
+          activeProfile.id,
+          'editorial_calendar',
+          updatedCard.id,
+          linkedMemberIds
+        );
 
         setCards((prev) =>
           prev.map((card) => (card.id === editingCardId ? updatedCard : card))
@@ -508,15 +537,29 @@ export const KanbanBoard = () => {
 
         let createdCard = mapCardRow(data as EditorialCalendarRow);
         createdCard = { ...createdCard, type: newTaskType };
+        await workspaceCollaborationService.setAssignedMembers(
+          activeProfile.id,
+          'editorial_calendar',
+          createdCard.id,
+          linkedMemberIds
+        );
 
         setCards((prev) => [createdCard, ...prev]);
       }
+
+      const nextAssignments = await workspaceCollaborationService.listAssignments(
+        activeProfile.id,
+        'editorial_calendar'
+      );
+      setTaskAssignments(nextAssignments);
 
       setIsModalOpen(false);
       setNewTaskTitle('');
       setNewTaskType('Video');
       setNewTaskDate(format(new Date(), 'yyyy-MM-dd'));
       setEditingCardId(null);
+      setLinkedMemberIds([]);
+      setModalTab('details');
     } catch (error: any) {
       console.error('[KanbanBoard] Error saving task:', error);
       setErrorMessage(error?.message || 'Não foi possível salvar a tarefa.');
@@ -531,6 +574,8 @@ export const KanbanBoard = () => {
     setNewTaskType('Video');
     setNewTaskDate(format(new Date(), 'yyyy-MM-dd'));
     setNewTaskColumn(columnId || (columns.length > 0 ? columns[0].id : ''));
+    setLinkedMemberIds([]);
+    setModalTab('details');
     setIsModalOpen(true);
   };
 
@@ -540,6 +585,12 @@ export const KanbanBoard = () => {
     setNewTaskColumn(card.columnId || (columns[0]?.id ?? ''));
     setNewTaskType(card.type);
     setNewTaskDate(format(card.scheduledDate, 'yyyy-MM-dd'));
+    setLinkedMemberIds(
+      taskAssignments
+        .filter((assignment) => assignment.entityType === 'editorial_calendar' && assignment.entityId === card.id)
+        .map((assignment) => assignment.memberId)
+    );
+    setModalTab('details');
     setIsModalOpen(true);
   };
 
@@ -579,7 +630,7 @@ export const KanbanBoard = () => {
           updated_at: new Date().toISOString(),
         })
         .eq('id', cardId)
-        .eq('user_id', user?.id)
+        .eq('profile_id', activeProfile?.id)
         .select('*')
         .single();
 
@@ -790,7 +841,24 @@ export const KanbanBoard = () => {
                             ? 'E-mail'
                             : task.type}
                         </span>
-                        <Avatar fallback="Usuário" size="sm" className="h-6 w-6" />
+                        {taskAssignments.some(
+                          (assignment) =>
+                            assignment.entityType === 'editorial_calendar' &&
+                            assignment.entityId === task.id
+                        ) ? (
+                          <Badge variant="brand" className="px-2 py-0.5 text-[10px]">
+                            {
+                              taskAssignments.filter(
+                                (assignment) =>
+                                  assignment.entityType === 'editorial_calendar' &&
+                                  assignment.entityId === task.id
+                              ).length
+                            }{' '}
+                            membro(s)
+                          </Badge>
+                        ) : (
+                          <Avatar fallback="Usuário" size="sm" className="h-6 w-6" />
+                        )}
                       </div>
                     </Card>
                   ))}
@@ -811,58 +879,88 @@ export const KanbanBoard = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={editingCardId ? 'Editar Tarefa' : 'Adicionar Nova Tarefa'}
+        className="max-w-3xl"
       >
         <form onSubmit={(e) => void handleSaveTask(e)} className="space-y-4">
-          <Input
-            label="Título da Tarefa"
-            placeholder="O que precisa ser feito?"
-            value={newTaskTitle}
-            onChange={(e) => setNewTaskTitle(e.target.value)}
-            required
+          <Tabs
+            tabs={[
+              { id: 'details', label: 'Detalhes' },
+              { id: 'comments', label: 'Comentários' },
+            ]}
+            activeTab={modalTab}
+            onChange={(value) => setModalTab(value as 'details' | 'comments')}
           />
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-text-primary">Tipo</label>
-              <select
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
-                value={newTaskType}
-                onChange={(e) => setNewTaskType(e.target.value)}
-              >
-                <option value="Video">Vídeo</option>
-                <option value="Design">Design</option>
-                <option value="Script">Roteiro</option>
-                <option value="Research">Pesquisa</option>
-                <option value="Email">E-mail</option>
-              </select>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-text-primary">Data</label>
-              <input
-                type="date"
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
-                value={newTaskDate}
-                onChange={(e) => setNewTaskDate(e.target.value)}
+          {modalTab === 'details' ? (
+            <div className="space-y-4">
+              <Input
+                label="Título da Tarefa"
+                placeholder="O que precisa ser feito?"
+                value={newTaskTitle}
+                onChange={(e) => setNewTaskTitle(e.target.value)}
                 required
               />
-            </div>
-          </div>
 
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-text-primary">Coluna</label>
-            <select
-              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
-              value={newTaskColumn}
-              onChange={(e) => setNewTaskColumn(e.target.value)}
-            >
-              {columns.map((col) => (
-                <option key={col.id} value={col.id}>
-                  {col.name}
-                </option>
-              ))}
-            </select>
-          </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-text-primary">Tipo</label>
+                  <select
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                    value={newTaskType}
+                    onChange={(e) => setNewTaskType(e.target.value)}
+                  >
+                    <option value="Video">Vídeo</option>
+                    <option value="Design">Design</option>
+                    <option value="Script">Roteiro</option>
+                    <option value="Research">Pesquisa</option>
+                    <option value="Email">E-mail</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-text-primary">Data</label>
+                  <input
+                    type="date"
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                    value={newTaskDate}
+                    onChange={(e) => setNewTaskDate(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-text-primary">Coluna</label>
+                <select
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                  value={newTaskColumn}
+                  onChange={(e) => setNewTaskColumn(e.target.value)}
+                >
+                  {columns.map((col) => (
+                    <option key={col.id} value={col.id}>
+                      {col.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <MemberAssignmentField
+                members={activeMembers}
+                value={linkedMemberIds}
+                onChange={setLinkedMemberIds}
+              />
+            </div>
+          ) : (
+            <TaskCommentsPanel
+              profileId={activeProfile?.id}
+              entityType="editorial_calendar"
+              entityId={editingCardId}
+              currentUserName={user?.name || 'Equipe'}
+              currentUserId={user?.id}
+              members={activeMembers}
+              assignedMemberIds={linkedMemberIds}
+            />
+          )}
 
           <div className="flex justify-between pt-4">
             {editingCardId ? (
