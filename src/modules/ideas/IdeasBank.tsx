@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Lightbulb,
   Search,
@@ -29,6 +29,10 @@ import { MemberAssignmentField } from '../../shared/components/MemberAssignmentF
 import { TaskCommentsPanel } from '../../shared/components/TaskCommentsPanel';
 import { workspaceCollaborationService } from '../../services/workspace-collaboration.service';
 import type { WorkspaceTaskAssignment } from '../../shared/constants/workspaceCollaboration';
+import {
+  readWorkspaceNotificationParams,
+  withoutWorkspaceNotificationParams,
+} from '../../shared/constants/workspaceNotifications';
 
 interface Idea {
   id: string;
@@ -54,6 +58,7 @@ interface Idea {
 
 export const IdeasBank = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { setActiveModule } = useApp();
   const { activeProfile } = useProfile();
   const { user } = useAuth();
@@ -180,7 +185,7 @@ export const IdeasBank = () => {
     setIsModalOpen(true);
   };
 
-  const openEditModal = (idea: Idea) => {
+  const openEditModal = React.useCallback((idea: Idea, nextTab: 'details' | 'comments' = 'details') => {
     setEditingIdea(idea);
     setNewIdeaTitle(idea.title);
     setNewIdeaTags(idea.tags.join(', '));
@@ -191,9 +196,23 @@ export const IdeasBank = () => {
         .filter((assignment) => assignment.entityType === 'idea' && assignment.entityId === idea.id)
         .map((assignment) => assignment.memberId)
     );
-    setModalTab('details');
+    setModalTab(nextTab);
     setIsModalOpen(true);
-  };
+  }, [taskAssignments]);
+
+  React.useEffect(() => {
+    const notification = readWorkspaceNotificationParams(searchParams);
+
+    if (notification.entityType !== 'idea' || !notification.entityId) {
+      return;
+    }
+
+    const matchedIdea = ideas.find((idea) => idea.id === notification.entityId);
+    if (!matchedIdea) return;
+
+    setSearchParams(withoutWorkspaceNotificationParams(searchParams));
+    openEditModal(matchedIdea, notification.tab === 'comments' ? 'comments' : 'details');
+  }, [ideas, openEditModal, searchParams, setSearchParams]);
 
   const handleSaveIdea = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -269,7 +288,14 @@ export const IdeasBank = () => {
           activeProfile.id,
           'idea',
           editingIdea.id,
-          linkedMemberIds
+          linkedMemberIds,
+          {
+            actorUserId: user?.id,
+            actorName: user?.name || 'Equipe',
+            members: activeMembers,
+            entityTitle: newIdeaTitle.trim(),
+            targetModule: 'ideas',
+          }
         );
         setIdeas((prev) =>
           prev.map((idea) => (idea.id === editingIdea.id ? normalizeIdea(data) : idea))
@@ -288,7 +314,14 @@ export const IdeasBank = () => {
           activeProfile.id,
           'idea',
           createdIdea.id,
-          linkedMemberIds
+          linkedMemberIds,
+          {
+            actorUserId: user?.id,
+            actorName: user?.name || 'Equipe',
+            members: activeMembers,
+            entityTitle: createdIdea.title,
+            targetModule: 'ideas',
+          }
         );
         setIdeas((prev) => [normalizeIdea(data), ...prev]);
       }
@@ -650,6 +683,8 @@ export const IdeasBank = () => {
               currentUserId={user?.id}
               members={activeMembers}
               assignedMemberIds={linkedMemberIds}
+              entityTitle={editingIdea?.title || newIdeaTitle}
+              targetModule="ideas"
             />
           )}
 

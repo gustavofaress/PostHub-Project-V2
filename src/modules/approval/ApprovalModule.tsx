@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   CheckCircle,
   Plus,
@@ -35,6 +36,11 @@ import { useProfile } from '../../app/context/ProfileContext';
 import { useAuth } from '../../app/context/AuthContext';
 import { useWorkspaceMembers } from '../../hooks/useWorkspaceMembers';
 import { buildMemberMentionHandle } from '../../shared/constants/workspaceCollaboration';
+import {
+  readWorkspaceNotificationParams,
+  withoutWorkspaceNotificationParams,
+} from '../../shared/constants/workspaceNotifications';
+import { workspaceNotificationsService } from '../../services/workspace-notifications.service';
 import { approvalService } from './services/approvalService';
 import { InternalPreview } from './InternalPreview';
 import { useTrialGuidedFlow } from '../onboarding/hooks/useTrialGuidedFlow';
@@ -481,6 +487,7 @@ export const loadComments = (): ApprovalComment[] => {
 };
 
 export const ApprovalModule = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   useTrialGuidedFlow();
   const { activeProfile } = useProfile();
   const { user } = useAuth();
@@ -686,6 +693,20 @@ export const ApprovalModule = () => {
     },
     [approvals, refreshApprovals, refreshCommentsForPost]
   );
+
+  React.useEffect(() => {
+    const notification = readWorkspaceNotificationParams(searchParams);
+
+    if (notification.entityType !== 'approval_post' || !notification.entityId) {
+      return;
+    }
+
+    const matchedPost = approvals.find((post) => post.id === notification.entityId);
+    if (!matchedPost) return;
+
+    setSearchParams(withoutWorkspaceNotificationParams(searchParams));
+    void openHistoryModal(matchedPost.id);
+  }, [approvals, openHistoryModal, searchParams, setSearchParams]);
 
   const openInternalPreview = React.useCallback(async () => {
     const previewSourceId = editingPostId ?? approvals[0]?.id ?? null;
@@ -1085,6 +1106,18 @@ export const ApprovalModule = () => {
       });
 
       setComments((current) => current.map((c) => (c.id === tempId ? createdComment : c)));
+      await workspaceNotificationsService.notifyCommentActivity({
+        profileId: activeProfileId!,
+        entityType: 'approval_post',
+        entityId: selectedPostHistory.id,
+        entityTitle: selectedPostHistory.title,
+        targetModule: 'approval',
+        actorUserId: user.id,
+        actorName: user.name || 'Equipe',
+        members: activeMembers,
+        assignedMemberIds: [],
+        content: commentText,
+      });
       await refreshCommentsForPost(selectedPostHistory.id);
       await refreshApprovals();
     } catch (e) {

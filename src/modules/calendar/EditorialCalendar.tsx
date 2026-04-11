@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
@@ -33,6 +34,10 @@ import { MemberAssignmentField } from '../../shared/components/MemberAssignmentF
 import { TaskCommentsPanel } from '../../shared/components/TaskCommentsPanel';
 import { workspaceCollaborationService } from '../../services/workspace-collaboration.service';
 import type { WorkspaceTaskAssignment } from '../../shared/constants/workspaceCollaboration';
+import {
+  readWorkspaceNotificationParams,
+  withoutWorkspaceNotificationParams,
+} from '../../shared/constants/workspaceNotifications';
 
 interface CalendarPost {
   id: string;
@@ -75,6 +80,7 @@ function mapRowToPost(row: EditorialCalendarRow): CalendarPost {
 }
 
 export const EditorialCalendar = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { activeProfile } = useProfile();
   const { user } = useAuth();
   const { activeMembers } = useWorkspaceMembers();
@@ -172,7 +178,7 @@ export const EditorialCalendar = () => {
     setIsModalOpen(true);
   };
 
-  const openEditModal = (post: CalendarPost) => {
+  const openEditModal = React.useCallback((post: CalendarPost, nextTab: 'details' | 'comments' = 'details') => {
     setEditingPostId(post.id);
     setNewPostTitle(post.title);
     setNewPostDescription(post.description || '');
@@ -184,9 +190,24 @@ export const EditorialCalendar = () => {
         .filter((assignment) => assignment.entityType === 'editorial_calendar' && assignment.entityId === post.id)
         .map((assignment) => assignment.memberId)
     );
+    setModalTab(nextTab);
     setErrorMessage(null);
     setIsModalOpen(true);
-  };
+  }, [taskAssignments]);
+
+  React.useEffect(() => {
+    const notification = readWorkspaceNotificationParams(searchParams);
+
+    if (notification.entityType !== 'editorial_calendar' || !notification.entityId) {
+      return;
+    }
+
+    const matchedPost = posts.find((post) => post.id === notification.entityId);
+    if (!matchedPost) return;
+
+    setSearchParams(withoutWorkspaceNotificationParams(searchParams));
+    openEditModal(matchedPost, notification.tab === 'comments' ? 'comments' : 'details');
+  }, [openEditModal, posts, searchParams, setSearchParams]);
 
   const handleSavePost = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -241,7 +262,14 @@ export const EditorialCalendar = () => {
           activeProfile.id,
           'editorial_calendar',
           updatedPost.id,
-          linkedMemberIds
+          linkedMemberIds,
+          {
+            actorUserId: user?.id,
+            actorName: user?.name || 'Equipe',
+            members: activeMembers,
+            entityTitle: updatedPost.title,
+            targetModule: 'calendar',
+          }
         );
 
         setPosts((prev) =>
@@ -267,7 +295,14 @@ export const EditorialCalendar = () => {
           activeProfile.id,
           'editorial_calendar',
           createdPost.id,
-          linkedMemberIds
+          linkedMemberIds,
+          {
+            actorUserId: user?.id,
+            actorName: user?.name || 'Equipe',
+            members: activeMembers,
+            entityTitle: createdPost.title,
+            targetModule: 'calendar',
+          }
         );
 
         setPosts((prev) =>
@@ -658,6 +693,8 @@ export const EditorialCalendar = () => {
               currentUserId={user?.id}
               members={activeMembers}
               assignedMemberIds={linkedMemberIds}
+              entityTitle={newPostTitle}
+              targetModule="calendar"
             />
           )}
 
