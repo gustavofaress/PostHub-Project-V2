@@ -33,6 +33,8 @@ import { Dropdown, DropdownItem } from '../../shared/components/Dropdown';
 import { cn } from '../../shared/utils/cn';
 import { useProfile } from '../../app/context/ProfileContext';
 import { useAuth } from '../../app/context/AuthContext';
+import { useWorkspaceMembers } from '../../hooks/useWorkspaceMembers';
+import { buildMemberMentionHandle } from '../../shared/constants/workspaceCollaboration';
 import { approvalService } from './services/approvalService';
 import { InternalPreview } from './InternalPreview';
 import { useTrialGuidedFlow } from '../onboarding/hooks/useTrialGuidedFlow';
@@ -482,6 +484,7 @@ export const ApprovalModule = () => {
   useTrialGuidedFlow();
   const { activeProfile } = useProfile();
   const { user } = useAuth();
+  const { activeMembers } = useWorkspaceMembers();
 
   const [view, setView] = React.useState<'list' | 'create' | 'edit' | 'preview'>('list');
   const [approvals, setApprovals] = React.useState<ApprovalPost[]>([]);
@@ -512,6 +515,42 @@ export const ApprovalModule = () => {
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const activeProfileId = activeProfile?.id ?? null;
+  const historyMentionMatch = internalComment.match(/(^|\s)@([a-z0-9.]*)$/i);
+  const historyMentionQuery = historyMentionMatch?.[2]?.toLowerCase() ?? '';
+
+  const historyMentionSuggestions = React.useMemo(() => {
+    if (!historyMentionMatch) return [];
+
+    return activeMembers.filter((member) => {
+      const handle = buildMemberMentionHandle(member);
+      const haystack = `${member.name} ${member.email} ${handle}`.toLowerCase();
+      return haystack.includes(historyMentionQuery);
+    });
+  }, [activeMembers, historyMentionMatch, historyMentionQuery]);
+
+  const insertHistoryMention = React.useCallback((member: (typeof activeMembers)[number]) => {
+    const handle = `@${buildMemberMentionHandle(member)}`;
+    setInternalComment((current) => current.replace(/(^|\s)@([a-z0-9.]*)$/i, `$1${handle} `));
+  }, [activeMembers]);
+
+  const renderCommentWithMentions = React.useCallback((content: string) => {
+    return content.split(/(\s+)/).map((part, index) => {
+      if (!part.trim()) return <React.Fragment key={`${part}-${index}`}>{part}</React.Fragment>;
+
+      if (part.startsWith('@')) {
+        return (
+          <span
+            key={`${part}-${index}`}
+            className="rounded bg-brand/10 px-1.5 py-0.5 font-medium text-brand"
+          >
+            {part}
+          </span>
+        );
+      }
+
+      return <React.Fragment key={`${part}-${index}`}>{part}</React.Fragment>;
+    });
+  }, []);
 
   const ensureActiveProfile = React.useCallback(() => {
     if (!activeProfileId) {
@@ -1854,7 +1893,7 @@ export const ApprovalModule = () => {
                                 : 'rounded-tl-none bg-gray-50 text-text-secondary'
                             )}
                           >
-                            {comment.content}
+                            {renderCommentWithMentions(comment.content)}
                           </p>
                         </div>
                       </div>
@@ -1867,15 +1906,31 @@ export const ApprovalModule = () => {
               </div>
 
               <div className="flex gap-2 border-t border-gray-100 pt-4">
-                <Input
-                  placeholder="Responder ao feedback..."
-                  className="flex-1"
-                  value={internalComment}
-                  onChange={(e) => setInternalComment(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') void handleSendInternalComment();
-                  }}
-                />
+                <div className="flex-1 space-y-2">
+                  <Input
+                    placeholder="Responder ao feedback e mencionar @membros..."
+                    className="flex-1"
+                    value={internalComment}
+                    onChange={(e) => setInternalComment(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') void handleSendInternalComment();
+                    }}
+                  />
+                  {historyMentionSuggestions.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {historyMentionSuggestions.map((member) => (
+                        <button
+                          key={member.id}
+                          type="button"
+                          onClick={() => insertHistoryMention(member)}
+                          className="rounded-full border border-brand/20 bg-white px-3 py-1 text-xs font-medium text-brand transition-colors hover:bg-brand/5"
+                        >
+                          Mencionar {member.name}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
                 <Button
                   className="shrink-0 gap-2"
                   onClick={() => void handleSendInternalComment()}

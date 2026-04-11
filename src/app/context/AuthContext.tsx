@@ -4,6 +4,7 @@ import { supabase } from '../../shared/utils/supabase';
 import { onboardingService } from '../../services/onboarding.service';
 import { userService } from '../../services/user.service';
 import { normalizePlan } from '../../shared/constants/plans';
+import { memberAuthStorage } from '../../modules/settings/memberAuth.storage';
 
 interface UserOnboardingState {
   work_model: string | null;
@@ -31,6 +32,7 @@ interface User {
   email: string;
   currentPlan?: string | null;
   isAdmin?: boolean;
+  isWorkspaceMember?: boolean;
   trialExpiresAt?: string | null;
   accessStatus?: UserAccessStatus;
   onboarding?: UserOnboardingState | null;
@@ -103,6 +105,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email: mergedUser.email || '',
         currentPlan: mergedUser.currentPlan ?? 'start_7',
         isAdmin: !!mergedUser.isAdmin,
+        isWorkspaceMember: !!mergedUser.isWorkspaceMember,
         trialExpiresAt: mergedUser.trialExpiresAt ?? null,
         accessStatus: mergedUser.accessStatus ?? 'trial_active',
         onboarding: mapOnboardingState(onboarding),
@@ -122,6 +125,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       email: sessionUser.email || '',
       currentPlan: null,
       isAdmin: false,
+      isWorkspaceMember: false,
       trialExpiresAt: null,
       accessStatus: 'unknown',
       onboarding: null,
@@ -178,6 +182,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         let usuarioRecord = null;
         let onboarding = null;
+        let workspaceMembership: {
+          role?: string | null;
+          full_name?: string | null;
+          email?: string | null;
+        } | null = null;
 
         try {
           usuarioRecord = await userService.getCurrentUserRecord(
@@ -194,14 +203,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.error('Error loading onboarding:', error);
         }
 
-        const currentPlan = usuarioRecord?.current_plan ?? null;
+        try {
+          const membershipByUserId = await supabase
+            .from('workspace_members')
+            .select('role, full_name, email')
+            .eq('user_id', sessionUser.id)
+            .eq('status', 'active')
+            .maybeSingle();
+
+          if (membershipByUserId.error) throw membershipByUserId.error;
+          workspaceMembership = membershipByUserId.data;
+
+          if (!workspaceMembership && sessionUser.email) {
+            const membershipByEmail = await supabase
+              .from('workspace_members')
+              .select('role, full_name, email')
+              .eq('email', sessionUser.email)
+              .eq('status', 'active')
+              .maybeSingle();
+
+            if (membershipByEmail.error) throw membershipByEmail.error;
+            workspaceMembership = membershipByEmail.data;
+          }
+        } catch (error) {
+          console.error('Error loading workspace membership:', error);
+        }
+
+        const isWorkspaceMember =
+          !usuarioRecord?.is_admin && !!workspaceMembership;
+        const currentPlan = usuarioRecord?.current_plan ?? (isWorkspaceMember ? 'pro' : null);
         const isAdmin = !!usuarioRecord?.is_admin;
         const trialExpiresAt = usuarioRecord?.trial_expires_at ?? null;
-        const accessStatus = getAccessStatus({
-          currentPlan,
-          isAdmin,
-          trialExpiresAt,
-        });
+        const accessStatus = isWorkspaceMember
+          ? 'paid'
+          : getAccessStatus({
+              currentPlan,
+              isAdmin,
+              trialExpiresAt,
+            });
 
         console.log('[AuthContext] usuarioRecord:', usuarioRecord);
         console.log('[AuthContext] currentPlan:', currentPlan);
@@ -212,11 +251,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           ...baseUser,
           name:
             usuarioRecord?.nome ||
+            workspaceMembership?.full_name ||
             sessionUser.user_metadata?.full_name ||
             baseUser.name,
-          email: usuarioRecord?.email || sessionUser.email || baseUser.email,
+          email:
+            usuarioRecord?.email ||
+            workspaceMembership?.email ||
+            sessionUser.email ||
+            baseUser.email,
           currentPlan,
           isAdmin,
+          isWorkspaceMember,
           trialExpiresAt,
           accessStatus,
           onboarding: mapOnboardingState(onboarding),
@@ -227,6 +272,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           ...baseUser,
           currentPlan: null,
           isAdmin: false,
+          isWorkspaceMember: false,
           trialExpiresAt: null,
           accessStatus: 'missing',
           onboarding: null,
@@ -325,12 +371,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password?: string) => {
     if (!supabase) {
+      const memberCredential = memberAuthStorage.getByEmail(email);
+
+      if (memberCredential) {
+        if (!password || memberCredential.password !== password) {
+          throw new Error('A senha automática do membro está incorreta.');
+        }
+
+        const memberUser: User = {
+          id: `member-${memberCredential.profileId}`,
+          name: memberCredential.fullName,
+          email,
+          currentPlan: 'pro',
+          isAdmin: false,
+          isWorkspaceMember: true,
+          trialExpiresAt: null,
+          accessStatus: 'paid',
+          onboarding: null,
+        };
+        await syncMockUser(memberUser);
+        navigate('/workspace/dashboard');
+        return;
+      }
+
       const mockUser: User = {
         id: '1',
         name: 'User',
         email,
         currentPlan: 'start_7',
         isAdmin: false,
+        isWorkspaceMember: false,
         trialExpiresAt: null,
         accessStatus: 'trial_active',
         onboarding: null,
@@ -417,6 +487,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email,
         currentPlan: 'start_7',
         isAdmin: false,
+        isWorkspaceMember: false,
         trialExpiresAt: null,
         accessStatus: 'trial_active',
         onboarding: null,

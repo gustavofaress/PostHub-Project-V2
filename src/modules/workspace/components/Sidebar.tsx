@@ -6,6 +6,8 @@ import { cn } from '../../../shared/utils/cn';
 import { useAuth } from '../../../app/context/AuthContext';
 import { hasAccess } from '../../../shared/constants/plans';
 import { useTrialGuidedFlow } from '../../onboarding/hooks/useTrialGuidedFlow';
+import { useWorkspacePermissions } from '../../../hooks/useWorkspacePermissions';
+import { WORKSPACE_MODULE_PERMISSION_MAP } from '../../../shared/constants/workspaceAccess';
 
 const HIDDEN_MODULE_IDS = ['consultant', 'scheduler'];
 
@@ -13,6 +15,7 @@ export const Sidebar = () => {
   const location = useLocation();
   const { logout, user } = useAuth();
   const { isActive: isGuidedFlowActive } = useTrialGuidedFlow();
+  const { canAccess, canManageMembers } = useWorkspacePermissions();
   const currentPathWithSearch = `${location.pathname}${location.search}`;
 
   const [hoveredItem, setHoveredItem] = React.useState<{ item: NavItem; rect: DOMRect } | null>(
@@ -21,6 +24,14 @@ export const Sidebar = () => {
   const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
   const visibleGroups = React.useMemo(() => {
+    const canOpenWorkspaceModule = (moduleId: NavItem['id']) => {
+      if (!user?.isWorkspaceMember) return true;
+      if (moduleId === 'settings') return canManageMembers;
+
+      const requiredPermission = WORKSPACE_MODULE_PERMISSION_MAP[moduleId];
+      return requiredPermission ? canAccess(requiredPermission) : true;
+    };
+
     return NAV_GROUPS
       .map((group) => {
         let items = group.items.filter((item) => !HIDDEN_MODULE_IDS.includes(item.id));
@@ -29,13 +40,15 @@ export const Sidebar = () => {
           items = items.filter(() => !!user?.isAdmin);
         }
 
+        items = items.filter((item) => canOpenWorkspaceModule(item.id));
+
         return {
           ...group,
           items,
         };
       })
       .filter((group) => group.items.length > 0);
-  }, [user?.isAdmin]);
+  }, [canAccess, canManageMembers, user?.isAdmin, user?.isWorkspaceMember]);
 
   const handleMouseEnter = (item: NavItem, e: React.MouseEvent) => {
     if (isGuidedFlowActive) return;
@@ -91,7 +104,15 @@ export const Sidebar = () => {
               {group.items.map((item) => {
                 const isActive = location.pathname.startsWith(item.path);
                 const isApproval = item.id === 'approval';
-                const isLocked = !hasAccess(user?.currentPlan, item.id, user?.isAdmin);
+                const workspacePermissionDenied =
+                  !!user?.isWorkspaceMember &&
+                  (item.id === 'settings'
+                    ? !canManageMembers
+                    : WORKSPACE_MODULE_PERMISSION_MAP[item.id]
+                    ? !canAccess(WORKSPACE_MODULE_PERMISSION_MAP[item.id]!)
+                    : false);
+                const isLocked =
+                  !hasAccess(user?.currentPlan, item.id, user?.isAdmin) || workspacePermissionDenied;
 
                 return (
                   <div key={item.id} className="flex w-full flex-col">

@@ -285,15 +285,15 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       {
         id: 'settings',
-        label: 'Configurações do Workspace',
-        description: 'Configure seu ambiente, cargos da equipe e faturamento.',
+        label: 'Organização de Demandas',
+        description: 'Gerencie membros, acessos, responsáveis e a operação das demandas do workspace.',
         icon: Settings,
         path: '/workspace/settings',
         subItems: [
-          { label: 'Preferências Gerais', path: '/workspace/settings' },
-          { label: 'Gestão da Equipe', path: '/workspace/settings?tab=team' },
-          { label: 'Cobrança e Planos', path: '/workspace/settings?tab=billing' },
-          { label: 'Notificações', path: '/workspace/settings?tab=notifications' },
+          { label: 'Gestão da Equipe', path: '/workspace/settings' },
+          { label: 'Demandas do Workspace', path: '/workspace/settings?tab=demands' },
+          { label: 'Credenciais de Membros', path: '/workspace/settings?tab=members' },
+          { label: 'Permissões Operacionais', path: '/workspace/settings?tab=permissions' },
         ],
       },
       {

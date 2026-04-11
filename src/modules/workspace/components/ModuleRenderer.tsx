@@ -21,13 +21,40 @@ import { ReportsModule } from '../../reports/ReportsModule';
 import { AdminDashboard } from '../../admin/AdminDashboard';
 import { LockedModuleState } from '../../../shared/components/LockedModuleState';
 import { hasAccess } from '../../../shared/constants/plans';
+import { useWorkspacePermissions } from '../../../hooks/useWorkspacePermissions';
+import { WORKSPACE_MODULE_PERMISSION_MAP } from '../../../shared/constants/workspaceAccess';
 
 export const ModuleRenderer = () => {
   const { activeModule } = useApp();
   const { user } = useAuth();
+  const { canAccess, canManageMembers } = useWorkspacePermissions();
 
-  if (!hasAccess(user?.currentPlan, activeModule, user?.isAdmin)) {
-    return <LockedModuleState feature={activeModule} autoOpen />;
+  const requiredPermission = WORKSPACE_MODULE_PERMISSION_MAP[activeModule];
+  const isBlockedByWorkspacePermission =
+    !!user?.isWorkspaceMember &&
+    (activeModule === 'settings'
+      ? !canManageMembers
+      : requiredPermission
+      ? !canAccess(requiredPermission)
+      : false);
+
+  if (!hasAccess(user?.currentPlan, activeModule, user?.isAdmin) || isBlockedByWorkspacePermission) {
+    return (
+      <LockedModuleState
+        feature={activeModule === 'settings' ? 'team' : activeModule}
+        autoOpen
+        title={
+          activeModule === 'settings' && isBlockedByWorkspacePermission
+            ? 'Somente admins podem organizar demandas do workspace'
+            : undefined
+        }
+        description={
+          activeModule === 'settings' && isBlockedByWorkspacePermission
+            ? 'Peça ao administrador para ajustar membros, permissões e vínculos das demandas.'
+            : undefined
+        }
+      />
+    );
   }
 
   switch (activeModule) {

@@ -18,11 +18,17 @@ import { Badge } from '../../shared/components/Badge';
 import { EmptyState } from '../../shared/components/EmptyState';
 import { Modal } from '../../shared/components/Modal';
 import { Dropdown, DropdownItem } from '../../shared/components/Dropdown';
+import { Tabs } from '../../shared/components/Tabs';
 import { useApp } from '../../app/context/AppContext';
 import { useProfile } from '../../app/context/ProfileContext';
 import { useAuth } from '../../app/context/AuthContext';
 import { supabase } from '../../shared/utils/supabase';
 import { useTrialGuidedFlow } from '../onboarding/hooks/useTrialGuidedFlow';
+import { useWorkspaceMembers } from '../../hooks/useWorkspaceMembers';
+import { MemberAssignmentField } from '../../shared/components/MemberAssignmentField';
+import { TaskCommentsPanel } from '../../shared/components/TaskCommentsPanel';
+import { workspaceCollaborationService } from '../../services/workspace-collaboration.service';
+import type { WorkspaceTaskAssignment } from '../../shared/constants/workspaceCollaboration';
 
 interface Idea {
   id: string;
@@ -51,6 +57,7 @@ export const IdeasBank = () => {
   const { setActiveModule } = useApp();
   const { activeProfile } = useProfile();
   const { user } = useAuth();
+  const { activeMembers } = useWorkspaceMembers();
   useTrialGuidedFlow();
 
   const [ideas, setIdeas] = React.useState<Idea[]>([]);
@@ -64,6 +71,9 @@ export const IdeasBank = () => {
   const [newIdeaTags, setNewIdeaTags] = React.useState('');
   const [newIdeaPriority, setNewIdeaPriority] = React.useState('Medium');
   const [newIdeaStatus, setNewIdeaStatus] = React.useState('Backlog');
+  const [linkedMemberIds, setLinkedMemberIds] = React.useState<string[]>([]);
+  const [taskAssignments, setTaskAssignments] = React.useState<WorkspaceTaskAssignment[]>([]);
+  const [modalTab, setModalTab] = React.useState<'details' | 'comments'>('details');
 
   const [filterPriority, setFilterPriority] = React.useState<string | null>(null);
   const [filterTag, setFilterTag] = React.useState<string | null>(null);
@@ -111,6 +121,8 @@ export const IdeasBank = () => {
     setNewIdeaTags('');
     setNewIdeaPriority('Medium');
     setNewIdeaStatus('Backlog');
+    setLinkedMemberIds([]);
+    setModalTab('details');
   };
 
   const loadIdeas = React.useCallback(async () => {
@@ -123,18 +135,23 @@ export const IdeasBank = () => {
     setErrorMessage(null);
 
     try {
-      const { data, error } = await supabase
-        .from('ideas')
-        .select('*')
-        .eq('profile_id', activeProfile.id)
-        .order('created_at', { ascending: false });
+      const [{ data, error }, assignmentData] = await Promise.all([
+        supabase
+          .from('ideas')
+          .select('*')
+          .eq('profile_id', activeProfile.id)
+          .order('created_at', { ascending: false }),
+        workspaceCollaborationService.listAssignments(activeProfile.id, 'idea'),
+      ]);
 
       if (error) throw error;
 
       setIdeas((data ?? []).map(normalizeIdea));
+      setTaskAssignments(assignmentData);
     } catch (error) {
       console.error('[Ideas] Error loading ideas:', error);
       setIdeas([]);
+      setTaskAssignments([]);
       setErrorMessage('Não foi possível carregar as ideias deste perfil.');
     } finally {
       setIsLoadingIdeas(false);
@@ -169,6 +186,12 @@ export const IdeasBank = () => {
     setNewIdeaTags(idea.tags.join(', '));
     setNewIdeaPriority(idea.priority);
     setNewIdeaStatus(idea.status);
+    setLinkedMemberIds(
+      taskAssignments
+        .filter((assignment) => assignment.entityType === 'idea' && assignment.entityId === idea.id)
+        .map((assignment) => assignment.memberId)
+    );
+    setModalTab('details');
     setIsModalOpen(true);
   };
 
@@ -242,6 +265,12 @@ export const IdeasBank = () => {
 
         if (error) throw error;
 
+        await workspaceCollaborationService.setAssignedMembers(
+          activeProfile.id,
+          'idea',
+          editingIdea.id,
+          linkedMemberIds
+        );
         setIdeas((prev) =>
           prev.map((idea) => (idea.id === editingIdea.id ? normalizeIdea(data) : idea))
         );
@@ -254,9 +283,21 @@ export const IdeasBank = () => {
 
         if (error) throw error;
 
+        const createdIdea = normalizeIdea(data);
+        await workspaceCollaborationService.setAssignedMembers(
+          activeProfile.id,
+          'idea',
+          createdIdea.id,
+          linkedMemberIds
+        );
         setIdeas((prev) => [normalizeIdea(data), ...prev]);
       }
 
+      const nextAssignments = await workspaceCollaborationService.listAssignments(
+        activeProfile.id,
+        'idea'
+      );
+      setTaskAssignments(nextAssignments);
       setIsModalOpen(false);
       resetForm();
     } catch (error: any) {
@@ -288,6 +329,10 @@ export const IdeasBank = () => {
       if (error) throw error;
 
       setIdeas((prev) => prev.filter((idea) => idea.id !== id));
+      await workspaceCollaborationService.setAssignedMembers(activeProfile.id, 'idea', id, []);
+      setTaskAssignments((prev) =>
+        prev.filter((assignment) => !(assignment.entityType === 'idea' && assignment.entityId === id))
+      );
     } catch (error: any) {
       console.error('[Ideas] Error deleting idea:', error);
       setErrorMessage(error?.message || 'Não foi possível excluir a ideia.');
@@ -450,14 +495,29 @@ export const IdeasBank = () => {
                 <span className="text-xs text-text-secondary">
                   Status: {idea.status}
                 </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 px-2"
-                  onClick={handleConvertToScript}
-                >
-                  Converter em Roteiro
-                </Button>
+                <div className="flex items-center gap-2">
+                  {taskAssignments.some(
+                    (assignment) => assignment.entityType === 'idea' && assignment.entityId === idea.id
+                  ) ? (
+                    <span className="rounded bg-brand/10 px-2 py-1 text-[10px] font-medium text-brand">
+                      {
+                        taskAssignments.filter(
+                          (assignment) =>
+                            assignment.entityType === 'idea' && assignment.entityId === idea.id
+                        ).length
+                      }{' '}
+                      membro(s)
+                    </span>
+                  ) : null}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2"
+                    onClick={handleConvertToScript}
+                  >
+                    Converter em Roteiro
+                  </Button>
+                </div>
               </div>
             </Card>
           ))}
@@ -481,8 +541,20 @@ export const IdeasBank = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={editingIdea ? 'Editar Ideia' : 'Adicionar Nova Ideia'}
+        className="max-w-3xl"
       >
         <form onSubmit={handleSaveIdea} className="space-y-6">
+          <Tabs
+            tabs={[
+              { id: 'details', label: 'Detalhes' },
+              { id: 'comments', label: 'Comentários' },
+            ]}
+            activeTab={modalTab}
+            onChange={(value) => setModalTab(value as 'details' | 'comments')}
+          />
+
+          {modalTab === 'details' ? (
+            <>
           <div className="space-y-1">
             <h3 className="text-base font-semibold text-text-primary">
               {editingIdea ? 'Atualize os detalhes da ideia' : 'Crie uma nova ideia'}
@@ -561,7 +633,25 @@ export const IdeasBank = () => {
                 </div>
               </div>
             </div>
+
+            <MemberAssignmentField
+              members={activeMembers}
+              value={linkedMemberIds}
+              onChange={setLinkedMemberIds}
+            />
           </div>
+            </>
+          ) : (
+            <TaskCommentsPanel
+              profileId={activeProfile?.id}
+              entityType="idea"
+              entityId={editingIdea?.id}
+              currentUserName={user?.name || 'Equipe'}
+              currentUserId={user?.id}
+              members={activeMembers}
+              assignedMemberIds={linkedMemberIds}
+            />
+          )}
 
           <div className="flex flex-col-reverse gap-3 border-t border-gray-100 pt-5 sm:flex-row sm:justify-end">
             <Button
