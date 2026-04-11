@@ -470,6 +470,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Login error message:', error?.message);
       console.error('Login error details:', error?.details);
       console.error('Login error hint:', error?.hint);
+
+      const errorMessage = `${error?.message || ''}`.toLowerCase();
+
+      if (errorMessage.includes('invalid login credentials')) {
+        throw new Error(
+          'Email ou senha automática inválidos. Gere um novo acesso do membro nas configurações e tente novamente.'
+        );
+      }
+
       throw error;
     }
   };

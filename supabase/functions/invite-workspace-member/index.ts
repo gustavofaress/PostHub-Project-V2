@@ -31,6 +31,106 @@ const buildPassword = () => {
   );
 };
 
+const findAuthUserByEmail = async (
+  serviceClient: ReturnType<typeof createClient>,
+  email: string
+) => {
+  let page = 1;
+
+  while (true) {
+    const { data, error } = await serviceClient.auth.admin.listUsers({
+      page,
+      perPage: 200,
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    const matchedUser = data.users.find((user) => user.email?.toLowerCase() === email);
+
+    if (matchedUser) {
+      return matchedUser;
+    }
+
+    if (data.users.length < 200) {
+      return null;
+    }
+
+    page += 1;
+  }
+};
+
+const ensureMemberAuthUser = async ({
+  serviceClient,
+  existingAuthUserId,
+  email,
+  password,
+  fullName,
+}: {
+  serviceClient: ReturnType<typeof createClient>;
+  existingAuthUserId: string | null;
+  email: string;
+  password: string;
+  fullName: string | null;
+}) => {
+  const userMetadata = {
+    full_name: fullName,
+    workspace_member: true,
+  };
+
+  if (existingAuthUserId) {
+    const { data, error } = await serviceClient.auth.admin.updateUserById(existingAuthUserId, {
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: userMetadata,
+    });
+
+    if (error || !data.user?.id) {
+      throw new Error(
+        error?.message || 'Não foi possível atualizar o acesso do membro existente.'
+      );
+    }
+
+    return data.user.id;
+  }
+
+  const existingAuthUser = await findAuthUserByEmail(serviceClient, email);
+
+  if (existingAuthUser?.id) {
+    const { data, error } = await serviceClient.auth.admin.updateUserById(existingAuthUser.id, {
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: userMetadata,
+    });
+
+    if (error || !data.user?.id) {
+      throw new Error(
+        error?.message || 'Não foi possível atualizar o usuário de autenticação do membro.'
+      );
+    }
+
+    return data.user.id;
+  }
+
+  const { data, error } = await serviceClient.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: userMetadata,
+  });
+
+  if (error || !data.user?.id) {
+    throw new Error(
+      error?.message || 'Não foi possível criar o usuário de autenticação para o membro.'
+    );
+  }
+
+  return data.user.id;
+};
+
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -162,31 +262,26 @@ Deno.serve(async (request) => {
       return json({ error: existingMemberError.message }, 400);
     }
 
-    let authUserId = existingMember?.user_id ?? null;
+    let authUserId: string | null = null;
 
-    if (!authUserId) {
-      const { data: createdUser, error: createUserError } = await serviceClient.auth.admin.createUser({
+    try {
+      authUserId = await ensureMemberAuthUser({
+        serviceClient,
+        existingAuthUserId: existingMember?.user_id ?? null,
         email,
         password: generatedPassword,
-        email_confirm: true,
-        user_metadata: {
-          full_name: fullName,
-          workspace_member: true,
-        },
+        fullName,
       });
-
-      if (createUserError || !createdUser.user?.id) {
-        return json(
-          {
-            error:
-              createUserError?.message ||
-              'Não foi possível criar o usuário de autenticação para o membro.',
-          },
-          400
-        );
-      }
-
-      authUserId = createdUser.user.id;
+    } catch (error) {
+      return json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : 'Não foi possível preparar o acesso do membro no Auth.',
+        },
+        400
+      );
     }
 
     const memberPayload = {
