@@ -593,7 +593,7 @@ export const SettingsArea = () => {
 
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-text-primary">Senha automática</label>
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <div className="relative flex-1">
                   <Input
                     value={memberPassword}
@@ -604,7 +604,7 @@ export const SettingsArea = () => {
                 <Button
                   type="button"
                   variant="secondary"
-                  className="gap-2"
+                  className="gap-2 sm:shrink-0"
                   onClick={() => setMemberPassword(generatePasswordPreview())}
                 >
                   <RefreshCcw className="h-4 w-4" />
@@ -668,13 +668,13 @@ export const SettingsArea = () => {
                   <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary">
                     Senha automática
                   </p>
-                  <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-3 py-3">
-                    <span className="font-mono text-sm text-text-primary">
+                  <div className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-3 py-3">
+                    <span className="min-w-0 break-all font-mono text-sm text-text-primary">
                       {createdInvite.generatedPassword}
                     </span>
                     <button
                       type="button"
-                      className="text-brand"
+                      className="shrink-0 text-brand"
                       onClick={() => void handleCopy(createdInvite.generatedPassword)}
                     >
                       <Copy className="h-4 w-4" />
@@ -687,7 +687,7 @@ export const SettingsArea = () => {
                     Link de login
                   </p>
                   <div className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-3 py-3">
-                    <span className="truncate text-sm text-text-primary">
+                    <span className="min-w-0 truncate text-sm text-text-primary">
                       {createdInvite.loginUrl}
                     </span>
                     <button
