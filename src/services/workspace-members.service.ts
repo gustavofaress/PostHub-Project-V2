@@ -79,6 +79,30 @@ const buildMemberLoginUrl = (email: string) => {
   )}`;
 };
 
+const resolveFunctionErrorMessage = async (error: unknown, fallback: string) => {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'context' in error &&
+    error.context instanceof Response
+  ) {
+    try {
+      const payload = await error.context.clone().json();
+      if (typeof payload?.error === 'string' && payload.error.trim()) {
+        return payload.error;
+      }
+    } catch {
+      // Ignore JSON parsing errors and fall back to the generic message below.
+    }
+  }
+
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return fallback;
+};
+
 export const workspaceMembersService = {
   async list(profileId: string): Promise<TeamMember[]> {
     if (!supabase) {
@@ -93,7 +117,9 @@ export const workspaceMembersService = {
       .eq('profile_id', profileId)
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      throw new Error(await resolveFunctionErrorMessage(error, 'Não foi possível carregar os membros.'));
+    }
 
     return ((data ?? []) as WorkspaceMemberRow[]).map(normalizeMember);
   },
@@ -136,7 +162,9 @@ export const workspaceMembersService = {
       },
     });
 
-    if (error) throw error;
+    if (error) {
+      throw new Error(await resolveFunctionErrorMessage(error, 'Não foi possível criar o membro.'));
+    }
 
     return {
       member: normalizeMember(data.member as WorkspaceMemberRow),

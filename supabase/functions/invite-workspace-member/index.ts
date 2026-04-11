@@ -31,36 +31,6 @@ const buildPassword = () => {
   );
 };
 
-const findAuthUserByEmail = async (
-  serviceClient: ReturnType<typeof createClient>,
-  email: string
-) => {
-  let page = 1;
-
-  while (true) {
-    const { data, error } = await serviceClient.auth.admin.listUsers({
-      page,
-      perPage: 200,
-    });
-
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    const matchedUser = data.users.find((user) => user.email?.toLowerCase() === email);
-
-    if (matchedUser) {
-      return matchedUser;
-    }
-
-    if (data.users.length < 200) {
-      return null;
-    }
-
-    page += 1;
-  }
-};
-
 const ensureMemberAuthUser = async ({
   serviceClient,
   existingAuthUserId,
@@ -96,25 +66,6 @@ const ensureMemberAuthUser = async ({
     return data.user.id;
   }
 
-  const existingAuthUser = await findAuthUserByEmail(serviceClient, email);
-
-  if (existingAuthUser?.id) {
-    const { data, error } = await serviceClient.auth.admin.updateUserById(existingAuthUser.id, {
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: userMetadata,
-    });
-
-    if (error || !data.user?.id) {
-      throw new Error(
-        error?.message || 'Não foi possível atualizar o usuário de autenticação do membro.'
-      );
-    }
-
-    return data.user.id;
-  }
-
   const { data, error } = await serviceClient.auth.admin.createUser({
     email,
     password,
@@ -123,6 +74,12 @@ const ensureMemberAuthUser = async ({
   });
 
   if (error || !data.user?.id) {
+    if (error?.message?.toLowerCase().includes('already registered')) {
+      throw new Error(
+        'Esse email já está cadastrado em outra conta. Use outro email para o membro ou reutilize o acesso existente.'
+      );
+    }
+
     throw new Error(
       error?.message || 'Não foi possível criar o usuário de autenticação para o membro.'
     );
