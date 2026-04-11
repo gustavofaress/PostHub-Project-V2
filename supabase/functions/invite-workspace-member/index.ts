@@ -4,12 +4,13 @@ import { corsHeaders } from '../_shared/cors.ts';
 type MemberRole = 'admin' | 'editor' | 'reviewer';
 
 interface InviteWorkspaceMemberPayload {
-  mode?: 'invite' | 'resend';
+  mode?: 'invite' | 'resend' | 'update' | 'delete';
   profileId?: string;
   memberId?: string;
   email?: string;
   fullName?: string | null;
   role?: MemberRole;
+  status?: 'invited' | 'active' | 'disabled';
   permissions?: string[];
   generatedPassword?: string;
   loginUrl?: string;
@@ -30,6 +31,9 @@ const buildPassword = () => {
     ''
   );
 };
+
+const MEMBER_SELECT =
+  'id, user_id, email, full_name, role, status, permissions, created_at, invite_sent_at';
 
 const ensureMemberAuthUser = async ({
   serviceClient,
@@ -86,6 +90,77 @@ const ensureMemberAuthUser = async ({
   }
 
   return data.user.id;
+};
+
+const getWorkspaceMemberById = async ({
+  serviceClient,
+  profileId,
+  memberId,
+}: {
+  serviceClient: ReturnType<typeof createClient>;
+  profileId: string;
+  memberId: string;
+}) => {
+  const { data, error } = await serviceClient
+    .from('workspace_members')
+    .select(MEMBER_SELECT)
+    .eq('id', memberId)
+    .eq('profile_id', profileId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+};
+
+const cleanupMemberAuthIfUnused = async ({
+  serviceClient,
+  memberId,
+  userId,
+}: {
+  serviceClient: ReturnType<typeof createClient>;
+  memberId: string;
+  userId: string | null;
+}) => {
+  if (!userId) {
+    return;
+  }
+
+  const { count: linkedMembershipsCount, error: linkedMembershipsError } = await serviceClient
+    .from('workspace_members')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .neq('id', memberId);
+
+  if (linkedMembershipsError) {
+    throw new Error(linkedMembershipsError.message);
+  }
+
+  if ((linkedMembershipsCount ?? 0) > 0) {
+    return;
+  }
+
+  const { data: usuarioRecord, error: usuarioError } = await serviceClient
+    .from('usuarios')
+    .select('id')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (usuarioError) {
+    throw new Error(usuarioError.message);
+  }
+
+  if (usuarioRecord?.id) {
+    return;
+  }
+
+  const { error: deleteAuthError } = await serviceClient.auth.admin.deleteUser(userId);
+
+  if (deleteAuthError) {
+    throw new Error(deleteAuthError.message);
+  }
 };
 
 Deno.serve(async (request) => {
@@ -185,7 +260,7 @@ Deno.serve(async (request) => {
         })
         .eq('id', payload.memberId)
         .eq('profile_id', profileId)
-        .select('id, user_id, email, full_name, role, status, permissions, created_at, invite_sent_at')
+        .select(MEMBER_SELECT)
         .single();
 
       if (updateError) {
@@ -195,6 +270,131 @@ Deno.serve(async (request) => {
       return json({
         member: updatedMember,
         loginUrl: payload.loginUrl,
+      });
+    }
+
+    if (mode === 'update') {
+      if (!payload.memberId) {
+        return json({ error: 'memberId é obrigatório para atualização.' }, 400);
+      }
+
+      let currentMember;
+
+      try {
+        currentMember = await getWorkspaceMemberById({
+          serviceClient,
+          profileId,
+          memberId: payload.memberId,
+        });
+      } catch (error) {
+        return json({ error: error instanceof Error ? error.message : 'Erro ao buscar membro.' }, 400);
+      }
+
+      if (!currentMember) {
+        return json({ error: 'Membro não encontrado.' }, 404);
+      }
+
+      if (currentMember.role === 'owner') {
+        return json({ error: 'O membro proprietário não pode ser editado por aqui.' }, 403);
+      }
+
+      const nextStatus = payload.status ?? currentMember.status;
+      const nextFullName = payload.fullName?.trim() || null;
+      const nextRole = payload.role ?? currentMember.role;
+      const nextPermissions = payload.permissions ?? currentMember.permissions ?? [];
+      const inviteSentAt =
+        nextStatus === 'invited' ? new Date().toISOString() : currentMember.invite_sent_at;
+
+      if (currentMember.user_id) {
+        const { error: authUpdateError } = await serviceClient.auth.admin.updateUserById(
+          currentMember.user_id,
+          {
+            user_metadata: {
+              full_name: nextFullName,
+              workspace_member: true,
+            },
+          }
+        );
+
+        if (authUpdateError) {
+          return json({ error: authUpdateError.message }, 400);
+        }
+      }
+
+      const { data: updatedMember, error: updateError } = await serviceClient
+        .from('workspace_members')
+        .update({
+          full_name: nextFullName,
+          role: nextRole,
+          status: nextStatus,
+          permissions: nextPermissions,
+          invite_sent_at: inviteSentAt,
+        })
+        .eq('id', payload.memberId)
+        .eq('profile_id', profileId)
+        .select(MEMBER_SELECT)
+        .single();
+
+      if (updateError) {
+        return json({ error: updateError.message }, 400);
+      }
+
+      return json({ member: updatedMember });
+    }
+
+    if (mode === 'delete') {
+      if (!payload.memberId) {
+        return json({ error: 'memberId é obrigatório para exclusão.' }, 400);
+      }
+
+      let currentMember;
+
+      try {
+        currentMember = await getWorkspaceMemberById({
+          serviceClient,
+          profileId,
+          memberId: payload.memberId,
+        });
+      } catch (error) {
+        return json({ error: error instanceof Error ? error.message : 'Erro ao buscar membro.' }, 400);
+      }
+
+      if (!currentMember) {
+        return json({ error: 'Membro não encontrado.' }, 404);
+      }
+
+      if (currentMember.role === 'owner') {
+        return json({ error: 'O membro proprietário não pode ser excluído por aqui.' }, 403);
+      }
+
+      const { error: deleteMemberError } = await serviceClient
+        .from('workspace_members')
+        .delete()
+        .eq('id', payload.memberId)
+        .eq('profile_id', profileId);
+
+      if (deleteMemberError) {
+        return json({ error: deleteMemberError.message }, 400);
+      }
+
+      let warning: string | null = null;
+
+      try {
+        await cleanupMemberAuthIfUnused({
+          serviceClient,
+          memberId: payload.memberId,
+          userId: currentMember.user_id,
+        });
+      } catch (error) {
+        warning =
+          error instanceof Error
+            ? error.message
+            : 'O membro foi removido, mas não foi possível concluir a limpeza do acesso.';
+      }
+
+      return json({
+        success: true,
+        warning,
       });
     }
 
@@ -261,8 +461,8 @@ Deno.serve(async (request) => {
       : serviceClient.from('workspace_members').insert(memberPayload);
 
     const { data: member, error: memberError } = await memberQuery
-      .select('id, user_id, email, full_name, role, status, permissions, created_at, invite_sent_at')
-      .single();
+        .select(MEMBER_SELECT)
+        .single();
 
     if (memberError) {
       return json({ error: memberError.message }, 400);

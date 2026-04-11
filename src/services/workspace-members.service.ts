@@ -29,6 +29,15 @@ interface InviteWorkspaceMemberInput {
   generatedPassword?: string;
 }
 
+interface UpdateWorkspaceMemberInput {
+  profileId: string;
+  memberId: string;
+  name?: string;
+  role: Exclude<TeamMemberRole, 'owner'>;
+  status: TeamMemberStatus;
+  permissions: TeamPermissionId[];
+}
+
 export interface InviteWorkspaceMemberResult {
   member: TeamMember;
   generatedPassword: string;
@@ -198,7 +207,63 @@ export const workspaceMembersService = {
       },
     });
 
-    if (error) throw error;
+    if (error) {
+      throw new Error(await resolveFunctionErrorMessage(error, 'Não foi possível reenviar o convite.'));
+    }
+
+    return normalizeMember(data.member as WorkspaceMemberRow);
+  },
+
+  async update(input: UpdateWorkspaceMemberInput): Promise<TeamMember> {
+    if (!supabase) {
+      const currentMembers = teamMembersStorage.list(input.profileId);
+      const currentMember = currentMembers.find((member) => member.id === input.memberId);
+
+      if (!currentMember) {
+        throw new Error('Membro não encontrado.');
+      }
+
+      const updatedMember: TeamMember = {
+        ...currentMember,
+        name: input.name?.trim() || currentMember.email.split('@')[0],
+        role: input.role,
+        status: input.status,
+        permissions: input.permissions,
+      };
+
+      teamMembersStorage.save(
+        input.profileId,
+        currentMembers.map((member) => (member.id === input.memberId ? updatedMember : member))
+      );
+
+      const storedCredential = memberAuthStorage.getByEmail(currentMember.email);
+      if (storedCredential) {
+        memberAuthStorage.save({
+          ...storedCredential,
+          fullName: updatedMember.name,
+          role: updatedMember.role,
+          permissions: updatedMember.permissions,
+        });
+      }
+
+      return updatedMember;
+    }
+
+    const { data, error } = await supabase.functions.invoke('invite-workspace-member', {
+      body: {
+        mode: 'update',
+        profileId: input.profileId,
+        memberId: input.memberId,
+        fullName: input.name?.trim() || null,
+        role: input.role,
+        status: input.status,
+        permissions: input.permissions,
+      },
+    });
+
+    if (error) {
+      throw new Error(await resolveFunctionErrorMessage(error, 'Não foi possível atualizar o membro.'));
+    }
 
     return normalizeMember(data.member as WorkspaceMemberRow);
   },
@@ -233,6 +298,30 @@ export const workspaceMembersService = {
     if (error) throw error;
 
     return normalizeMember(data as WorkspaceMemberRow);
+  },
+
+  async remove(profileId: string, member: TeamMember): Promise<void> {
+    if (!supabase) {
+      const currentMembers = teamMembersStorage.list(profileId);
+      teamMembersStorage.save(
+        profileId,
+        currentMembers.filter((currentMember) => currentMember.id !== member.id)
+      );
+      memberAuthStorage.remove(member.email);
+      return;
+    }
+
+    const { error } = await supabase.functions.invoke('invite-workspace-member', {
+      body: {
+        mode: 'delete',
+        profileId,
+        memberId: member.id,
+      },
+    });
+
+    if (error) {
+      throw new Error(await resolveFunctionErrorMessage(error, 'Não foi possível excluir o membro.'));
+    }
   },
 
   async acceptInvite(inviteToken: string) {

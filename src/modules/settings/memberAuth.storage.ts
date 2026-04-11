@@ -48,4 +48,10 @@ export const memberAuthStorage = {
     const data = readStorage();
     return data[email.trim().toLowerCase()] ?? null;
   },
+
+  remove(email: string) {
+    const data = readStorage();
+    delete data[email.trim().toLowerCase()];
+    writeStorage(data);
+  },
 };
