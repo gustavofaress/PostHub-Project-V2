@@ -1,14 +1,17 @@
 import * as React from 'react';
 import {
+  AlertTriangle,
   ArrowUpRight,
   Copy,
   FolderKanban,
   KeyRound,
   Mail,
+  Pencil,
   Plus,
   RefreshCcw,
   Search,
   ShieldCheck,
+  Trash2,
   Users,
 } from 'lucide-react';
 import { Card, CardDescription, CardTitle } from '../../shared/components/Card';
@@ -25,8 +28,10 @@ import { LockedModuleState } from '../../shared/components/LockedModuleState';
 import { hasAccess } from '../../shared/constants/plans';
 import {
   DEFAULT_MEMBER_PERMISSIONS,
+  type TeamMember,
   WORKSPACE_PERMISSION_OPTIONS,
   type TeamMemberRole,
+  type TeamMemberStatus,
   type TeamPermissionId,
 } from '../../shared/constants/workspaceMembers';
 import { useWorkspaceMembers } from '../../hooks/useWorkspaceMembers';
@@ -83,11 +88,15 @@ export const SettingsArea = () => {
   const [memberName, setMemberName] = React.useState('');
   const [memberEmail, setMemberEmail] = React.useState('');
   const [memberRole, setMemberRole] = React.useState<Exclude<TeamMemberRole, 'owner'>>('editor');
+  const [memberStatus, setMemberStatus] = React.useState<TeamMemberStatus>('active');
   const [memberPermissions, setMemberPermissions] =
     React.useState<TeamPermissionId[]>(DEFAULT_MEMBER_PERMISSIONS);
   const [memberPassword, setMemberPassword] = React.useState(generatePasswordPreview());
   const [createdInvite, setCreatedInvite] = React.useState<InviteWorkspaceMemberResult | null>(null);
-  const [isCreatingMember, setIsCreatingMember] = React.useState(false);
+  const [editingMember, setEditingMember] = React.useState<TeamMember | null>(null);
+  const [memberToDelete, setMemberToDelete] = React.useState<TeamMember | null>(null);
+  const [isSavingMember, setIsSavingMember] = React.useState(false);
+  const [isDeletingMember, setIsDeletingMember] = React.useState(false);
 
   const [demands, setDemands] = React.useState<WorkspaceDemandItem[]>([]);
   const [assignments, setAssignments] = React.useState<WorkspaceTaskAssignment[]>([]);
@@ -100,20 +109,40 @@ export const SettingsArea = () => {
   const [demandStatus, setDemandStatus] = React.useState('');
   const [demandMemberIds, setDemandMemberIds] = React.useState<string[]>([]);
   const [isSavingDemand, setIsSavingDemand] = React.useState(false);
+  const isEditingMember = !!editingMember;
 
   const resetMemberForm = React.useCallback(() => {
+    setEditingMember(null);
     setMemberName('');
     setMemberEmail('');
     setMemberRole('editor');
+    setMemberStatus('active');
     setMemberPermissions(DEFAULT_MEMBER_PERMISSIONS);
     setMemberPassword(generatePasswordPreview());
     setCreatedInvite(null);
   }, []);
 
+  const closeMemberModal = React.useCallback(() => {
+    setIsMemberModalOpen(false);
+    resetMemberForm();
+  }, [resetMemberForm]);
+
   const openMemberModal = () => {
     resetMemberForm();
     setIsMemberModalOpen(true);
   };
+
+  const openEditMemberModal = React.useCallback((member: TeamMember) => {
+    setEditingMember(member);
+    setMemberName(member.name);
+    setMemberEmail(member.email);
+    setMemberRole(member.role as Exclude<TeamMemberRole, 'owner'>);
+    setMemberStatus(member.status);
+    setMemberPermissions(member.permissions);
+    setMemberPassword(generatePasswordPreview());
+    setCreatedInvite(null);
+    setIsMemberModalOpen(true);
+  }, []);
 
   const loadDemandData = React.useCallback(async () => {
     if (!activeProfile?.id) {
@@ -168,7 +197,7 @@ export const SettingsArea = () => {
     }
   };
 
-  const handleCreateMember = async (event: React.FormEvent) => {
+  const handleSubmitMember = async (event: React.FormEvent) => {
     event.preventDefault();
 
     if (!activeProfile?.id) {
@@ -181,27 +210,69 @@ export const SettingsArea = () => {
       return;
     }
 
-    setIsCreatingMember(true);
+    setIsSavingMember(true);
     setAlertMessage(null);
 
     try {
-      const result = await workspaceMembersService.invite({
-        profileId: activeProfile.id,
-        name: memberName,
-        email: memberEmail,
-        role: memberRole,
-        permissions: memberPermissions,
-        generatedPassword: memberPassword,
-      });
+      if (editingMember) {
+        await workspaceMembersService.update({
+          profileId: activeProfile.id,
+          memberId: editingMember.id,
+          name: memberName,
+          role: memberRole,
+          status: memberStatus,
+          permissions: memberPermissions,
+        });
+        closeMemberModal();
+        setAlertMessage('Membro atualizado com sucesso.');
+      } else {
+        const result = await workspaceMembersService.invite({
+          profileId: activeProfile.id,
+          name: memberName,
+          email: memberEmail,
+          role: memberRole,
+          permissions: memberPermissions,
+          generatedPassword: memberPassword,
+        });
 
-      setCreatedInvite(result);
+        setCreatedInvite(result);
+        setAlertMessage('Membro criado com acesso liberado ao workspace.');
+      }
+
       await reloadMembers();
-      setAlertMessage('Membro criado com acesso liberado ao workspace.');
     } catch (error: any) {
-      console.error('[SettingsArea] Failed to create member:', error);
-      setAlertMessage(error?.message || 'Não foi possível criar o membro.');
+      console.error('[SettingsArea] Failed to save member:', error);
+      setAlertMessage(
+        error?.message || (editingMember ? 'Não foi possível atualizar o membro.' : 'Não foi possível criar o membro.')
+      );
     } finally {
-      setIsCreatingMember(false);
+      setIsSavingMember(false);
+    }
+  };
+
+  const handleDeleteMember = async () => {
+    if (!activeProfile?.id || !memberToDelete) {
+      return;
+    }
+
+    setIsDeletingMember(true);
+    setAlertMessage(null);
+
+    try {
+      await workspaceMembersService.remove(activeProfile.id, memberToDelete);
+      await reloadMembers();
+
+      if (editingMember?.id === memberToDelete.id) {
+        closeMemberModal();
+      }
+
+      setMemberToDelete(null);
+      setAlertMessage('Membro excluído do workspace.');
+    } catch (error: any) {
+      console.error('[SettingsArea] Failed to delete member:', error);
+      setAlertMessage(error?.message || 'Não foi possível excluir o membro.');
+    } finally {
+      setIsDeletingMember(false);
     }
   };
 
@@ -439,21 +510,46 @@ export const SettingsArea = () => {
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-2">
-                      {member.permissions.length > 0 ? (
-                        member.permissions.map((permission) => (
-                          <span
-                            key={permission}
-                            className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-text-secondary"
-                          >
-                            {formatPermissionLabel(permission)}
+                    <div className="flex flex-col gap-3 lg:items-end">
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          className="gap-2"
+                          onClick={() => openEditMemberModal(member)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                          Editar
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="danger"
+                          className="gap-2"
+                          onClick={() => setMemberToDelete(member)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Excluir
+                        </Button>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        {member.permissions.length > 0 ? (
+                          member.permissions.map((permission) => (
+                            <span
+                              key={permission}
+                              className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-text-secondary"
+                            >
+                              {formatPermissionLabel(permission)}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-text-secondary">
+                            Sem módulos liberados
                           </span>
-                        ))
-                      ) : (
-                        <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-text-secondary">
-                          Sem módulos liberados
-                        </span>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -553,11 +649,11 @@ export const SettingsArea = () => {
 
       <Modal
         isOpen={isMemberModalOpen}
-        onClose={() => setIsMemberModalOpen(false)}
-        title="Adicionar membro ao workspace"
+        onClose={closeMemberModal}
+        title={isEditingMember ? 'Editar membro do workspace' : 'Adicionar membro ao workspace'}
         className="max-w-3xl"
       >
-        <form onSubmit={handleCreateMember} className="space-y-6">
+        <form onSubmit={handleSubmitMember} className="space-y-6">
           <div className="grid gap-4 md:grid-cols-2">
             <Input
               label="Nome do membro"
@@ -573,6 +669,7 @@ export const SettingsArea = () => {
               value={memberEmail}
               onChange={(event) => setMemberEmail(event.target.value)}
               icon={<Mail className="h-4 w-4" />}
+              disabled={isEditingMember}
               required
             />
 
@@ -591,28 +688,52 @@ export const SettingsArea = () => {
               </select>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-text-primary">Senha automática</label>
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <div className="relative flex-1">
-                  <Input
-                    value={memberPassword}
-                    onChange={(event) => setMemberPassword(event.target.value)}
-                    icon={<KeyRound className="h-4 w-4" />}
-                  />
-                </div>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="gap-2 sm:shrink-0"
-                  onClick={() => setMemberPassword(generatePasswordPreview())}
+            {isEditingMember ? (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-text-primary">Status do acesso</label>
+                <select
+                  value={memberStatus}
+                  onChange={(event) => setMemberStatus(event.target.value as TeamMemberStatus)}
+                  className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm outline-none transition-colors focus:border-brand"
                 >
-                  <RefreshCcw className="h-4 w-4" />
-                  Gerar
-                </Button>
+                  <option value="active">Ativo</option>
+                  <option value="invited">Convidado</option>
+                  <option value="disabled">Desabilitado</option>
+                </select>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-text-primary">Senha automática</label>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <div className="relative flex-1">
+                    <Input
+                      value={memberPassword}
+                      onChange={(event) => setMemberPassword(event.target.value)}
+                      icon={<KeyRound className="h-4 w-4" />}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="gap-2 sm:shrink-0"
+                    onClick={() => setMemberPassword(generatePasswordPreview())}
+                  >
+                    <RefreshCcw className="h-4 w-4" />
+                    Gerar
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
+
+          {isEditingMember ? (
+            <Card className="border-gray-200 bg-gray-50 p-4">
+              <p className="text-sm font-medium text-text-primary">Login do membro</p>
+              <p className="mt-1 text-sm text-text-secondary">
+                O email de acesso permanece o mesmo. Para trocar a senha automática, gere um novo acesso recriando o membro.
+              </p>
+            </Card>
+          ) : null}
 
           <div className="space-y-3">
             <div>
@@ -654,7 +775,7 @@ export const SettingsArea = () => {
             </div>
           </div>
 
-          {createdInvite ? (
+          {!isEditingMember && createdInvite ? (
             <Card className="border-brand/20 bg-brand/[0.05]">
               <div className="mb-4">
                 <CardTitle className="text-base">Acesso gerado para o membro</CardTitle>
@@ -704,20 +825,73 @@ export const SettingsArea = () => {
           ) : null}
 
           <div className="flex flex-col-reverse gap-3 border-t border-gray-100 pt-5 sm:flex-row sm:justify-between">
-            <Button type="button" variant="secondary" onClick={() => setIsMemberModalOpen(false)}>
+            <Button type="button" variant="secondary" onClick={closeMemberModal}>
               Fechar
             </Button>
 
             <div className="flex flex-col gap-3 sm:flex-row">
-              <Button type="button" variant="secondary" onClick={resetMemberForm}>
-                Limpar
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  if (editingMember) {
+                    openEditMemberModal(editingMember);
+                    return;
+                  }
+
+                  resetMemberForm();
+                }}
+              >
+                {isEditingMember ? 'Restaurar dados' : 'Limpar'}
               </Button>
-              <Button type="submit" isLoading={isCreatingMember}>
-                Criar membro
+              <Button type="submit" isLoading={isSavingMember}>
+                {isEditingMember ? 'Salvar alterações' : 'Criar membro'}
               </Button>
             </div>
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        isOpen={!!memberToDelete}
+        onClose={() => setMemberToDelete(null)}
+        title="Excluir membro do workspace"
+        className="max-w-xl"
+      >
+        {memberToDelete ? (
+          <div className="space-y-6">
+            <div className="flex items-start gap-3 rounded-2xl border border-red-100 bg-red-50 p-4">
+              <div className="rounded-2xl bg-red-100 p-2 text-red-600">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-text-primary">Essa ação remove o acesso do membro.</p>
+                <p className="mt-1 text-sm text-text-secondary">
+                  {memberToDelete.name} perderá o acesso ao workspace e os vínculos dele com demandas serão removidos.
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-text-secondary">
+              <p>
+                <span className="font-medium text-text-primary">Email:</span> {memberToDelete.email}
+              </p>
+              <p className="mt-2">
+                <span className="font-medium text-text-primary">Cargo:</span> {memberToDelete.role}
+              </p>
+            </div>
+
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <Button type="button" variant="secondary" onClick={() => setMemberToDelete(null)}>
+                Cancelar
+              </Button>
+              <Button type="button" variant="danger" className="gap-2" isLoading={isDeletingMember} onClick={() => void handleDeleteMember()}>
+                <Trash2 className="h-4 w-4" />
+                Excluir membro
+              </Button>
+            </div>
+          </div>
+        ) : null}
       </Modal>
 
       <Modal
