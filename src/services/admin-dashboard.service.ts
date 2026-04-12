@@ -7,6 +7,7 @@ export interface AdminDashboardUserRow {
   current_plan: string | null;
   trial_expires_at: string | null;
   is_admin: boolean | null;
+  created_at: string | null;
 }
 
 export interface AdminDashboardOnboardingRow {
@@ -49,7 +50,7 @@ export const adminDashboardService = {
       await Promise.all([
         supabase
           .from('usuarios')
-          .select('id, nome, email, current_plan, trial_expires_at, is_admin'),
+          .select('id, nome, email, current_plan, trial_expires_at, is_admin, created_at'),
         supabase
           .from('user_onboarding')
           .select(
@@ -70,24 +71,32 @@ export const adminDashboardService = {
       onboardingMap.set(row.user_id, row);
     });
 
-    return ((usuariosData as AdminDashboardUserRow[] | null) ?? []).map((usuario) => {
-      const onboarding = onboardingMap.get(usuario.id);
-      const isPro = usuario.current_plan === 'pro';
+    return ((usuariosData as AdminDashboardUserRow[] | null) ?? [])
+      .filter((usuario) => !usuario.is_admin)
+      .map((usuario) => {
+        const onboarding = onboardingMap.get(usuario.id);
+        const isPro = usuario.current_plan === 'pro';
 
-      return {
-        id: usuario.id,
-        name: usuario.nome?.trim() || 'Usuário sem nome',
-        email: usuario.email?.trim() || '-',
-        plan: isPro ? 'Pro' : 'Trial',
-        trialStatus: getTrialStatus(usuario.current_plan, usuario.trial_expires_at),
-        workModel: onboarding?.work_model || '',
-        operationSize: onboarding?.operation_size || '',
-        currentWorkflow: onboarding?.current_process || '',
-        quizCompleted: !!onboarding?.quiz_completed,
-        setupCompleted: !!onboarding?.setup_completed,
-        createdAt: null,
-      };
-    });
+        return {
+          id: usuario.id,
+          name: usuario.nome?.trim() || 'Usuário sem nome',
+          email: usuario.email?.trim() || '-',
+          plan: isPro ? ('Pro' as const) : ('Trial' as const),
+          trialStatus: getTrialStatus(usuario.current_plan, usuario.trial_expires_at),
+          workModel: onboarding?.work_model || '',
+          operationSize: onboarding?.operation_size || '',
+          currentWorkflow: onboarding?.current_process || '',
+          quizCompleted: !!onboarding?.quiz_completed,
+          setupCompleted: !!onboarding?.setup_completed,
+          createdAt: usuario.created_at,
+        };
+      })
+      .sort((a, b) => {
+        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+
+        return bTime - aTime;
+      });
   },
 };
 
