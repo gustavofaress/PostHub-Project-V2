@@ -1,16 +1,15 @@
 import * as React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Bell, Search, ChevronDown, Plus } from 'lucide-react';
+import { Search, ChevronDown, Plus } from 'lucide-react';
 import { useApp } from '../../../app/context/AppContext';
 import { useProfile } from '../../../app/context/ProfileContext';
 import { Avatar } from '../../../shared/components/Avatar';
 import { Dropdown, DropdownItem } from '../../../shared/components/Dropdown';
 import { Button } from '../../../shared/components/Button';
+import { NotificationsDropdown } from './NotificationsDropdown';
 
 export const Header = () => {
   const { setActiveModule } = useApp();
   const { activeProfile, setActiveProfile, profiles } = useProfile();
-  const navigate = useNavigate();
 
   const handleNewContent = () => {
     setActiveModule('ideas');
@@ -35,10 +34,7 @@ export const Header = () => {
           New Content
         </Button>
 
-        <button className="relative rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-text-primary transition-colors">
-          <Bell className="h-5 w-5" />
-          <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-brand" />
-        </button>
+        <NotificationsDropdown />
 
         <div className="h-8 w-px bg-gray-200 mx-2" />
 

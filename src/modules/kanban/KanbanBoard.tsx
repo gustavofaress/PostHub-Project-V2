@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Trello,
   Plus,
@@ -26,6 +27,10 @@ import { MemberAssignmentField } from '../../shared/components/MemberAssignmentF
 import { TaskCommentsPanel } from '../../shared/components/TaskCommentsPanel';
 import { workspaceCollaborationService } from '../../services/workspace-collaboration.service';
 import type { WorkspaceTaskAssignment } from '../../shared/constants/workspaceCollaboration';
+import {
+  readWorkspaceNotificationParams,
+  withoutWorkspaceNotificationParams,
+} from '../../shared/constants/workspaceNotifications';
 
 interface KanbanColumn {
   id: string;
@@ -133,6 +138,7 @@ function mapColumnNameToStatus(columnName: string): string {
 }
 
 export const KanbanBoard = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { activeProfile } = useProfile();
   const { user } = useAuth();
   const { activeMembers } = useWorkspaceMembers();
@@ -515,7 +521,14 @@ export const KanbanBoard = () => {
           activeProfile.id,
           'editorial_calendar',
           updatedCard.id,
-          linkedMemberIds
+          linkedMemberIds,
+          {
+            actorUserId: user?.id,
+            actorName: user?.name || 'Equipe',
+            members: activeMembers,
+            entityTitle: updatedCard.title,
+            targetModule: 'kanban',
+          }
         );
 
         setCards((prev) =>
@@ -541,7 +554,14 @@ export const KanbanBoard = () => {
           activeProfile.id,
           'editorial_calendar',
           createdCard.id,
-          linkedMemberIds
+          linkedMemberIds,
+          {
+            actorUserId: user?.id,
+            actorName: user?.name || 'Equipe',
+            members: activeMembers,
+            entityTitle: createdCard.title,
+            targetModule: 'kanban',
+          }
         );
 
         setCards((prev) => [createdCard, ...prev]);
@@ -579,7 +599,7 @@ export const KanbanBoard = () => {
     setIsModalOpen(true);
   };
 
-  const openEditModal = (card: KanbanCard) => {
+  const openEditModal = React.useCallback((card: KanbanCard, nextTab: 'details' | 'comments' = 'details') => {
     setEditingCardId(card.id);
     setNewTaskTitle(card.title);
     setNewTaskColumn(card.columnId || (columns[0]?.id ?? ''));
@@ -590,9 +610,23 @@ export const KanbanBoard = () => {
         .filter((assignment) => assignment.entityType === 'editorial_calendar' && assignment.entityId === card.id)
         .map((assignment) => assignment.memberId)
     );
-    setModalTab('details');
+    setModalTab(nextTab);
     setIsModalOpen(true);
-  };
+  }, [columns, taskAssignments]);
+
+  React.useEffect(() => {
+    const notification = readWorkspaceNotificationParams(searchParams);
+
+    if (notification.entityType !== 'editorial_calendar' || !notification.entityId) {
+      return;
+    }
+
+    const matchedCard = cards.find((card) => card.id === notification.entityId);
+    if (!matchedCard) return;
+
+    setSearchParams(withoutWorkspaceNotificationParams(searchParams));
+    openEditModal(matchedCard, notification.tab === 'comments' ? 'comments' : 'details');
+  }, [cards, openEditModal, searchParams, setSearchParams]);
 
   const handleDragStart = (e: React.DragEvent, cardId: string) => {
     e.dataTransfer.setData('cardId', cardId);
@@ -959,6 +993,8 @@ export const KanbanBoard = () => {
               currentUserId={user?.id}
               members={activeMembers}
               assignedMemberIds={linkedMemberIds}
+              entityTitle={newTaskTitle}
+              targetModule="kanban"
             />
           )}
 

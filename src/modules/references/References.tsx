@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   BookOpen,
   Plus,
@@ -45,6 +46,10 @@ import { MemberAssignmentField } from '../../shared/components/MemberAssignmentF
 import { TaskCommentsPanel } from '../../shared/components/TaskCommentsPanel';
 import { workspaceCollaborationService } from '../../services/workspace-collaboration.service';
 import type { WorkspaceTaskAssignment } from '../../shared/constants/workspaceCollaboration';
+import {
+  readWorkspaceNotificationParams,
+  withoutWorkspaceNotificationParams,
+} from '../../shared/constants/workspaceNotifications';
 
 type ViewMode = 'grid' | 'list';
 type CreateTab = 'link' | 'image' | 'video' | 'screen_recording';
@@ -217,6 +222,7 @@ const ReferenceImagePreview = ({
 };
 
 export const References = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { activeProfile } = useProfile();
   const { user } = useAuth();
   const { activeMembers } = useWorkspaceMembers();
@@ -410,11 +416,31 @@ export const References = () => {
     setMenuOpenId(null);
   };
 
+  const openReferenceDetails = React.useCallback(
+    (reference: ReferenceItem, nextTab: 'overview' | 'comments' = 'overview') => {
+      setSelectedReference(reference);
+      setSelectedReferenceTab(nextTab);
+      setMenuOpenId(null);
+    },
+    []
+  );
+
   React.useEffect(() => {
-    if (selectedReference) {
-      setSelectedReferenceTab('overview');
+    const notification = readWorkspaceNotificationParams(searchParams);
+
+    if (notification.entityType !== 'reference' || !notification.entityId) {
+      return;
     }
-  }, [selectedReference]);
+
+    const matchedReference = references.find((reference) => reference.id === notification.entityId);
+    if (!matchedReference) return;
+
+    setSearchParams(withoutWorkspaceNotificationParams(searchParams));
+    openReferenceDetails(
+      matchedReference,
+      notification.tab === 'comments' ? 'comments' : 'overview'
+    );
+  }, [openReferenceDetails, references, searchParams, setSearchParams]);
 
   const handleGenerateLinkPreview = () => {
     const url = form.sourceUrl.trim();
@@ -592,7 +618,14 @@ export const References = () => {
           profileId,
           'reference',
           updatedReference.id,
-          linkedMemberIds
+          linkedMemberIds,
+          {
+            actorUserId: user?.id,
+            actorName: user?.name || 'Equipe',
+            members: activeMembers,
+            entityTitle: updatedReference.title,
+            targetModule: 'references',
+          }
         );
       } else {
         if (activeTab === 'link') {
@@ -615,7 +648,14 @@ export const References = () => {
             profileId,
             'reference',
             createdReference.id,
-            linkedMemberIds
+            linkedMemberIds,
+            {
+              actorUserId: user?.id,
+              actorName: user?.name || 'Equipe',
+              members: activeMembers,
+              entityTitle: createdReference.title,
+              targetModule: 'references',
+            }
           );
         } else if (selectedFile) {
           setMaterialRenderProgress(35);
@@ -649,7 +689,14 @@ export const References = () => {
             profileId,
             'reference',
             createdReference.id,
-            linkedMemberIds
+            linkedMemberIds,
+            {
+              actorUserId: user?.id,
+              actorName: user?.name || 'Equipe',
+              members: activeMembers,
+              entityTitle: createdReference.title,
+              targetModule: 'references',
+            }
           );
         } else {
           setNotice({
@@ -989,7 +1036,7 @@ export const References = () => {
                   <div className="absolute inset-0 flex items-center justify-center gap-3 bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
                     <button
                       className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-text-primary transition-colors hover:bg-brand hover:text-white"
-                      onClick={() => setSelectedReference(ref)}
+                      onClick={() => openReferenceDetails(ref)}
                     >
                       <Eye className="h-5 w-5" />
                     </button>
@@ -1041,7 +1088,7 @@ export const References = () => {
                         <div className="absolute right-0 top-6 z-20 min-w-[160px] rounded-xl border border-gray-100 bg-white p-2 shadow-lg">
                           <button
                             className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-text-primary hover:bg-gray-50"
-                            onClick={() => setSelectedReference(ref)}
+                            onClick={() => openReferenceDetails(ref)}
                           >
                             <Eye className="h-4 w-4" />
                             Visualizar
@@ -1151,7 +1198,7 @@ export const References = () => {
               </div>
 
               <div className="flex shrink-0 items-center gap-2">
-                <Button variant="outline" size="sm" className="gap-2" onClick={() => setSelectedReference(ref)}>
+                <Button variant="outline" size="sm" className="gap-2" onClick={() => openReferenceDetails(ref)}>
                   <Eye className="h-4 w-4" />
                   Ver
                 </Button>
@@ -1735,6 +1782,8 @@ export const References = () => {
                   currentUserName={user?.name || 'Equipe'}
                   currentUserId={user?.id}
                   members={activeMembers}
+                  entityTitle={selectedReference.title}
+                  targetModule="references"
                   assignedMemberIds={taskAssignments
                     .filter(
                       (assignment) =>

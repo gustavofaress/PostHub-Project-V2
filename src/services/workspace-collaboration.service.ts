@@ -1,12 +1,18 @@
 import { referencesService } from './references.service';
 import { supabase } from '../shared/utils/supabase';
 import type { UpdateReferenceInput } from '../types/reference.types';
+import type { TeamMember } from '../shared/constants/workspaceMembers';
 import type {
   DemandEntityType,
+  DemandModuleId,
   WorkspaceDemandItem,
   WorkspaceTaskAssignment,
   WorkspaceTaskComment,
 } from '../shared/constants/workspaceCollaboration';
+import {
+  getNotificationTargetModule,
+  workspaceNotificationsService,
+} from './workspace-notifications.service';
 
 const ASSIGNMENTS_STORAGE_KEY = 'posthub_workspace_task_assignments_v1';
 const COMMENTS_STORAGE_KEY = 'posthub_workspace_task_comments_v1';
@@ -170,8 +176,19 @@ export const workspaceCollaborationService = {
     profileId: string,
     entityType: DemandEntityType,
     entityId: string,
-    memberIds: string[]
+    memberIds: string[],
+    options?: {
+      actorUserId?: string | null;
+      actorName?: string;
+      members?: TeamMember[];
+      entityTitle?: string;
+      targetModule?: DemandModuleId | 'kanban' | 'approval';
+    }
   ) {
+    const previousAssignedMemberIds = assignmentStorage
+      .list(profileId)
+      .filter((assignment) => assignment.entityType === entityType && assignment.entityId === entityId)
+      .map((assignment) => assignment.memberId);
     const localAssignments = assignmentStorage.list(profileId).filter(
       (assignment) =>
         !(assignment.entityType === entityType && assignment.entityId === entityId)
@@ -191,6 +208,24 @@ export const workspaceCollaborationService = {
     ];
 
     assignmentStorage.save(profileId, nextAssignments);
+
+    const shouldNotifyAssignments =
+      !!options?.members?.length && !!options?.actorName && options.members.length > 0;
+
+    if (shouldNotifyAssignments) {
+      await workspaceNotificationsService.notifyTaskAssigned({
+        profileId,
+        entityType,
+        entityId,
+        entityTitle: options?.entityTitle?.trim() || 'Tarefa do workspace',
+        targetModule: getNotificationTargetModule(entityType, options?.targetModule),
+        actorUserId: options?.actorUserId ?? null,
+        actorName: options?.actorName || 'Equipe',
+        members: options?.members || [],
+        previousAssignedMemberIds,
+        nextAssignedMemberIds: memberIds,
+      });
+    }
 
     if (!supabase) return;
 
@@ -266,6 +301,10 @@ export const workspaceCollaborationService = {
     authorUserId?: string | null;
     authorName: string;
     content: string;
+    members?: TeamMember[];
+    assignedMemberIds?: string[];
+    entityTitle?: string;
+    targetModule?: DemandModuleId | 'kanban' | 'approval';
   }) {
     const nextComment: WorkspaceTaskComment = {
       id: buildId(),
@@ -282,6 +321,21 @@ export const workspaceCollaborationService = {
       a.createdAt.localeCompare(b.createdAt)
     );
     commentsStorage.save(input.profileId, localComments);
+
+    if (input.members?.length) {
+      await workspaceNotificationsService.notifyCommentActivity({
+        profileId: input.profileId,
+        entityType: input.entityType,
+        entityId: input.entityId,
+        entityTitle: input.entityTitle?.trim() || 'Tarefa do workspace',
+        targetModule: getNotificationTargetModule(input.entityType, input.targetModule),
+        actorUserId: input.authorUserId ?? null,
+        actorName: input.authorName,
+        members: input.members,
+        assignedMemberIds: input.assignedMemberIds ?? [],
+        content: input.content,
+      });
+    }
 
     if (!supabase) return nextComment;
 
@@ -412,6 +466,11 @@ export const workspaceCollaborationService = {
     title: string;
     description: string;
     status: string;
+    actorUserId?: string | null;
+    actorName?: string;
+    assignedMemberIds?: string[];
+    members?: TeamMember[];
+    targetModule?: DemandModuleId | 'kanban' | 'approval';
   }) {
     if (!supabase) return;
 
@@ -431,7 +490,7 @@ export const workspaceCollaborationService = {
           .eq('profile_id', profileId);
 
         if (error) throw error;
-        return;
+        break;
       }
       case 'idea': {
         const { error } = await supabase
@@ -447,7 +506,7 @@ export const workspaceCollaborationService = {
           .eq('profile_id', profileId);
 
         if (error) throw error;
-        return;
+        break;
       }
       case 'reference': {
         const payload: UpdateReferenceInput = {
@@ -458,7 +517,7 @@ export const workspaceCollaborationService = {
           platform: status,
         };
         await referencesService.update(payload);
-        return;
+        break;
       }
       case 'approval_post': {
         const { error } = await supabase
@@ -473,7 +532,22 @@ export const workspaceCollaborationService = {
           .eq('profile_id', profileId);
 
         if (error) throw error;
+        break;
       }
+    }
+
+    if (input.members?.length && input.actorName && input.assignedMemberIds?.length) {
+      await workspaceNotificationsService.notifyTaskUpdated({
+        profileId,
+        entityType,
+        entityId,
+        entityTitle: title.trim() || 'Tarefa do workspace',
+        targetModule: getNotificationTargetModule(entityType, input.targetModule),
+        actorUserId: input.actorUserId ?? null,
+        actorName: input.actorName,
+        members: input.members,
+        assignedMemberIds: input.assignedMemberIds,
+      });
     }
   },
 };

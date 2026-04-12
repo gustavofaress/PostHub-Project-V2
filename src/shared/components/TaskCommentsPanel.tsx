@@ -8,6 +8,7 @@ import {
   buildMemberMentionHandle,
   DEMAND_ENTITY_META,
   DemandEntityType,
+  type DemandModuleId,
   type WorkspaceTaskComment,
 } from '../constants/workspaceCollaboration';
 import type { TeamMember } from '../constants/workspaceMembers';
@@ -21,6 +22,8 @@ interface TaskCommentsPanelProps {
   currentUserId?: string | null;
   members: TeamMember[];
   assignedMemberIds?: string[];
+  entityTitle?: string;
+  targetModule?: DemandModuleId | 'kanban' | 'approval';
 }
 
 const renderCommentWithMentions = (content: string) => {
@@ -50,6 +53,8 @@ export const TaskCommentsPanel = ({
   currentUserId,
   members,
   assignedMemberIds = [],
+  entityTitle,
+  targetModule,
 }: TaskCommentsPanelProps) => {
   const [comments, setComments] = React.useState<WorkspaceTaskComment[]>([]);
   const [draft, setDraft] = React.useState('');
@@ -123,6 +128,10 @@ export const TaskCommentsPanel = ({
         authorName: currentUserName,
         authorUserId: currentUserId,
         content: draft.trim(),
+        members: availableMembers,
+        assignedMemberIds,
+        entityTitle: entityTitle || DEMAND_ENTITY_META[entityType].moduleLabel,
+        targetModule,
       });
       setDraft('');
       await loadComments();

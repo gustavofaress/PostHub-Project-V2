@@ -329,13 +329,25 @@ export const SettingsArea = () => {
         title: demandTitle.trim(),
         description: demandDescription.trim(),
         status: demandStatus.trim(),
+        actorUserId: user?.id,
+        actorName: user?.name || 'Equipe',
+        assignedMemberIds: demandMemberIds,
+        members: activeMembers,
+        targetModule: selectedDemand.moduleId,
       });
 
       await workspaceCollaborationService.setAssignedMembers(
         activeProfile.id,
         selectedDemand.entityType,
         selectedDemand.id,
-        demandMemberIds
+        demandMemberIds,
+        {
+          actorUserId: user?.id,
+          actorName: user?.name || 'Equipe',
+          members: activeMembers,
+          entityTitle: demandTitle.trim(),
+          targetModule: selectedDemand.moduleId,
+        }
       );
 
       setSelectedDemand(null);
