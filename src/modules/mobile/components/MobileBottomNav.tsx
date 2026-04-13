@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { LayoutDashboard, Lightbulb, FileText, Calendar, Ellipsis, Lock } from 'lucide-react';
+import { LayoutDashboard, Lightbulb, Calendar, Ellipsis, Lock } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '../../../shared/utils/cn';
 import { WorkspaceModule } from '../../../shared/constants/navigation';
@@ -19,7 +19,6 @@ const ITEMS: Array<{
 }> = [
   { id: 'dashboard', label: 'Início', icon: LayoutDashboard, path: '/workspace/dashboard' },
   { id: 'ideas', label: 'Ideias', icon: Lightbulb, path: '/workspace/ideas' },
-  { id: 'scripts', label: 'Roteiros', icon: FileText, path: '/workspace/scripts' },
   { id: 'calendar', label: 'Calendário', icon: Calendar, path: '/workspace/calendar' },
   { id: 'more', label: 'Mais', icon: Ellipsis },
 ];
@@ -33,7 +32,7 @@ export const MobileBottomNav = ({ onOpenMore }: MobileBottomNavProps) => {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-transparent pb-[calc(0.65rem+env(safe-area-inset-bottom))] pt-3 md:hidden">
       <div className="mx-auto max-w-md px-4">
-        <div className="mobile-surface grid grid-cols-5 gap-1 rounded-[28px] px-2 py-2">
+        <div className="mobile-surface grid grid-cols-4 gap-1 rounded-[28px] px-2 py-2">
           {ITEMS.map((item) => {
             const isActive = item.path ? location.pathname.startsWith(item.path) : false;
             const isLocked =

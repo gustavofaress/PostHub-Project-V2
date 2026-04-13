@@ -1,10 +1,10 @@
 import * as React from 'react';
+import { Navigate } from 'react-router-dom';
 import { useApp } from '../../../app/context/AppContext';
 import { useAuth } from '../../../app/context/AuthContext';
 import { Dashboard } from '../../dashboard/Dashboard';
 import { Onboarding } from '../../onboarding/Onboarding';
 import { Consultant } from '../../consultant/Consultant';
-import { ScriptGenerator } from '../../scripts/ScriptGenerator';
 import { IdeasBank } from '../../ideas/IdeasBank';
 import { ApprovalModule } from '../../approval/ApprovalModule';
 import { EditorialCalendar } from '../../calendar/EditorialCalendar';
@@ -65,7 +65,7 @@ export const ModuleRenderer = () => {
     case 'consultant':
       return <Consultant />;
     case 'scripts':
-      return <ScriptGenerator />;
+      return <Navigate to="/workspace/ideas" replace />;
     case 'ideas':
       return <IdeasBank />;
     case 'approval':

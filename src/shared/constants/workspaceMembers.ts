@@ -1,7 +1,6 @@
 import {
   Calendar,
   CheckCircle2,
-  FileText,
   KanbanSquare,
   Lightbulb,
   ShieldCheck,
@@ -44,12 +43,6 @@ export interface TeamPermissionOption {
 }
 
 export const WORKSPACE_PERMISSION_OPTIONS: TeamPermissionOption[] = [
-  {
-    id: 'scripts',
-    label: 'Roteiros',
-    description: 'Criar, revisar e ajustar roteiros no Script Studio.',
-    icon: FileText,
-  },
   {
     id: 'ideas',
     label: 'Ideias',
@@ -100,4 +93,4 @@ export const WORKSPACE_PERMISSION_OPTIONS: TeamPermissionOption[] = [
   },
 ];
 
-export const DEFAULT_MEMBER_PERMISSIONS: TeamPermissionId[] = ['scripts', 'ideas', 'kanban'];
+export const DEFAULT_MEMBER_PERMISSIONS: TeamPermissionId[] = ['ideas', 'kanban'];
