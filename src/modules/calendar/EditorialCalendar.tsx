@@ -34,6 +34,7 @@ import { MemberAssignmentField } from '../../shared/components/MemberAssignmentF
 import { TaskCommentsPanel } from '../../shared/components/TaskCommentsPanel';
 import { workspaceCollaborationService } from '../../services/workspace-collaboration.service';
 import type { WorkspaceTaskAssignment } from '../../shared/constants/workspaceCollaboration';
+import { useIsMobile } from '../mobile/hooks/useIsMobile';
 import {
   readWorkspaceNotificationParams,
   withoutWorkspaceNotificationParams,
@@ -84,6 +85,7 @@ export const EditorialCalendar = () => {
   const { activeProfile } = useProfile();
   const { user } = useAuth();
   const { activeMembers } = useWorkspaceMembers();
+  const isMobile = useIsMobile();
   useTrialGuidedFlow();
 
   const [currentDate, setCurrentDate] = React.useState(new Date());
@@ -112,6 +114,10 @@ export const EditorialCalendar = () => {
   const calendarDays = eachDayOfInterval({
     start: startDate,
     end: endDate,
+  });
+  const mobileCalendarDays = eachDayOfInterval({
+    start: monthStart,
+    end: monthEnd,
   });
 
   const nextMonth = () => setCurrentDate(addMonths(currentDate, 1));
@@ -431,8 +437,8 @@ export const EditorialCalendar = () => {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
             <CalendarIcon className="h-6 w-6 text-brand" />
             Calendário Editorial
@@ -445,14 +451,19 @@ export const EditorialCalendar = () => {
           )}
         </div>
 
-        <div className="flex gap-3">
-          <Button variant="secondary" className="gap-2">
+        <div className="flex gap-3 md:flex-none">
+          <Button variant="secondary" className="hidden gap-2 md:inline-flex">
             <Filter className="h-4 w-4" />
             Filtrar
           </Button>
-          <Button className="gap-2" onClick={() => openAddModal()} data-tour-id="calendar-add-button">
+          <Button
+            className="gap-2"
+            onClick={() => openAddModal()}
+            data-tour-id="calendar-add-button"
+          >
             <Plus className="h-4 w-4" />
-            Agendar Post
+            <span className="hidden md:inline">Agendar Post</span>
+            <span className="md:hidden">Agendar</span>
           </Button>
         </div>
       </div>
@@ -484,119 +495,258 @@ export const EditorialCalendar = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-50">
-          {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((day) => (
-            <div
-              key={day}
-              className="py-2 text-center text-xs font-bold uppercase tracking-wider text-gray-400"
-            >
-              {day}
-            </div>
-          ))}
-        </div>
-
         {isLoadingPosts ? (
           <div className="p-10 text-center text-text-secondary">
             Carregando calendário...
           </div>
-        ) : (
-          <div className="grid grid-cols-7">
-            {calendarDays.map((day, idx) => {
-              const dayPosts = posts.filter((post) => isSameDay(post.scheduledDate, day));
-              const isCurrentMonth = isSameMonth(day, monthStart);
+        ) : isMobile ? (
+          <div className="border-t border-gray-100 bg-[linear-gradient(180deg,#f8fbfe_0%,#ffffff_100%)] p-3">
+            <div className="mb-3 flex items-center justify-between rounded-[20px] border border-[#D8E8F5] bg-white/90 px-4 py-3 shadow-[0_10px_28px_rgba(15,23,42,0.06)]">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+                  Visão mobile
+                </p>
+                <p className="text-sm font-medium text-slate-600">
+                  3 dias por linha. Role para baixo para ver o restante do mês.
+                </p>
+              </div>
+              <div className="rounded-full bg-brand/10 px-3 py-1 text-xs font-semibold text-brand">
+                {mobileCalendarDays.length} dias
+              </div>
+            </div>
 
-              return (
-                <div
-                  key={idx}
-                  onClick={() => openAddModal(day)}
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => void handleDrop(e, day)}
-                  className={cn(
-                    'min-h-[120px] border-b border-r border-gray-100 p-2 transition-colors hover:bg-gray-50/50 group cursor-pointer',
-                    !isCurrentMonth && 'bg-gray-50/30'
-                  )}
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <div
-                      className={cn(
-                        'flex h-6 w-6 items-center justify-center rounded-full text-sm font-medium',
-                        isSameDay(day, new Date())
-                          ? 'bg-brand text-white'
-                          : isCurrentMonth
-                          ? 'text-text-primary'
-                          : 'text-gray-300'
-                      )}
-                    >
-                      {format(day, 'd')}
-                    </div>
+            <div className="grid grid-cols-3 gap-3">
+              {mobileCalendarDays.map((day) => {
+                const dayPosts = posts.filter((post) => isSameDay(post.scheduledDate, day));
+                const isToday = isSameDay(day, new Date());
 
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openAddModal(day);
-                      }}
-                      className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-brand transition-all"
-                    >
-                      <Plus className="h-3 w-3" />
-                    </button>
-                  </div>
-
-                  <div className="space-y-1">
-                    {dayPosts.map((post) => (
-                      <div
-                        key={post.id}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, post.id)}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openEditModal(post);
-                        }}
-                        className="group/post relative rounded border border-gray-100 bg-white p-1.5 shadow-sm transition-all hover:border-brand hover:shadow-md cursor-pointer active:cursor-grabbing"
-                      >
-                        <p className="truncate text-[10px] font-bold text-text-primary leading-tight">
-                          {post.title}
+                return (
+                  <div
+                    key={day.toISOString()}
+                    onClick={() => openAddModal(day)}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => void handleDrop(e, day)}
+                    className={cn(
+                      'min-h-[152px] rounded-[22px] border border-[#D8E8F5] bg-white p-3 shadow-[0_12px_28px_rgba(15,23,42,0.06)] transition-colors active:scale-[0.995]',
+                      isToday && 'border-brand/40 bg-brand/[0.04]'
+                    )}
+                  >
+                    <div className="mb-3 flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                          {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][day.getDay()]}
                         </p>
-
-                        <div className="mt-1 flex items-center justify-between">
-                          <span className="text-[8px] text-text-secondary">
-                            {post.platform || 'Conteúdo'}
-                          </span>
-                          <div className="flex items-center gap-1">
-                            {taskAssignments.some(
-                              (assignment) =>
-                                assignment.entityType === 'editorial_calendar' &&
-                                assignment.entityId === post.id
-                            ) ? (
-                              <span className="rounded bg-brand/10 px-1 py-0.5 text-[8px] font-medium text-brand">
-                                {
-                                  taskAssignments.filter(
-                                    (assignment) =>
-                                      assignment.entityType === 'editorial_calendar' &&
-                                      assignment.entityId === post.id
-                                  ).length
-                                }
-                                {' '}m
-                              </span>
-                            ) : null}
-                            <div
-                              className={cn(
-                                'h-1.5 w-1.5 rounded-full',
-                                post.status === 'Published'
-                                  ? 'bg-green-500'
-                                  : post.status === 'Review'
-                                  ? 'bg-yellow-500'
-                                  : 'bg-brand'
-                              )}
-                            />
+                        <div className="mt-1 flex items-center gap-2">
+                          <div
+                            className={cn(
+                              'flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold',
+                              isToday ? 'bg-brand text-white' : 'bg-slate-100 text-slate-700'
+                            )}
+                          >
+                            {format(day, 'd')}
                           </div>
                         </div>
                       </div>
-                    ))}
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openAddModal(day);
+                        }}
+                        className="rounded-full p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-brand"
+                        aria-label={`Adicionar post em ${format(day, 'dd/MM')}`}
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+
+                    <div className="space-y-2">
+                      {dayPosts.length === 0 ? (
+                        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 px-2 py-3 text-center text-[0.72rem] leading-5 text-slate-400">
+                          Nenhum post
+                        </div>
+                      ) : (
+                        dayPosts.slice(0, 3).map((post) => (
+                          <div
+                            key={post.id}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, post.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEditModal(post);
+                            }}
+                            className="group/post relative rounded-2xl border border-slate-100 bg-slate-50/70 p-2 shadow-sm transition-all hover:border-brand hover:bg-white hover:shadow-md active:cursor-grabbing"
+                          >
+                            <p className="line-clamp-2 text-[0.72rem] font-semibold leading-4 text-slate-800">
+                              {post.title}
+                            </p>
+
+                            <div className="mt-2 flex items-center justify-between gap-2">
+                              <span className="truncate text-[0.62rem] font-medium uppercase tracking-[0.08em] text-slate-400">
+                                {post.platform || 'Conteúdo'}
+                              </span>
+                              <div className="flex items-center gap-1">
+                                {taskAssignments.some(
+                                  (assignment) =>
+                                    assignment.entityType === 'editorial_calendar' &&
+                                    assignment.entityId === post.id
+                                ) ? (
+                                  <span className="rounded bg-brand/10 px-1.5 py-0.5 text-[0.6rem] font-semibold text-brand">
+                                    {
+                                      taskAssignments.filter(
+                                        (assignment) =>
+                                          assignment.entityType === 'editorial_calendar' &&
+                                          assignment.entityId === post.id
+                                      ).length
+                                    }
+                                    {' '}m
+                                  </span>
+                                ) : null}
+                                <div
+                                  className={cn(
+                                    'h-1.5 w-1.5 rounded-full',
+                                    post.status === 'Published'
+                                      ? 'bg-green-500'
+                                      : post.status === 'Review'
+                                      ? 'bg-yellow-500'
+                                      : 'bg-brand'
+                                  )}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+
+                      {dayPosts.length > 3 ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openAddModal(day);
+                          }}
+                          className="w-full rounded-xl bg-slate-100 px-2 py-1.5 text-[0.68rem] font-semibold text-slate-500"
+                        >
+                          +{dayPosts.length - 3} itens
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-50">
+              {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((day) => (
+                <div
+                  key={day}
+                  className="py-2 text-center text-xs font-bold uppercase tracking-wider text-gray-400"
+                >
+                  {day}
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-7">
+              {calendarDays.map((day, idx) => {
+                const dayPosts = posts.filter((post) => isSameDay(post.scheduledDate, day));
+                const isCurrentMonth = isSameMonth(day, monthStart);
+
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => openAddModal(day)}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => void handleDrop(e, day)}
+                    className={cn(
+                      'min-h-[120px] border-b border-r border-gray-100 p-2 transition-colors hover:bg-gray-50/50 group cursor-pointer',
+                      !isCurrentMonth && 'bg-gray-50/30'
+                    )}
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <div
+                        className={cn(
+                          'flex h-6 w-6 items-center justify-center rounded-full text-sm font-medium',
+                          isSameDay(day, new Date())
+                            ? 'bg-brand text-white'
+                            : isCurrentMonth
+                            ? 'text-text-primary'
+                            : 'text-gray-300'
+                        )}
+                      >
+                        {format(day, 'd')}
+                      </div>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openAddModal(day);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-brand transition-all"
+                      >
+                        <Plus className="h-3 w-3" />
+                      </button>
+                    </div>
+
+                    <div className="space-y-1">
+                      {dayPosts.map((post) => (
+                        <div
+                          key={post.id}
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, post.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEditModal(post);
+                          }}
+                          className="group/post relative rounded border border-gray-100 bg-white p-1.5 shadow-sm transition-all hover:border-brand hover:shadow-md cursor-pointer active:cursor-grabbing"
+                        >
+                          <p className="truncate text-[10px] font-bold text-text-primary leading-tight">
+                            {post.title}
+                          </p>
+
+                          <div className="mt-1 flex items-center justify-between">
+                            <span className="text-[8px] text-text-secondary">
+                              {post.platform || 'Conteúdo'}
+                            </span>
+                            <div className="flex items-center gap-1">
+                              {taskAssignments.some(
+                                (assignment) =>
+                                  assignment.entityType === 'editorial_calendar' &&
+                                  assignment.entityId === post.id
+                              ) ? (
+                                <span className="rounded bg-brand/10 px-1 py-0.5 text-[8px] font-medium text-brand">
+                                  {
+                                    taskAssignments.filter(
+                                      (assignment) =>
+                                        assignment.entityType === 'editorial_calendar' &&
+                                        assignment.entityId === post.id
+                                    ).length
+                                  }
+                                  {' '}m
+                                </span>
+                              ) : null}
+                              <div
+                                className={cn(
+                                  'h-1.5 w-1.5 rounded-full',
+                                  post.status === 'Published'
+                                    ? 'bg-green-500'
+                                    : post.status === 'Review'
+                                    ? 'bg-yellow-500'
+                                    : 'bg-brand'
+                                )}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </Card>
 

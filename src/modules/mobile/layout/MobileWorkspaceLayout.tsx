@@ -47,13 +47,16 @@ export const MobileWorkspaceLayout = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#F9F9F9] text-slate-900 dark:bg-slate-950 dark:text-slate-50 md:hidden">
+    <div className="relative min-h-screen overflow-x-hidden bg-bg-soft text-slate-900 md:hidden">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[320px] bg-[radial-gradient(circle_at_top,rgba(56,182,255,0.22),transparent_65%)]" />
+      <div className="pointer-events-none absolute left-[-24%] top-28 h-56 w-56 rounded-full bg-brand/12 blur-3xl" />
+      <div className="pointer-events-none absolute right-[-18%] top-40 h-64 w-64 rounded-full bg-sky-200/55 blur-3xl" />
       <MobileTopBar
         title={copy.title}
         subtitle={copy.subtitle}
         onOpenMenu={() => setIsMoreOpen(true)}
       />
-      <main className="min-h-[calc(100vh-8.5rem)]">
+      <main className="relative z-10 min-h-[calc(100vh-8.5rem)]">
         <MobileModuleRenderer />
       </main>
       <MobileBottomNav onOpenMore={() => setIsMoreOpen(true)} />

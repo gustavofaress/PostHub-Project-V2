@@ -11,15 +11,15 @@ interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 export const Card = ({ className, padding = 'md', children, ...props }: CardProps) => {
   const paddings = {
     none: '',
-    sm: 'p-3',
-    md: 'p-5',
-    lg: 'p-8',
+    sm: 'p-4 sm:p-3',
+    md: 'p-4 sm:p-5',
+    lg: 'p-5 sm:p-8',
   };
 
   return (
     <div
       className={cn(
-        'bg-white border border-gray-200 rounded-xl card-shadow overflow-hidden',
+        'overflow-hidden rounded-[24px] border border-slate-200/90 bg-white card-shadow sm:rounded-xl',
         paddings[padding],
         className
       )}
