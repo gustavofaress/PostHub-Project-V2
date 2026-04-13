@@ -2,11 +2,16 @@ import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 type PlanId = 'start' | 'growth' | 'pro';
+type CheckoutLineItemSummary = {
+  priceId: string | null;
+  quantity: number;
+};
 
 const STRIPE_SECRET_KEY = Deno.env.get('STRIPE_SECRET_KEY') ?? '';
 const STRIPE_WEBHOOK_SECRET = Deno.env.get('STRIPE_WEBHOOK_SECRET') ?? '';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+const STRIPE_PRICE_EXTRA_PROFILE = Deno.env.get('STRIPE_PRICE_EXTRA_PROFILE') ?? '';
 
 const STRIPE_PRICE_TO_PLAN: Record<string, PlanId> = {
   [Deno.env.get('STRIPE_PRICE_START') ?? 'price_1TJcfiLE0cyETHYjbu7xfPYL']: 'start',
@@ -33,6 +38,26 @@ const getPlanFromPriceId = (priceId?: string | null): PlanId | null => {
   return STRIPE_PRICE_TO_PLAN[priceId] ?? null;
 };
 
+const getLineItems = async (stripe: Stripe, sessionId: string): Promise<CheckoutLineItemSummary[]> => {
+  const lineItems = await stripe.checkout.sessions.listLineItems(sessionId, {
+    limit: 100,
+  });
+
+  return lineItems.data.map((item) => ({
+    priceId: item.price?.id ?? null,
+    quantity: item.quantity ?? 1,
+  }));
+};
+
+const getExtraProfileQuantity = (lineItems: CheckoutLineItemSummary[]) => {
+  if (!STRIPE_PRICE_EXTRA_PROFILE) return 0;
+
+  return lineItems.reduce((total, item) => {
+    if (item.priceId !== STRIPE_PRICE_EXTRA_PROFILE) return total;
+    return total + Math.max(item.quantity || 0, 0);
+  }, 0);
+};
+
 const updateUserPlan = async (
   adminClient: ReturnType<typeof createAdminClient>,
   email: string | null | undefined,
@@ -54,20 +79,104 @@ const updateUserPlan = async (
   }
 };
 
-const handleCheckoutCompleted = async (
-  stripe: Stripe,
+const resolveUserIdForCheckout = async (
   adminClient: ReturnType<typeof createAdminClient>,
   session: Stripe.Checkout.Session
 ) => {
-  const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
-    limit: 10,
+  const clientReferenceId = session.client_reference_id?.trim();
+
+  if (clientReferenceId) {
+    return clientReferenceId;
+  }
+
+  const normalizedEmail = (session.customer_details?.email ?? session.customer_email ?? '')
+    .trim()
+    .toLowerCase();
+
+  if (!normalizedEmail) {
+    return null;
+  }
+
+  const { data, error } = await adminClient
+    .from('usuarios')
+    .select('id')
+    .eq('email', normalizedEmail)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data?.id ?? null;
+};
+
+const grantExtraProfiles = async (
+  adminClient: ReturnType<typeof createAdminClient>,
+  params: {
+    eventId: string;
+    session: Stripe.Checkout.Session;
+    quantity: number;
+  }
+) => {
+  const { eventId, session, quantity } = params;
+
+  if (quantity <= 0) {
+    return { quantity: 0, granted: false };
+  }
+
+  const userId = await resolveUserIdForCheckout(adminClient, session);
+
+  if (!userId) {
+    throw new Error('Could not resolve the user for the extra profile purchase.');
+  }
+
+  const { error } = await adminClient.from('profile_purchase_credits').insert({
+    user_id: userId,
+    stripe_event_id: eventId,
+    stripe_checkout_session_id: session.id,
+    stripe_customer_email: session.customer_details?.email ?? session.customer_email ?? null,
+    quantity,
   });
-  const priceId = lineItems.data.find((item) => item.price?.id)?.price?.id ?? null;
+
+  if (error) {
+    const message = `${error.message || ''}`.toLowerCase();
+    const isDuplicate =
+      error.code === '23505' ||
+      message.includes('duplicate key') ||
+      message.includes('unique constraint');
+
+    if (isDuplicate) {
+      return { quantity: 0, granted: false };
+    }
+
+    throw error;
+  }
+
+  return { quantity, granted: true };
+};
+
+const handleCheckoutCompleted = async (
+  stripe: Stripe,
+  adminClient: ReturnType<typeof createAdminClient>,
+  eventId: string,
+  session: Stripe.Checkout.Session
+) => {
+  const lineItems = await getLineItems(stripe, session.id);
+  const priceId = lineItems.find((item) => getPlanFromPriceId(item.priceId))?.priceId ?? null;
   const plan = getPlanFromPriceId(priceId);
+  const extraProfilesQuantity = getExtraProfileQuantity(lineItems);
 
-  await updateUserPlan(adminClient, session.customer_details?.email ?? session.customer_email, plan);
+  if (plan) {
+    await updateUserPlan(adminClient, session.customer_details?.email ?? session.customer_email, plan);
+  }
 
-  return { plan, priceId };
+  const extraProfiles = await grantExtraProfiles(adminClient, {
+    eventId,
+    session,
+    quantity: extraProfilesQuantity,
+  });
+
+  return { plan, priceId, extraProfiles };
 };
 
 const getInvoiceCustomerEmail = async (stripe: Stripe, invoice: Stripe.Invoice) => {
@@ -132,6 +241,7 @@ Deno.serve(async (request) => {
       const result = await handleCheckoutCompleted(
         stripe,
         adminClient,
+        event.id,
         event.data.object as Stripe.Checkout.Session
       );
       return jsonResponse({ received: true, ...result });
