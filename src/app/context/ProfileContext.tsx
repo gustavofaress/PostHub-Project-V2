@@ -2,6 +2,7 @@ import * as React from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../../shared/utils/supabase';
 import { TeamMemberRole } from '../../shared/constants/workspaceMembers';
+import { INCLUDED_PROFILES_PER_ACCOUNT } from '../../shared/constants/plans';
 
 interface Profile {
   id: string;
@@ -10,12 +11,23 @@ interface Profile {
   avatar_url?: string;
 }
 
+interface ProfileAccessSnapshot {
+  ownedProfilesCount: number;
+  purchasedProfileCredits: number;
+  availableProfileSlots: number;
+}
+
 interface ProfileContextType {
   activeProfile: Profile | null;
   setActiveProfile: (profile: Profile) => void;
   profiles: Profile[];
   isLoadingProfiles: boolean;
-  reloadProfiles: () => Promise<void>;
+  ownedProfilesCount: number;
+  purchasedProfileCredits: number;
+  availableProfileSlots: number;
+  canCreateProfile: boolean;
+  reloadProfiles: () => Promise<ProfileAccessSnapshot>;
+  createProfile: (profileName: string) => Promise<void>;
 }
 
 const ProfileContext = React.createContext<ProfileContextType | undefined>(undefined);
@@ -28,6 +40,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [activeProfile, setActiveProfileState] = React.useState<Profile | null>(null);
   const [profiles, setProfiles] = React.useState<Profile[]>([]);
   const [isLoadingProfiles, setIsLoadingProfiles] = React.useState(false);
+  const [purchasedProfileCredits, setPurchasedProfileCredits] = React.useState(0);
 
   const setActiveProfile = React.useCallback((profile: Profile) => {
     setActiveProfileState(profile);
@@ -36,14 +49,19 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const clearProfileState = React.useCallback(() => {
     setProfiles([]);
+    setPurchasedProfileCredits(0);
     setActiveProfileState(null);
     localStorage.removeItem(ACTIVE_PROFILE_KEY);
   }, []);
 
-  const loadProfiles = React.useCallback(async () => {
+  const loadProfiles = React.useCallback(async (): Promise<ProfileAccessSnapshot> => {
     if (!isAuthenticated || !user || !supabase) {
       clearProfileState();
-      return;
+      return {
+        ownedProfilesCount: 0,
+        purchasedProfileCredits: 0,
+        availableProfileSlots: 0,
+      };
     }
 
     setIsLoadingProfiles(true);
@@ -59,6 +77,19 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (ownProfilesError) {
         throw ownProfilesError;
       }
+
+      const { data: purchaseCreditsData, error: purchaseCreditsError } = await supabase
+        .from('profile_purchase_credits')
+        .select('quantity')
+        .eq('user_id', user.id);
+
+      if (purchaseCreditsError) {
+        throw purchaseCreditsError;
+      }
+
+      const purchasedCredits = (purchaseCreditsData ?? []).reduce((total, purchase) => {
+        return total + Math.max(Number(purchase.quantity) || 0, 0);
+      }, 0);
 
       const ownProfiles: Profile[] = (ownProfilesData ?? []).map((profile) => ({
         id: profile.id,
@@ -113,13 +144,23 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
 
       const mappedProfiles = [...ownProfiles, ...sharedProfiles];
+      const ownedProfilesCount = ownProfiles.length;
+      const availableProfileSlots = Math.max(
+        INCLUDED_PROFILES_PER_ACCOUNT + purchasedCredits - ownedProfilesCount,
+        0
+      );
 
       setProfiles(mappedProfiles);
+      setPurchasedProfileCredits(purchasedCredits);
 
       if (mappedProfiles.length === 0) {
         setActiveProfileState(null);
         localStorage.removeItem(ACTIVE_PROFILE_KEY);
-        return;
+        return {
+          ownedProfilesCount,
+          purchasedProfileCredits: purchasedCredits,
+          availableProfileSlots,
+        };
       }
 
       const savedProfileId = localStorage.getItem(ACTIVE_PROFILE_KEY);
@@ -131,17 +172,87 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       setActiveProfileState(nextActiveProfile);
       localStorage.setItem(ACTIVE_PROFILE_KEY, nextActiveProfile.id);
+      return {
+        ownedProfilesCount,
+        purchasedProfileCredits: purchasedCredits,
+        availableProfileSlots,
+      };
     } catch (error) {
       console.error('Error loading profiles:', error);
       clearProfileState();
+      return {
+        ownedProfilesCount: 0,
+        purchasedProfileCredits: 0,
+        availableProfileSlots: 0,
+      };
     } finally {
       setIsLoadingProfiles(false);
     }
   }, [clearProfileState, isAuthenticated, user]);
 
+  const createProfile = React.useCallback(
+    async (profileName: string) => {
+      if (!user || !supabase) {
+        throw new Error('Você precisa estar autenticado para criar um perfil.');
+      }
+
+      const sanitizedProfileName = profileName.trim();
+
+      if (!sanitizedProfileName) {
+        throw new Error('Informe um nome para o novo perfil.');
+      }
+
+      const ownedProfilesCount = profiles.filter((profile) => profile.role === 'owner').length;
+      const availableProfileSlots = Math.max(
+        INCLUDED_PROFILES_PER_ACCOUNT + purchasedProfileCredits - ownedProfilesCount,
+        0
+      );
+
+      if (availableProfileSlots <= 0) {
+        throw new Error(
+          'Sua conta não possui vagas disponíveis para criar um novo perfil. Finalize a compra primeiro.'
+        );
+      }
+
+      const { data, error } = await supabase
+        .from('client_profiles')
+        .insert([
+          {
+            user_id: user.id,
+            profile_name: sanitizedProfileName,
+            is_default: ownedProfilesCount === 0,
+          },
+        ])
+        .select('id')
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      localStorage.setItem(ACTIVE_PROFILE_KEY, data.id);
+      await loadProfiles();
+    },
+    [loadProfiles, profiles, purchasedProfileCredits, user]
+  );
+
   React.useEffect(() => {
     void loadProfiles();
   }, [loadProfiles]);
+
+  const ownedProfilesCount = React.useMemo(
+    () => profiles.filter((profile) => profile.role === 'owner').length,
+    [profiles]
+  );
+
+  const availableProfileSlots = React.useMemo(
+    () =>
+      Math.max(
+        INCLUDED_PROFILES_PER_ACCOUNT + purchasedProfileCredits - ownedProfilesCount,
+        0
+      ),
+    [ownedProfilesCount, purchasedProfileCredits]
+  );
 
   return (
     <ProfileContext.Provider
@@ -150,7 +261,12 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setActiveProfile,
         profiles,
         isLoadingProfiles,
+        ownedProfilesCount,
+        purchasedProfileCredits,
+        availableProfileSlots,
+        canCreateProfile: availableProfileSlots > 0,
         reloadProfiles: loadProfiles,
+        createProfile,
       }}
     >
       {children}
