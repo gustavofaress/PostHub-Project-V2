@@ -28,13 +28,13 @@ export const Modal = ({ isOpen, onClose, title, children, className }: ModalProp
             onClick={onClose}
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
           />
-          <div className="relative flex min-h-full items-start justify-center overflow-y-auto p-4 sm:p-6">
+          <div className="relative flex min-h-full items-end justify-center overflow-y-auto p-0 sm:items-start sm:p-6">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className={cn(
-                'relative mt-0 flex w-full self-start max-w-lg max-h-[calc(100dvh-2rem)] flex-col overflow-hidden rounded-2xl bg-white p-6 shadow-2xl sm:max-h-[calc(100vh-3rem)]',
+                'relative mt-auto flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-[28px] bg-white p-5 shadow-2xl sm:mt-0 sm:max-h-[calc(100vh-3rem)] sm:max-w-lg sm:self-start sm:rounded-2xl sm:p-6',
                 className
               )}
             >
@@ -47,7 +47,9 @@ export const Modal = ({ isOpen, onClose, title, children, className }: ModalProp
                   <X className="h-5 w-5" />
                 </button>
               </div>
-              <div className="min-h-0 overflow-y-auto pr-1">{children}</div>
+              <div className="min-h-0 overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+0.25rem)] pr-1">
+                {children}
+              </div>
             </motion.div>
           </div>
         </div>

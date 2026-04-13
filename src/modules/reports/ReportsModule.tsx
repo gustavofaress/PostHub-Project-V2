@@ -19,6 +19,7 @@ import { useAuth } from '../../app/context/AuthContext';
 import { supabase } from '../../shared/utils/supabase';
 import { Button } from '../../shared/components/Button';
 import { Input } from '../../shared/components/Input';
+import { useIsMobile } from '../mobile/hooks/useIsMobile';
 
 interface StatCard {
   label: string;
@@ -79,6 +80,7 @@ function formatDate(dateString: string): string {
 }
 
 export const ReportsModule = () => {
+  const isMobile = useIsMobile();
   const { activeProfile } = useProfile();
   const { user } = useAuth();
 
@@ -106,6 +108,14 @@ export const ReportsModule = () => {
     reportName: 'Relatório de Desempenho',
     finalNotes: 'Obrigado pela parceria. Seguimos à disposição para dúvidas.',
   });
+
+  const sectionLabels = {
+    kpis: 'KPIs Gerais',
+    status: 'Status da Operação',
+    activity: 'Atividades Recentes',
+    insights: 'Insights',
+    notes: 'Observações Finais',
+  } as const;
 
   React.useEffect(() => {
     if (activeProfile?.name) {
@@ -573,6 +583,297 @@ export const ReportsModule = () => {
       <div className="h-full bg-bg-main p-8">
         <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-6 text-red-400">
           {errorMessage}
+        </div>
+      </div>
+    );
+  }
+
+  if (isMobile) {
+    const selectedSections = Object.entries(sectionLabels).filter(
+      ([key]) => sections[key as keyof typeof sections]
+    );
+
+    return (
+      <div className="min-h-full bg-bg-main pb-28">
+        <header className="border-b border-slate-200/80 bg-white/90 px-5 py-6 backdrop-blur-sm">
+          <div className="space-y-3">
+            <div>
+              <h1 className="text-[1.8rem] font-semibold tracking-[-0.04em] text-text-primary">
+                Relatórios
+              </h1>
+              <p className="mt-2 text-sm leading-6 text-text-secondary">
+                Monte um relatório enxuto no celular e exporte o PDF quando tudo estiver pronto.
+              </p>
+            </div>
+
+            <div className="rounded-[24px] border border-brand/15 bg-brand/[0.05] px-4 py-4">
+              <p className="text-[0.78rem] font-semibold uppercase tracking-[0.16em] text-brand">
+                White-label
+              </p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                O PDF exportado sai sem marca PostHub e já usa o nome do cliente ativo.
+              </p>
+            </div>
+
+            {exportErrorMessage ? (
+              <p className="text-sm font-medium text-red-500">{exportErrorMessage}</p>
+            ) : null}
+
+            <div className="flex flex-col gap-3">
+              <Button variant="secondary" className="w-full gap-2" onClick={handlePreviewClick}>
+                <Eye className="h-4 w-4" />
+                Ver resumo do relatório
+              </Button>
+              <Button className="w-full gap-2" onClick={handleExportPdf} disabled={isExporting}>
+                <Download className="h-4 w-4" />
+                {isExporting ? 'Gerando PDF...' : 'Baixar PDF'}
+              </Button>
+            </div>
+          </div>
+        </header>
+
+        <div className="space-y-4 px-4 py-4">
+          <section className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="mb-4 flex items-center gap-2">
+              <Settings2 className="h-5 w-5 text-brand" />
+              <h2 className="text-base font-semibold text-text-primary">Configuração</h2>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-text-secondary">Período</label>
+                <div className="relative">
+                  <select
+                    className="w-full appearance-none rounded-2xl border border-slate-200 bg-bg-main px-4 py-3 text-sm text-text-primary outline-none focus:border-brand"
+                    value={period}
+                    onChange={(e) => setPeriod(e.target.value as PeriodOption)}
+                  >
+                    <option value="7d">Últimos 7 dias</option>
+                    <option value="30d">Últimos 30 dias</option>
+                    <option value="this_month">Este mês</option>
+                    <option value="last_month">Mês passado</option>
+                    <option value="custom">Personalizado</option>
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary" />
+                </div>
+              </div>
+
+              {period === 'custom' ? (
+                <div className="grid grid-cols-1 gap-3">
+                  <Input
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                  />
+                  <Input
+                    type="date"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                  />
+                </div>
+              ) : null}
+
+              <Input
+                placeholder="Nome do cliente"
+                value={reportConfig.clientName}
+                onChange={(e) =>
+                  setReportConfig({ ...reportConfig, clientName: e.target.value })
+                }
+              />
+
+              <Input
+                placeholder="Título do relatório"
+                value={reportConfig.reportName}
+                onChange={(e) =>
+                  setReportConfig({ ...reportConfig, reportName: e.target.value })
+                }
+              />
+            </div>
+          </section>
+
+          <section
+            ref={reportPreviewRef}
+            data-report-preview="true"
+            className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-sm"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[0.78rem] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                  Capa do relatório
+                </p>
+                <h2 className="mt-2 text-[1.35rem] font-semibold tracking-[-0.03em] text-slate-950">
+                  {reportConfig.reportName || 'Relatório'}
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Cliente: {reportConfig.clientName || 'Não informado'}
+                </p>
+              </div>
+              <div className="rounded-full bg-brand/10 px-3 py-1 text-xs font-semibold text-brand">
+                {getPeriodLabel()}
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              {stats.map((stat) => (
+                <div key={stat.label} className="rounded-[22px] bg-slate-50 px-3 py-3">
+                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                    {stat.label}
+                  </p>
+                  <p className="mt-1 text-lg font-semibold text-slate-950">{stat.value}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-sm">
+            <h2 className="text-base font-semibold text-text-primary">Seções incluídas</h2>
+            <div className="mt-4 space-y-2">
+              {Object.entries(sectionLabels).map(([key, label]) => (
+                <label
+                  key={key}
+                  className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-3"
+                >
+                  <span className="text-sm font-medium text-slate-700">{label}</span>
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-[#38B6FF]"
+                    checked={sections[key as keyof typeof sections]}
+                    onChange={(e) =>
+                      setSections({
+                        ...sections,
+                        [key]: e.target.checked,
+                      })
+                    }
+                  />
+                </label>
+              ))}
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-dashed border-slate-200 px-4 py-4">
+              <p className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                Resumo selecionado
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {selectedSections.map(([key, label]) => (
+                  <span
+                    key={key}
+                    className="rounded-full bg-brand/10 px-3 py-1 text-xs font-semibold text-brand"
+                  >
+                    {label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-sm">
+            <h2 className="text-base font-semibold text-text-primary">Status da operação</h2>
+            <div className="mt-4 grid grid-cols-1 gap-3">
+              {[
+                {
+                  label: 'Em Produção',
+                  value: contentStatus.inProduction,
+                  icon: Clock,
+                  tone: 'bg-blue-100 text-blue-600',
+                },
+                {
+                  label: 'Em Revisão',
+                  value: contentStatus.pendingReview,
+                  icon: AlertCircle,
+                  tone: 'bg-amber-100 text-amber-600',
+                },
+                {
+                  label: 'Publicados',
+                  value: contentStatus.published,
+                  icon: CheckCircle2,
+                  tone: 'bg-green-100 text-green-600',
+                },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-4"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={cn('rounded-2xl p-2.5', item.tone)}>
+                      <item.icon className="h-4 w-4" />
+                    </div>
+                    <span className="font-medium text-slate-700">{item.label}</span>
+                  </div>
+                  <span className="text-lg font-semibold text-slate-950">{item.value}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {sections.insights ? (
+            <section className="rounded-[26px] border border-brand/10 bg-brand/[0.05] p-4 shadow-sm">
+              <h2 className="text-base font-semibold text-text-primary">Insights executivos</h2>
+              <div className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
+                <p>
+                  A operação de conteúdo para <strong>{reportConfig.clientName}</strong> segue com{' '}
+                  <strong>{stats[0].value} ideias</strong> no backlog e{' '}
+                  <strong>{stats[1].value} roteiros</strong> em andamento.
+                </p>
+                <p>
+                  Hoje existem <strong>{contentStatus.inProduction} itens em produção</strong> e{' '}
+                  <strong>{contentStatus.pendingReview} aguardando revisão</strong>.
+                </p>
+                <p>
+                  O foco do próximo ciclo pode ser acelerar os itens em revisão e transformar mais
+                  ideias em entregas publicáveis.
+                </p>
+              </div>
+            </section>
+          ) : null}
+
+          {sections.activity ? (
+            <section className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-sm">
+              <h2 className="text-base font-semibold text-text-primary">Atividade recente</h2>
+              <div className="mt-4 space-y-3">
+                {recentActivity.length === 0 ? (
+                  <p className="text-sm italic text-slate-500">
+                    Nenhuma atividade recente registrada neste período.
+                  </p>
+                ) : (
+                  recentActivity.slice(0, 6).map((activity) => (
+                    <div
+                      key={activity.id}
+                      className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-4"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-slate-900">
+                            {activity.title}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500">{activity.time}</p>
+                        </div>
+                        <span className="rounded-full bg-white px-3 py-1 text-[0.68rem] font-semibold text-slate-500">
+                          {activity.type}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </section>
+          ) : null}
+
+          {sections.notes ? (
+            <section className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-sm">
+              <h2 className="text-base font-semibold text-text-primary">Observações finais</h2>
+              <textarea
+                className="mt-4 min-h-[132px] w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm leading-6 text-slate-700 outline-none focus:border-brand"
+                value={reportConfig.finalNotes}
+                onChange={(e) =>
+                  setReportConfig({
+                    ...reportConfig,
+                    finalNotes: e.target.value,
+                  })
+                }
+                placeholder="Adicione observações finais aqui..."
+              />
+            </section>
+          ) : null}
         </div>
       </div>
     );

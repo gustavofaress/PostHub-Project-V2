@@ -10,11 +10,17 @@ import { hasAccess } from '../../../shared/constants/plans';
 interface MobileMoreSheetProps {
   isOpen: boolean;
   onClose: () => void;
+  activeModuleId?: string;
 }
 
-const HIDDEN_MODULE_IDS = ['consultant', 'scheduler'];
+const MOBILE_READY_MODULES = new Set(['dashboard', 'ideas', 'calendar']);
+const HIDDEN_MODULE_IDS = new Set(['performance']);
 
-export const MobileMoreSheet = ({ isOpen, onClose }: MobileMoreSheetProps) => {
+export const MobileMoreSheet = ({
+  isOpen,
+  onClose,
+  activeModuleId,
+}: MobileMoreSheetProps) => {
   const location = useLocation();
   const { user, logout } = useAuth();
 
@@ -22,8 +28,8 @@ export const MobileMoreSheet = ({ isOpen, onClose }: MobileMoreSheetProps) => {
     return NAV_GROUPS.map((group) => ({
       ...group,
       items: group.items.filter((item) => {
-        if (HIDDEN_MODULE_IDS.includes(item.id)) return false;
         if (item.id === 'admin' && !user?.isAdmin) return false;
+        if (HIDDEN_MODULE_IDS.has(item.id)) return false;
         return !['dashboard', 'ideas', 'scripts', 'approval', 'calendar'].includes(item.id);
       }),
     })).filter((group) => group.items.length > 0);
@@ -41,6 +47,8 @@ export const MobileMoreSheet = ({ isOpen, onClose }: MobileMoreSheetProps) => {
               {group.items.map((item) => {
                 const isActive = location.pathname.startsWith(item.path);
                 const isLocked = !hasAccess(user?.currentPlan, item.id, user?.isAdmin);
+                const isMobileReady = MOBILE_READY_MODULES.has(item.id);
+                const isCurrentFallbackModule = activeModuleId === item.id && !isMobileReady;
 
                 return (
                   <Link
@@ -65,6 +73,11 @@ export const MobileMoreSheet = ({ isOpen, onClose }: MobileMoreSheetProps) => {
                         <p className="text-base font-semibold text-slate-950">
                           {item.label}
                         </p>
+                        {!isMobileReady ? (
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[0.68rem] font-semibold text-slate-500">
+                            Mobile parcial
+                          </span>
+                        ) : null}
                         {isLocked ? (
                           <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[0.68rem] font-semibold text-brand">
                             PRO
@@ -74,6 +87,11 @@ export const MobileMoreSheet = ({ isOpen, onClose }: MobileMoreSheetProps) => {
                       {item.description ? (
                         <p className="text-sm leading-6 text-slate-600">
                           {item.description}
+                        </p>
+                      ) : null}
+                      {isCurrentFallbackModule ? (
+                        <p className="mt-2 text-[0.78rem] font-medium text-slate-400">
+                          Esta tela ainda está em adaptação para celular.
                         </p>
                       ) : null}
                     </div>
