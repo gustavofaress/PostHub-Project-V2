@@ -34,6 +34,28 @@ const ProfileContext = React.createContext<ProfileContextType | undefined>(undef
 
 const ACTIVE_PROFILE_KEY = 'posthub_active_profile_id';
 
+const isMissingProfileCreditsTableError = (error: unknown) => {
+  if (!error || typeof error !== 'object') return false;
+
+  const maybeError = error as { code?: string; message?: string; details?: string; hint?: string };
+  const combinedMessage = [
+    maybeError.message,
+    maybeError.details,
+    maybeError.hint,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  return (
+    maybeError.code === '42P01' ||
+    maybeError.code === 'PGRST205' ||
+    combinedMessage.includes('profile_purchase_credits') ||
+    combinedMessage.includes('could not find the table') ||
+    combinedMessage.includes('schema cache')
+  );
+};
+
 export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isAuthenticated } = useAuth();
 
@@ -78,18 +100,26 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         throw ownProfilesError;
       }
 
+      let purchasedCredits = 0;
+
       const { data: purchaseCreditsData, error: purchaseCreditsError } = await supabase
         .from('profile_purchase_credits')
         .select('quantity')
         .eq('user_id', user.id);
 
       if (purchaseCreditsError) {
-        throw purchaseCreditsError;
+        if (isMissingProfileCreditsTableError(purchaseCreditsError)) {
+          console.warn(
+            '[ProfileContext] Tabela profile_purchase_credits ainda não disponível; seguindo com 0 créditos extras.'
+          );
+        } else {
+          throw purchaseCreditsError;
+        }
+      } else {
+        purchasedCredits = (purchaseCreditsData ?? []).reduce((total, purchase) => {
+          return total + Math.max(Number(purchase.quantity) || 0, 0);
+        }, 0);
       }
-
-      const purchasedCredits = (purchaseCreditsData ?? []).reduce((total, purchase) => {
-        return total + Math.max(Number(purchase.quantity) || 0, 0);
-      }, 0);
 
       const ownProfiles: Profile[] = (ownProfilesData ?? []).map((profile) => ({
         id: profile.id,
