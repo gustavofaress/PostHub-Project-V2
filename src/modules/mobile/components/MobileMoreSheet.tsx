@@ -24,7 +24,7 @@ export const MobileMoreSheet = ({ isOpen, onClose }: MobileMoreSheetProps) => {
       items: group.items.filter((item) => {
         if (HIDDEN_MODULE_IDS.includes(item.id)) return false;
         if (item.id === 'admin' && !user?.isAdmin) return false;
-        return !['dashboard', 'ideas', 'scripts', 'calendar'].includes(item.id);
+        return !['dashboard', 'ideas', 'scripts', 'approval', 'calendar'].includes(item.id);
       }),
     })).filter((group) => group.items.length > 0);
   }, [user?.isAdmin]);
