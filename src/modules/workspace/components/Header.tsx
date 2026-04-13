@@ -12,6 +12,7 @@ import { Input } from '../../../shared/components/Input';
 import {
   buildExtraProfilePaymentLink,
   EXTRA_PROFILE_PRICE_LABEL,
+  isExtraProfilePaymentLinkConfigured,
 } from '../../../shared/constants/plans';
 
 export const Header = () => {
@@ -63,9 +64,9 @@ export const Header = () => {
       email: user?.email,
     });
 
-    if (!checkoutLink) {
+    if (!isExtraProfilePaymentLinkConfigured() || !checkoutLink) {
       setProfileActionError(
-        'O link do Stripe para perfil extra ainda não foi configurado no ambiente.'
+        'O link do Stripe para perfil extra ainda não foi configurado em plans.ts.'
       );
       setIsCreateProfileModalOpen(true);
       return;
