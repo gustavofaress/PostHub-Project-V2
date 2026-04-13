@@ -1,7 +1,6 @@
 import * as React from 'react';
 import {
   LayoutDashboard,
-  FileText,
   Lightbulb,
   Calendar,
   Trello,
@@ -135,20 +134,6 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Criação de Conteúdo',
     items: [
-      {
-        id: 'scripts',
-        label: 'Estúdio de Roteiros',
-        description: 'Crie, organize e refine roteiros para vídeos de formato curto.',
-        icon: FileText,
-        path: '/workspace/scripts',
-        subItems: [
-          { label: 'Assistente de Roteiro', path: '/workspace/scripts' },
-          { label: 'Geração com IA', path: '/workspace/scripts?tab=ai' },
-          { label: 'Rascunhos Salvos', path: '/workspace/scripts?tab=saved' },
-          { label: 'Biblioteca de Hooks', path: '/workspace/scripts?tab=hooks' },
-          { label: 'Modelos', path: '/workspace/scripts?tab=templates' },
-        ],
-      },
       {
         id: 'ideas',
         label: 'Banco de Ideias',

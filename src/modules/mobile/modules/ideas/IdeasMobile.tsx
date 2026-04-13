@@ -1,7 +1,5 @@
 import * as React from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Edit3, Lightbulb, Plus, Search, Sparkles, Trash2 } from 'lucide-react';
-import { useApp } from '../../../../app/context/AppContext';
 import { useAuth } from '../../../../app/context/AuthContext';
 import { useProfile } from '../../../../app/context/ProfileContext';
 import { useWorkspacePermissions } from '../../../../hooks/useWorkspacePermissions';
@@ -54,8 +52,6 @@ const priorityCopy: Record<string, { label: string; variant: 'default' | 'warnin
 };
 
 export const IdeasMobile = () => {
-  const navigate = useNavigate();
-  const { setActiveModule } = useApp();
   const { activeProfile } = useProfile();
   const { user } = useAuth();
   const { canAccess, isLoadingPermissions } = useWorkspacePermissions();
@@ -245,11 +241,6 @@ export const IdeasMobile = () => {
     }
   };
 
-  const handleConvertToScript = () => {
-    setActiveModule('scripts');
-    navigate('/workspace/scripts');
-  };
-
   return (
     <>
       <MobilePage className="gap-5">
@@ -263,7 +254,7 @@ export const IdeasMobile = () => {
                 Tudo pronto para capturar rapido
               </h2>
               <p className="mt-2 text-[0.98rem] leading-7 text-slate-600">
-                Pesquise, edite e empurre uma ideia para roteiro sem sair da mesma tela.
+                Pesquise, edite e organize suas ideias sem sair da mesma tela.
               </p>
             </div>
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[linear-gradient(180deg,rgba(56,182,255,0.16)_0%,rgba(56,182,255,0.08)_100%)] text-brand">
@@ -371,13 +362,6 @@ export const IdeasMobile = () => {
                       >
                         <Trash2 className="h-4 w-4" />
                         Excluir
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleConvertToScript}
-                        className="col-span-2 flex min-h-[48px] items-center justify-center rounded-[20px] bg-brand text-[0.94rem] font-semibold text-white shadow-[0_10px_26px_rgba(56,182,255,0.24)] active:scale-[0.98]"
-                      >
-                        Transformar em roteiro
                       </button>
                     </div>
                   ) : null}

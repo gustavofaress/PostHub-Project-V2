@@ -11,7 +11,6 @@ const DESKTOP_RECOMMENDATION_KEY = 'posthub_mobile_desktop_recommendation_seen';
 const TITLES: Record<string, { title: string; subtitle?: string }> = {
   dashboard: { title: 'Dashboard', subtitle: 'Visão rápida do dia' },
   ideas: { title: 'Ideias', subtitle: 'Capture e priorize' },
-  scripts: { title: 'Roteiros', subtitle: 'Fluxo guiado' },
   approval: { title: 'Aprovação', subtitle: 'Decisões rápidas' },
   calendar: { title: 'Calendário', subtitle: 'Planejamento' },
   kanban: { title: 'Kanban', subtitle: 'Produção' },

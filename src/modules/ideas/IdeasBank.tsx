@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import {
   Lightbulb,
   Search,
@@ -19,7 +19,6 @@ import { EmptyState } from '../../shared/components/EmptyState';
 import { Modal } from '../../shared/components/Modal';
 import { Dropdown, DropdownItem } from '../../shared/components/Dropdown';
 import { Tabs } from '../../shared/components/Tabs';
-import { useApp } from '../../app/context/AppContext';
 import { useProfile } from '../../app/context/ProfileContext';
 import { useAuth } from '../../app/context/AuthContext';
 import { supabase } from '../../shared/utils/supabase';
@@ -57,9 +56,7 @@ interface Idea {
 }
 
 export const IdeasBank = () => {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { setActiveModule } = useApp();
   const { activeProfile } = useProfile();
   const { user } = useAuth();
   const { activeMembers } = useWorkspaceMembers();
@@ -372,12 +369,6 @@ export const IdeasBank = () => {
     }
   };
 
-  const handleConvertToScript = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setActiveModule('scripts');
-    navigate('/workspace/scripts');
-  };
-
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -542,14 +533,6 @@ export const IdeasBank = () => {
                       membro(s)
                     </span>
                   ) : null}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 px-2"
-                    onClick={handleConvertToScript}
-                  >
-                    Converter em Roteiro
-                  </Button>
                 </div>
               </div>
             </Card>

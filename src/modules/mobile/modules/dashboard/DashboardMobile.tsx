@@ -174,7 +174,7 @@ export const DashboardMobile = () => {
     void load();
   }, [activeProfile?.id, user?.id]);
 
-  const goTo = (module: 'ideas' | 'scripts' | 'calendar' | 'approval') => {
+  const goTo = (module: 'ideas' | 'calendar' | 'approval') => {
     setActiveModule(module);
     navigate(`/workspace/${module}`);
   };
@@ -308,10 +308,10 @@ export const DashboardMobile = () => {
         </button>
         <button
           type="button"
-          onClick={() => goTo('scripts')}
+          onClick={() => goTo('calendar')}
           className="flex min-h-[52px] flex-[1.15] items-center justify-center rounded-[22px] bg-brand px-4 text-[1rem] font-semibold text-white shadow-[0_10px_26px_rgba(56,182,255,0.3)] active:scale-[0.98]"
         >
-          Criar roteiro
+          Abrir agenda
         </button>
       </StickyActionBar>
     </>
