@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Mail, Lock, Github } from 'lucide-react';
 import { Card } from '../../shared/components/Card';
 import { Button } from '../../shared/components/Button';
@@ -8,10 +8,12 @@ import { useAuth } from '../../app/context/AuthContext';
 
 export const LoginPage = () => {
   const { login } = useAuth();
+  const [searchParams] = useSearchParams();
   const [isLoading, setIsLoading] = React.useState(false);
-  const [email, setEmail] = React.useState('');
+  const [email, setEmail] = React.useState(searchParams.get('email') || '');
   const [password, setPassword] = React.useState('');
   const [error, setError] = React.useState('');
+  const resetWasSuccessful = searchParams.get('reset') === 'success';
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,6 +45,12 @@ export const LoginPage = () => {
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
+          {resetWasSuccessful && (
+            <div className="p-3 text-sm text-green-700 bg-green-50 rounded-md border border-green-200">
+              Sua senha foi atualizada. Faça login com a nova senha.
+            </div>
+          )}
+
           {error && (
             <div className="p-3 text-sm text-red-500 bg-red-50 rounded-md border border-red-200">
               {error}
@@ -62,7 +70,7 @@ export const LoginPage = () => {
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium text-text-primary">Password</label>
-              <Link to="#" className="text-xs text-brand hover:underline">
+              <Link to="/reset-password" className="text-xs text-brand hover:underline">
                 Forgot password?
               </Link>
             </div>

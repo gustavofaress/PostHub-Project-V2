@@ -47,6 +47,8 @@ interface AuthContextType {
     password?: string,
     profileName?: string
   ) => Promise<void>;
+  requestPasswordReset: (email: string) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -600,6 +602,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const requestPasswordReset = async (email: string) => {
+    if (!supabase) {
+      throw new Error('A recuperação de senha não está disponível sem o Supabase configurado.');
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+
+    if (error) {
+      throw error;
+    }
+  };
+
+  const updatePassword = async (password: string) => {
+    if (!supabase) {
+      throw new Error('A atualização de senha não está disponível sem o Supabase configurado.');
+    }
+
+    const { error } = await supabase.auth.updateUser({
+      password,
+    });
+
+    if (error) {
+      throw error;
+    }
+  };
+
   const logout = async () => {
     try {
       if (supabase) {
@@ -621,6 +651,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         login,
         signup,
+        requestPasswordReset,
+        updatePassword,
         logout,
         isAuthenticated: !!user,
         isLoading,
