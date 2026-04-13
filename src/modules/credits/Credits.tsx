@@ -98,7 +98,7 @@ const TRANSACTIONS: Transaction[] = [
     amount: '-25 créditos',
     date: 'Ontem',
     status: 'concluído',
-    detail: 'Consultor de IA',
+    detail: 'Banco de ideias',
   },
   {
     id: '4',

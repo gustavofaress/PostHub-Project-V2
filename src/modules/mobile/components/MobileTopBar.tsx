@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Menu, Search } from 'lucide-react';
+import { ChevronDown, Menu } from 'lucide-react';
 import { useProfile } from '../../../app/context/ProfileContext';
 import { Avatar } from '../../../shared/components/Avatar';
 
@@ -7,10 +7,17 @@ interface MobileTopBarProps {
   title: string;
   subtitle?: string;
   onOpenMenu: () => void;
+  onOpenProfiles: () => void;
 }
 
-export const MobileTopBar = ({ title, subtitle, onOpenMenu }: MobileTopBarProps) => {
-  const { activeProfile } = useProfile();
+export const MobileTopBar = ({
+  title,
+  subtitle,
+  onOpenMenu,
+  onOpenProfiles,
+}: MobileTopBarProps) => {
+  const { activeProfile, profiles } = useProfile();
+  const previewProfiles = profiles.slice(0, 3);
 
   return (
     <header className="sticky top-0 z-30 overflow-hidden md:hidden">
@@ -33,17 +40,58 @@ export const MobileTopBar = ({ title, subtitle, onOpenMenu }: MobileTopBarProps)
             <p className="mt-1 truncate text-[0.9rem] text-white/78">
               {activeProfile?.name || 'Sua operação de conteúdo, agora no celular'}
             </p>
-          </div>
-
-          <div className="flex items-center gap-2">
             <button
               type="button"
-              className="flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-white/14 text-white active:scale-[0.98]"
-              aria-label="Busca"
+              onClick={onOpenProfiles}
+              className="mt-3 flex w-full max-w-[17rem] items-center gap-3 rounded-[22px] border border-white/18 bg-[linear-gradient(180deg,rgba(255,255,255,0.18)_0%,rgba(255,255,255,0.10)_100%)] px-3 py-3 text-left text-white/92 shadow-[0_16px_34px_rgba(15,23,42,0.16)] active:scale-[0.98]"
+              aria-label="Trocar perfil"
             >
-              <Search className="h-5 w-5" />
+              <div className="flex shrink-0 items-center">
+                <div className="flex -space-x-2">
+                  {previewProfiles.length > 0 ? (
+                    previewProfiles.map((profile, index) => (
+                      <Avatar
+                        key={profile.id}
+                        src={profile.avatar_url}
+                        fallback={profile.name}
+                        size="sm"
+                        className="border-2 border-[#1F7AE0] bg-white/90 text-brand shadow-[0_8px_18px_rgba(15,23,42,0.14)]"
+                      />
+                    ))
+                  ) : (
+                    <Avatar
+                      fallback={activeProfile?.name || 'PH'}
+                      size="sm"
+                      className="border-2 border-[#1F7AE0] bg-white/90 text-brand shadow-[0_8px_18px_rgba(15,23,42,0.14)]"
+                    />
+                  )}
+                </div>
+                {profiles.length > 1 ? (
+                  <span className="ml-2 flex h-6 min-w-[1.55rem] items-center justify-center rounded-full bg-white/90 px-1.5 text-[0.68rem] font-bold text-brand shadow-[0_8px_18px_rgba(15,23,42,0.12)]">
+                    {profiles.length}
+                  </span>
+                ) : null}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[0.82rem] font-semibold">
+                  {activeProfile?.name || 'Selecionar perfil'}
+                </p>
+                <p className="truncate text-[0.72rem] text-white/74">
+                  {profiles.length > 1
+                    ? 'Troque rápido entre seus perfis'
+                    : 'Toque para gerenciar este perfil'}
+                </p>
+              </div>
+              <div className="flex shrink-0 flex-col items-end gap-1">
+                <span className="text-[0.63rem] font-semibold uppercase tracking-[0.14em] text-white/58">
+                  Perfis
+                </span>
+                <ChevronDown className="h-4 w-4 text-white/78" />
+              </div>
             </button>
+          </div>
 
+          <div className="flex items-center gap-2 pt-0.5">
             <button
               type="button"
               onClick={onOpenMenu}
@@ -52,15 +100,6 @@ export const MobileTopBar = ({ title, subtitle, onOpenMenu }: MobileTopBarProps)
             >
               <Menu className="h-5 w-5" />
             </button>
-
-            {activeProfile ? (
-              <Avatar
-                src={activeProfile.avatar_url}
-                fallback={activeProfile.name}
-                size="sm"
-                className="hidden border-2 border-white/35 shadow-[0_10px_24px_rgba(15,23,42,0.18)] sm:flex"
-              />
-            ) : null}
           </div>
         </div>
       </div>

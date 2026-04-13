@@ -77,7 +77,6 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeature[]> = {
     'references',
     'reports',
     'scripts',
-    'consultant',
     'approval',
     'integrations',
     'team',

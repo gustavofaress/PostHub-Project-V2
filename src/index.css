@@ -15,6 +15,10 @@
 @layer base {
   :root {
     color-scheme: light;
+    --posthub-scrollbar-color: rgba(56, 182, 255, 0.28);
+    --posthub-scrollbar-color-hover: rgba(56, 182, 255, 0.42);
+    --posthub-scrollbar-accent: rgba(31, 41, 55, 0.16);
+    --posthub-scrollbar-accent-hover: rgba(31, 41, 55, 0.22);
   }
 
   @media (prefers-color-scheme: dark) {
@@ -26,6 +30,45 @@
   html {
     overscroll-behavior: none;
     -webkit-tap-highlight-color: transparent;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--posthub-scrollbar-color) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: linear-gradient(
+      180deg,
+      var(--posthub-scrollbar-color),
+      var(--posthub-scrollbar-accent)
+    );
+    border: 3px solid transparent;
+    border-radius: 9999px;
+    background-clip: padding-box;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(
+      180deg,
+      var(--posthub-scrollbar-color-hover),
+      var(--posthub-scrollbar-accent-hover)
+    );
+    border: 3px solid transparent;
+    background-clip: padding-box;
+  }
+
+  *::-webkit-scrollbar-corner {
+    background: transparent;
   }
 
   body {
@@ -78,34 +121,48 @@
     display: none;
   }
 
-  .posthub-scrollbar {
+  .posthub-scrollbar,
+  .custom-scrollbar {
     scrollbar-width: thin;
-    scrollbar-color: rgba(56, 182, 255, 0.28) transparent;
+    scrollbar-color: var(--posthub-scrollbar-color) transparent;
   }
 
-  .posthub-scrollbar::-webkit-scrollbar {
+  .posthub-scrollbar::-webkit-scrollbar,
+  .custom-scrollbar::-webkit-scrollbar {
     width: 10px;
     height: 10px;
   }
 
-  .posthub-scrollbar::-webkit-scrollbar-track {
+  .posthub-scrollbar::-webkit-scrollbar-track,
+  .custom-scrollbar::-webkit-scrollbar-track {
     background: transparent;
   }
 
-  .posthub-scrollbar::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg, rgba(56, 182, 255, 0.28), rgba(31, 41, 55, 0.16));
+  .posthub-scrollbar::-webkit-scrollbar-thumb,
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(
+      180deg,
+      var(--posthub-scrollbar-color),
+      var(--posthub-scrollbar-accent)
+    );
     border: 3px solid transparent;
     border-radius: 9999px;
     background-clip: padding-box;
   }
 
-  .posthub-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(180deg, rgba(56, 182, 255, 0.42), rgba(31, 41, 55, 0.22));
+  .posthub-scrollbar::-webkit-scrollbar-thumb:hover,
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(
+      180deg,
+      var(--posthub-scrollbar-color-hover),
+      var(--posthub-scrollbar-accent-hover)
+    );
     border: 3px solid transparent;
     background-clip: padding-box;
   }
 
-  .posthub-scrollbar::-webkit-scrollbar-corner {
+  .posthub-scrollbar::-webkit-scrollbar-corner,
+  .custom-scrollbar::-webkit-scrollbar-corner {
     background: transparent;
   }
 

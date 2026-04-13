@@ -4,9 +4,11 @@ import { MobileTopBar } from '../components/MobileTopBar';
 import { MobileBottomNav } from '../components/MobileBottomNav';
 import { MobileMoreSheet } from '../components/MobileMoreSheet';
 import { DesktopRecommendationSheet } from '../components/DesktopRecommendationSheet';
+import { MobileProfileSheet } from '../components/MobileProfileSheet';
 import { MobileModuleRenderer } from './MobileModuleRenderer';
 
 const DESKTOP_RECOMMENDATION_KEY = 'posthub_mobile_desktop_recommendation_seen';
+const MOBILE_READY_MODULES = new Set(['dashboard', 'ideas', 'calendar']);
 
 const TITLES: Record<string, { title: string; subtitle?: string }> = {
   dashboard: { title: 'Dashboard', subtitle: 'Visão rápida do dia' },
@@ -21,12 +23,19 @@ const TITLES: Record<string, { title: string; subtitle?: string }> = {
 export const MobileWorkspaceLayout = () => {
   const location = useLocation();
   const [isMoreOpen, setIsMoreOpen] = React.useState(false);
+  const [isProfileSheetOpen, setIsProfileSheetOpen] = React.useState(false);
   const [isDesktopRecommendationOpen, setIsDesktopRecommendationOpen] = React.useState(false);
   const moduleId = location.pathname.split('/')[2] || 'dashboard';
   const copy = TITLES[moduleId] || { title: 'PostHub', subtitle: 'Workspace mobile' };
+  const shouldSuggestDesktop = !MOBILE_READY_MODULES.has(moduleId);
 
   React.useEffect(() => {
     if (typeof window === 'undefined') {
+      return;
+    }
+
+    if (!shouldSuggestDesktop) {
+      setIsDesktopRecommendationOpen(false);
       return;
     }
 
@@ -35,7 +44,7 @@ export const MobileWorkspaceLayout = () => {
     if (!hasSeenRecommendation) {
       setIsDesktopRecommendationOpen(true);
     }
-  }, []);
+  }, [shouldSuggestDesktop]);
 
   const handleCloseDesktopRecommendation = React.useCallback(() => {
     if (typeof window !== 'undefined') {
@@ -54,12 +63,21 @@ export const MobileWorkspaceLayout = () => {
         title={copy.title}
         subtitle={copy.subtitle}
         onOpenMenu={() => setIsMoreOpen(true)}
+        onOpenProfiles={() => setIsProfileSheetOpen(true)}
       />
       <main className="relative z-10 min-h-[calc(100vh-8.5rem)]">
         <MobileModuleRenderer />
       </main>
       <MobileBottomNav onOpenMore={() => setIsMoreOpen(true)} />
-      <MobileMoreSheet isOpen={isMoreOpen} onClose={() => setIsMoreOpen(false)} />
+      <MobileProfileSheet
+        isOpen={isProfileSheetOpen}
+        onClose={() => setIsProfileSheetOpen(false)}
+      />
+      <MobileMoreSheet
+        isOpen={isMoreOpen}
+        onClose={() => setIsMoreOpen(false)}
+        activeModuleId={moduleId}
+      />
       <DesktopRecommendationSheet
         isOpen={isDesktopRecommendationOpen}
         onClose={handleCloseDesktopRecommendation}

@@ -21,6 +21,7 @@ import {
   metaInstagramService,
 } from '../../services/meta-instagram.service';
 import { PerformanceInstagramUploads } from './PerformanceInstagramUploads';
+import { useIsMobile } from '../mobile/hooks/useIsMobile';
 
 interface InstagramMetricRow {
   id: string;
@@ -287,6 +288,7 @@ function formatConnectionStatus(connection: InstagramConnection) {
 }
 
 export const Performance = () => {
+  const isMobile = useIsMobile();
   const location = useLocation();
   const navigate = useNavigate();
   const { activeProfile } = useProfile();
@@ -811,6 +813,46 @@ export const Performance = () => {
               />
             ) : isLoading ? (
               <div className="py-10 text-center text-text-secondary">Carregando posts...</div>
+            ) : isMobile ? (
+              <div className="space-y-3">
+                {topPosts.map((post) => (
+                  <div
+                    key={post.id}
+                    className="rounded-[22px] border border-slate-200 bg-slate-50/65 p-4"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="line-clamp-2 font-semibold text-text-primary">
+                          {post.title}
+                        </p>
+                        <p className="mt-1 text-xs text-text-secondary">
+                          {post.platform} • {new Date(post.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <Badge variant="success">Sync</Badge>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-3">
+                      <div className="rounded-2xl bg-white px-3 py-3">
+                        <p className="text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-text-secondary">
+                          Alcance
+                        </p>
+                        <p className="mt-1 text-lg font-semibold text-text-primary">
+                          {formatCompactNumber(post.reach)}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl bg-white px-3 py-3">
+                        <p className="text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-text-secondary">
+                          Engajamento
+                        </p>
+                        <p className="mt-1 text-lg font-semibold text-text-primary">
+                          {formatPercent(post.engagement)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">

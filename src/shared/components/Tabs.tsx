@@ -10,16 +10,21 @@ interface TabsProps {
 
 export const Tabs = ({ tabs, activeTab, onChange, className }: TabsProps) => {
   return (
-    <div className={cn('flex border-b border-gray-200', className)}>
+    <div
+      className={cn(
+        'hide-scrollbar -mx-1 flex overflow-x-auto border-b border-gray-200 px-1 pb-px',
+        className
+      )}
+    >
       {tabs.map((tab) => (
         <button
           key={tab.id}
           onClick={() => onChange(tab.id)}
           className={cn(
-            'flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all relative',
+            'relative flex shrink-0 items-center gap-2 whitespace-nowrap rounded-t-2xl px-4 py-2 text-sm font-medium transition-all',
             activeTab === tab.id
-              ? 'text-brand'
-              : 'text-text-secondary hover:text-text-primary'
+              ? 'bg-brand/[0.06] text-brand'
+              : 'text-text-secondary hover:bg-gray-50 hover:text-text-primary'
           )}
         >
           {tab.icon}

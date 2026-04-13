@@ -44,6 +44,7 @@ import { workspaceNotificationsService } from '../../services/workspace-notifica
 import { approvalService } from './services/approvalService';
 import { InternalPreview } from './InternalPreview';
 import { useTrialGuidedFlow } from '../onboarding/hooks/useTrialGuidedFlow';
+import { useIsMobile } from '../mobile/hooks/useIsMobile';
 
 export interface MediaState {
   id?: string;
@@ -489,6 +490,7 @@ export const loadComments = (): ApprovalComment[] => {
 export const ApprovalModule = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   useTrialGuidedFlow();
+  const isMobile = useIsMobile();
   const { activeProfile } = useProfile();
   const { user } = useAuth();
   const { activeMembers } = useWorkspaceMembers();
@@ -1172,18 +1174,18 @@ export const ApprovalModule = () => {
   if (view === 'create' || view === 'edit') {
     return (
       <>
-        <div className="mx-auto max-w-3xl space-y-6 pb-12">
-          <div className="mb-8 flex items-center gap-4">
+        <div className="mx-auto max-w-3xl space-y-5 pb-24 md:space-y-6 md:pb-12">
+          <div className="mb-4 flex items-start gap-3 md:mb-8 md:items-center md:gap-4">
             <button
               onClick={() => {
                 setView('list');
                 resetForm();
               }}
-              className="rounded-full p-2 transition-colors hover:bg-gray-100"
+              className="rounded-full border border-gray-200 p-2 transition-colors hover:bg-gray-100"
             >
               <X className="h-5 w-5 text-gray-500" />
             </button>
-            <div>
+            <div className="min-w-0">
               <h1 className="text-2xl font-bold text-text-primary">
                 {view === 'edit'
                   ? 'Editar solicitação de aprovação'
@@ -1194,6 +1196,11 @@ export const ApprovalModule = () => {
                   ? 'Atualize o conteúdo para revisão do cliente.'
                   : 'Configure um novo post para revisão do cliente.'}
               </p>
+              {isMobile ? (
+                <p className="mt-2 text-sm font-medium text-slate-400">
+                  Versão mobile focada em capturar o essencial e seguir rápido.
+                </p>
+              ) : null}
             </div>
           </div>
 
@@ -1206,20 +1213,27 @@ export const ApprovalModule = () => {
             </Card>
           )}
 
-          <Card className="space-y-8 p-8">
+          <Card className="space-y-6 p-4 sm:p-6 md:space-y-8 md:p-8">
             <div className="space-y-2">
               <label className="text-sm font-bold text-text-primary">Título do conteúdo</label>
               <Input
                 placeholder="Ex.: Reel da coleção de verão"
-                className="py-6 text-lg"
+                className="py-4 text-base md:py-6 md:text-lg"
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
               />
             </div>
 
             <div className="space-y-3">
-              <label className="text-sm font-bold text-text-primary">Tipo de conteúdo</label>
-              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
+                <label className="text-sm font-bold text-text-primary">Tipo de conteúdo</label>
+                {isMobile ? (
+                  <p className="text-xs text-text-secondary">
+                    Escolha o formato antes de anexar os arquivos.
+                  </p>
+                ) : null}
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4 md:gap-4">
                 {[
                   { id: 'static', label: 'Imagem estática', icon: ImageIcon },
                   { id: 'carousel', label: 'Carrossel', icon: Layers },
@@ -1234,37 +1248,48 @@ export const ApprovalModule = () => {
                       setNewMediaItems([]);
                     }}
                     className={cn(
-                      'flex flex-col items-center gap-3 rounded-xl border-2 p-4 transition-all',
+                      'flex items-center gap-3 rounded-2xl border-2 p-4 text-left transition-all md:flex-col md:items-center md:rounded-xl',
                       newContentType === type.id
                         ? 'border-brand bg-brand/5 text-brand'
                         : 'border-gray-200 text-gray-600 hover:border-brand/50 hover:bg-gray-50'
                     )}
                   >
-                    <type.icon className="h-6 w-6" />
-                    <span className="text-sm font-bold">{type.label}</span>
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/80 md:h-auto md:w-auto md:rounded-none md:bg-transparent">
+                      <type.icon className="h-6 w-6" />
+                    </div>
+                    <span className="text-sm font-bold leading-5">{type.label}</span>
                   </button>
                 ))}
               </div>
             </div>
 
             <div className="space-y-3">
-              <label className="text-sm font-bold text-text-primary">Plataforma</label>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
+                <label className="text-sm font-bold text-text-primary">Plataforma</label>
+                {isMobile ? (
+                  <p className="text-xs text-text-secondary">
+                    Mantive só os atalhos principais para reduzir atrito.
+                  </p>
+                ) : null}
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 md:gap-4">
                 {(['Instagram', 'TikTok', 'YouTube'] as const).map((p) => (
                   <button
                     key={p}
                     type="button"
                     onClick={() => setSelectedPlatform(p)}
                     className={cn(
-                      'flex flex-col items-center gap-3 rounded-xl border-2 p-4 transition-all',
+                      'flex items-center gap-3 rounded-2xl border-2 p-4 text-left transition-all sm:flex-col sm:items-center sm:rounded-xl',
                       selectedPlatform === p
                         ? 'border-brand bg-brand/5 text-brand'
                         : 'border-gray-200 text-gray-600 hover:border-brand/50 hover:bg-gray-50'
                     )}
                   >
-                    {p === 'Instagram' && <Instagram className="h-6 w-6" />}
-                    {p === 'TikTok' && <Video className="h-6 w-6" />}
-                    {p === 'YouTube' && <Youtube className="h-6 w-6" />}
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/80 sm:h-auto sm:w-auto sm:rounded-none sm:bg-transparent">
+                      {p === 'Instagram' && <Instagram className="h-6 w-6" />}
+                      {p === 'TikTok' && <Video className="h-6 w-6" />}
+                      {p === 'YouTube' && <Youtube className="h-6 w-6" />}
+                    </div>
                     <span className="text-sm font-bold">{p}</span>
                   </button>
                 ))}
@@ -1277,7 +1302,7 @@ export const ApprovalModule = () => {
               </label>
               <div
                 className={cn(
-                  'group relative flex cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 p-12 transition-all hover:border-brand/50 hover:bg-gray-100',
+                  'group relative flex cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 p-6 transition-all hover:border-brand/50 hover:bg-gray-100 sm:p-8 md:p-12',
                   isRenderingMedia && 'cursor-wait opacity-75'
                 )}
                 onClick={() => {
@@ -1350,17 +1375,18 @@ export const ApprovalModule = () => {
             <div className="space-y-3">
               <label className="text-sm font-bold text-text-primary">Legenda</label>
               <textarea
-                className="min-h-[150px] w-full resize-y rounded-xl border-2 border-gray-200 p-4 text-base transition-all focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10"
+                className="min-h-[150px] w-full resize-y rounded-2xl border-2 border-gray-200 p-4 text-base transition-all focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10 md:rounded-xl"
                 placeholder="Escreva a legenda do post aqui... Inclua hashtags e menções."
                 value={newCaption}
                 onChange={(e) => setNewCaption(e.target.value)}
               />
             </div>
 
-            <div className="flex justify-end gap-4 border-t border-gray-100 pt-6">
+            <div className="flex flex-col-reverse gap-3 border-t border-gray-100 pt-5 md:flex-row md:justify-end md:gap-4 md:pt-6">
               <Button
                 variant="ghost"
                 size="lg"
+                className="w-full md:w-auto"
                 onClick={() => {
                   setView('list');
                   resetForm();
@@ -1371,7 +1397,7 @@ export const ApprovalModule = () => {
               <Button
                 variant="outline"
                 size="lg"
-                className="border-[#38B6FF]/20 text-[#38B6FF] hover:bg-[#38B6FF]/5"
+                className="w-full border-[#38B6FF]/20 text-[#38B6FF] hover:bg-[#38B6FF]/5 md:w-auto"
                 onClick={() => void openInternalPreview()}
                 data-tour-id="approval-internal-preview-button"
               >
@@ -1380,7 +1406,7 @@ export const ApprovalModule = () => {
               <Button
                 size="lg"
                 onClick={handleSaveRequest}
-                className="px-8"
+                className="w-full px-8 md:w-auto"
                 disabled={!newTitle.trim() || isSubmitting}
                 isLoading={isSubmitting}
                 data-tour-id="approval-save-button"

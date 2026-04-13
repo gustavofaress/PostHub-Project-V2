@@ -9,7 +9,7 @@ import { useTrialGuidedFlow } from '../../onboarding/hooks/useTrialGuidedFlow';
 import { useWorkspacePermissions } from '../../../hooks/useWorkspacePermissions';
 import { WORKSPACE_MODULE_PERMISSION_MAP } from '../../../shared/constants/workspaceAccess';
 
-const HIDDEN_MODULE_IDS = ['consultant', 'scheduler'];
+const HIDDEN_MODULE_IDS = ['scheduler', 'performance'];
 
 export const Sidebar = () => {
   const location = useLocation();

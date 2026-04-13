@@ -17,6 +17,7 @@ import { Button } from '../../shared/components/Button';
 import { Card, CardDescription, CardTitle } from '../../shared/components/Card';
 import { EmptyState } from '../../shared/components/EmptyState';
 import { Input } from '../../shared/components/Input';
+import { useIsMobile } from '../mobile/hooks/useIsMobile';
 
 type InstagramUploadJobStatus = 'processed';
 type InstagramReviewStatus = 'pending_review' | 'approved' | 'needs_adjustment';
@@ -190,6 +191,7 @@ const persistStoredJobs = (profileId: string, jobs: InstagramUploadJob[]) => {
 };
 
 export const PerformanceInstagramUploads = () => {
+  const isMobile = useIsMobile();
   const { activeProfile } = useProfile();
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
@@ -677,6 +679,99 @@ export const PerformanceInstagramUploads = () => {
             description="Os posts detectados pela importação aparecem aqui para revisão e aprovação."
             icon={FileText}
           />
+        ) : isMobile ? (
+          <div className="space-y-3">
+            {selectedJob.posts.map((post) => (
+              <div
+                key={post.id}
+                className="rounded-[22px] border border-slate-200 bg-slate-50/65 p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-text-primary">{post.title}</p>
+                    <p className="mt-1 text-xs text-text-secondary">
+                      {post.postType} • {new Date(post.publishedAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <Badge variant={getReviewBadgeVariant(post.reviewStatus)}>
+                    {getReviewLabel(post.reviewStatus)}
+                  </Badge>
+                </div>
+
+                <div className="mt-4 rounded-2xl bg-white px-3 py-3">
+                  <p className="truncate text-sm font-medium text-text-primary">
+                    {post.sourceFileName}
+                  </p>
+                  <p className="mt-1 text-xs text-text-secondary">ID arquivo: {post.sourceFileId}</p>
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                  <div className="rounded-2xl bg-white px-3 py-3">
+                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-text-secondary">
+                      Alcance
+                    </p>
+                    <p className="mt-1 font-semibold text-text-primary">
+                      {formatCompactNumber(post.reach)}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl bg-white px-3 py-3">
+                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-text-secondary">
+                      Engajamento
+                    </p>
+                    <p className="mt-1 font-semibold text-text-primary">
+                      {formatPercent(post.engagementRate)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-text-secondary">
+                  <span>Curtidas: {formatCompactNumber(post.likes)}</span>
+                  <span>Comentários: {formatCompactNumber(post.comments)}</span>
+                  <span>Salvos: {formatCompactNumber(post.saves)}</span>
+                  <span>Compart.: {formatCompactNumber(post.shares)}</span>
+                </div>
+
+                <div className="mt-4 flex flex-col gap-3 rounded-2xl bg-white px-3 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-text-secondary">
+                        Confiança
+                      </p>
+                      <p className="mt-1 text-sm text-text-secondary">
+                        {post.confidenceScore >= 0.9
+                          ? 'Extração consistente'
+                          : 'Precisa revisão humana'}
+                      </p>
+                    </div>
+                    <Badge variant={post.confidenceScore >= 0.9 ? 'success' : 'warning'}>
+                      {Math.round(post.confidenceScore * 100)}%
+                    </Badge>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      size="sm"
+                      variant={post.reviewStatus === 'approved' ? 'primary' : 'outline'}
+                      onClick={() =>
+                        handleUpdateReviewStatus(selectedJob.id, post.id, 'approved')
+                      }
+                    >
+                      Aprovar
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={post.reviewStatus === 'needs_adjustment' ? 'secondary' : 'ghost'}
+                      onClick={() =>
+                        handleUpdateReviewStatus(selectedJob.id, post.id, 'needs_adjustment')
+                      }
+                    >
+                      Ajustar
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">

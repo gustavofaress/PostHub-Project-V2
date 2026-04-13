@@ -87,32 +87,6 @@ const HELP_ARTICLES: HelpArticle[] = [
     ],
   },
   {
-    id: 'consultant',
-    title: 'Consultor de IA',
-    category: 'IA',
-    status: 'Em evolucao',
-    summary:
-      'O Consultor de IA funciona hoje como uma area de conversa dentro da plataforma para apoiar estrategia e brainstorming. A experiencia de chat ja existe, mas as respostas ainda estao em modo assistido e demonstrativo.',
-    keywords: ['consultor', 'chat', 'ia', 'estrategia', 'brainstorm'],
-    questions: [
-      {
-        question: 'O que eu posso pedir no Consultor?',
-        answer:
-          'Voce pode usar o modulo para discutir ideias de conteudo, angulos editoriais, posicionamento e organizacao da estrategia. Ele foi pensado como um apoio criativo dentro do workspace.',
-      },
-      {
-        question: 'As respostas ja usam todos os meus dados reais?',
-        answer:
-          'Ainda nao de forma completa. O chat hoje entrega a experiencia de conversa e a orientacao de uso, mas o comportamento mostrado ainda esta em evolucao.',
-      },
-      {
-        question: 'Posso confiar 100% nas orientacoes da IA?',
-        answer:
-          'Nao. O proprio modulo avisa que a IA pode cometer erros. O ideal e usar as respostas como apoio de raciocinio e validar informacoes importantes antes de publicar ou tomar decisoes sensiveis.',
-      },
-    ],
-  },
-  {
     id: 'scripts',
     title: 'Gerador de Roteiros',
     category: 'Criacao',

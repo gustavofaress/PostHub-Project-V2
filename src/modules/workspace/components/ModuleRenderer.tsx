@@ -4,13 +4,11 @@ import { useApp } from '../../../app/context/AppContext';
 import { useAuth } from '../../../app/context/AuthContext';
 import { Dashboard } from '../../dashboard/Dashboard';
 import { Onboarding } from '../../onboarding/Onboarding';
-import { Consultant } from '../../consultant/Consultant';
 import { IdeasBank } from '../../ideas/IdeasBank';
 import { ApprovalModule } from '../../approval/ApprovalModule';
 import { EditorialCalendar } from '../../calendar/EditorialCalendar';
 import { KanbanBoard } from '../../kanban/KanbanBoard';
 import { Performance } from '../../performance/Performance';
-import { Scheduler } from '../../scheduler/Scheduler';
 import { References } from '../../references/References';
 import { Integrations } from '../../integrations/Integrations';
 import { Credits } from '../../credits/Credits';
@@ -28,6 +26,10 @@ export const ModuleRenderer = () => {
   const { activeModule } = useApp();
   const { user } = useAuth();
   const { canAccess, canManageMembers } = useWorkspacePermissions();
+
+  if (activeModule === 'consultant' || activeModule === 'scheduler') {
+    return <Navigate to="/workspace/dashboard" replace />;
+  }
 
   const requiredPermission = WORKSPACE_MODULE_PERMISSION_MAP[activeModule];
   const isBlockedByWorkspacePermission =
@@ -62,8 +64,6 @@ export const ModuleRenderer = () => {
       return <Onboarding />;
     case 'dashboard':
       return <Dashboard />;
-    case 'consultant':
-      return <Consultant />;
     case 'scripts':
       return <Navigate to="/workspace/ideas" replace />;
     case 'ideas':
@@ -74,8 +74,6 @@ export const ModuleRenderer = () => {
       return <EditorialCalendar />;
     case 'kanban':
       return <KanbanBoard />;
-    case 'scheduler':
-      return <Scheduler />;
     case 'performance':
       return <Performance />;
     case 'reports':

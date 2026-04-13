@@ -41,11 +41,6 @@ const MODULE_COPY: Partial<Record<PlanFeature, { title: string; description: str
     description:
       'Transforme ideias em roteiros prontos para gravar sem recomeçar do zero a cada conteúdo.',
   },
-  consultant: {
-    title: 'Este módulo é exclusivo do plano PRO',
-    description:
-      'Receba direção estratégica para destravar campanhas, pautas e decisões de conteúdo com mais segurança.',
-  },
   integrations: {
     title: 'Este módulo é exclusivo do plano PRO',
     description:
