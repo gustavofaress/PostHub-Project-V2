@@ -34,7 +34,7 @@ export const MobileMoreSheet = ({ isOpen, onClose }: MobileMoreSheetProps) => {
       <div className="space-y-6 pb-4">
         {visibleGroups.map((group) => (
           <section key={group.label} className="space-y-3">
-            <p className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-slate-400">
+            <p className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
               {group.label}
             </p>
             <div className="space-y-2">
@@ -48,21 +48,21 @@ export const MobileMoreSheet = ({ isOpen, onClose }: MobileMoreSheetProps) => {
                     to={item.path}
                     onClick={onClose}
                     className={cn(
-                      'flex min-h-[68px] items-center gap-4 rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4 active:scale-[0.99] dark:border-slate-800 dark:bg-slate-900/70',
-                      isActive && 'border-brand/30 bg-brand/10'
+                      'mobile-panel-muted flex min-h-[72px] items-center gap-4 px-4 py-4 active:scale-[0.99]',
+                      isActive && 'border-brand/30 bg-[linear-gradient(180deg,rgba(56,182,255,0.14)_0%,rgba(255,255,255,0.96)_100%)]'
                     )}
                   >
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-brand shadow-sm dark:bg-slate-950">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-brand shadow-[0_10px_22px_rgba(56,182,255,0.12)]">
                       <div className="relative">
                         <item.icon className="h-5 w-5" />
                         {isLocked ? (
-                          <Lock className="absolute -right-2 -top-2 h-3.5 w-3.5 rounded-full bg-white text-brand dark:bg-slate-950" />
+                          <Lock className="absolute -right-2 -top-2 h-3.5 w-3.5 rounded-full bg-white text-brand" />
                         ) : null}
                       </div>
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="text-base font-semibold text-slate-950 dark:text-slate-50">
+                        <p className="text-base font-semibold text-slate-950">
                           {item.label}
                         </p>
                         {isLocked ? (
@@ -72,7 +72,7 @@ export const MobileMoreSheet = ({ isOpen, onClose }: MobileMoreSheetProps) => {
                         ) : null}
                       </div>
                       {item.description ? (
-                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                        <p className="text-sm leading-6 text-slate-600">
                           {item.description}
                         </p>
                       ) : null}
@@ -90,7 +90,7 @@ export const MobileMoreSheet = ({ isOpen, onClose }: MobileMoreSheetProps) => {
             onClose();
             await logout();
           }}
-          className="flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 text-base font-semibold text-red-600 active:scale-[0.99] dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300"
+          className="flex min-h-[56px] w-full items-center justify-center gap-2 rounded-[22px] border border-red-200 bg-red-50 px-4 text-base font-semibold text-red-600 active:scale-[0.99]"
         >
           <LogOut className="h-5 w-5" />
           Sair

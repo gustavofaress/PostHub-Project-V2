@@ -181,38 +181,40 @@ export const DashboardMobile = () => {
 
   return (
     <>
-      <MobilePage className="gap-6">
-        <section className="rounded-[28px] bg-[linear-gradient(135deg,#38B6FF_0%,#0EA5E9_100%)] p-5 text-white shadow-[0_18px_50px_rgba(56,182,255,0.25)]">
-          <Badge className="mb-3 bg-white/18 px-3 py-1 text-[0.8rem] font-semibold text-white">
+      <MobilePage className="gap-5">
+        <section className="relative overflow-hidden rounded-[30px] bg-[linear-gradient(135deg,#38B6FF_0%,#1C93EC_54%,#156AE1_100%)] p-5 text-white shadow-[0_24px_55px_rgba(56,182,255,0.28)]">
+          <div className="absolute right-[-18%] top-[-16%] h-32 w-32 rounded-full bg-white/14 blur-3xl" />
+          <div className="absolute bottom-[-22%] left-[-8%] h-28 w-28 rounded-full bg-sky-100/16 blur-3xl" />
+          <Badge className="relative mb-3 bg-white/18 px-3 py-1 text-[0.78rem] font-semibold text-white">
             Hoje
           </Badge>
-          <h2 className="text-[1.65rem] font-semibold tracking-[-0.03em]">
+          <h2 className="relative text-[1.7rem] font-semibold tracking-[-0.035em]">
             {activeProfile ? `${activeProfile.name} em movimento` : 'Seu workspace em movimento'}
           </h2>
-          <p className="mt-2 text-[1rem] text-white/84">
+          <p className="relative mt-2 max-w-[18rem] text-[1rem] leading-7 text-white/84">
             Priorize o que precisa sair hoje e aprove o que estiver travando a fila.
           </p>
-          <div className="mt-5 flex items-center gap-2 rounded-2xl bg-white/12 px-4 py-3">
+          <div className="relative mt-5 flex items-center gap-2 rounded-[22px] bg-white/14 px-4 py-3">
             <MessageSquare className="h-5 w-5 shrink-0" />
-            <p className="text-[0.98rem]">
+            <p className="text-[0.98rem] text-white/94">
               {isLoading ? '...' : `${pendingApprovals} aprovações pedindo atenção`}
             </p>
           </div>
         </section>
 
-        <section className="grid grid-cols-3 gap-3">
-          {stats.map((stat) => (
+        <section className="grid grid-cols-2 gap-3">
+          {stats.map((stat, index) => (
             <div
               key={stat.label}
-              className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+              className={`mobile-panel p-4 ${index === stats.length - 1 ? 'col-span-2' : ''}`}
             >
               <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-brand/10 text-brand">
                 <stat.icon className="h-5 w-5" />
               </div>
-              <p className="text-[1.5rem] font-semibold tracking-[-0.03em] text-slate-950 dark:text-slate-50">
+              <p className="text-[1.5rem] font-semibold tracking-[-0.03em] text-slate-950">
                 {isLoading ? '...' : stat.value}
               </p>
-              <p className="mt-1 text-[0.8rem] text-slate-500 dark:text-slate-400">
+              <p className="mt-1 text-[0.82rem] font-medium text-slate-600">
                 {stat.label}
               </p>
               <p className="text-[0.75rem] text-slate-400">{stat.helper}</p>
@@ -222,7 +224,7 @@ export const DashboardMobile = () => {
 
         <section className="space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-[1.1rem] font-semibold text-slate-950 dark:text-slate-50">
+            <h3 className="text-[1.1rem] font-semibold text-slate-950">
               Atividade recente
             </h3>
             <button
@@ -248,14 +250,14 @@ export const DashboardMobile = () => {
               {recentActivity.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center gap-4 rounded-[24px] border border-slate-200 bg-white px-4 py-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+                  className="mobile-panel flex items-center gap-4 px-4 py-4"
                 >
                   <div className="h-2.5 w-2.5 rounded-full bg-brand" />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[1rem] font-medium text-slate-950 dark:text-slate-50">
+                    <p className="truncate text-[1rem] font-medium text-slate-950">
                       {item.title}
                     </p>
-                    <p className="text-[0.88rem] text-slate-500 dark:text-slate-400">
+                    <p className="text-[0.88rem] text-slate-500">
                       {item.type} • {formatRelativeDate(item.updated_at)}
                     </p>
                   </div>
@@ -270,26 +272,26 @@ export const DashboardMobile = () => {
           <button
             type="button"
             onClick={() => goTo('approval')}
-            className="rounded-[24px] border border-slate-200 bg-white p-4 text-left shadow-sm active:scale-[0.99] dark:border-slate-800 dark:bg-slate-900"
+            className="mobile-panel p-4 text-left active:scale-[0.99]"
           >
             <CheckCircle2 className="mb-3 h-5 w-5 text-emerald-500" />
-            <p className="text-[1rem] font-semibold text-slate-950 dark:text-slate-50">
+            <p className="text-[1rem] font-semibold text-slate-950">
               Aprovações
             </p>
-            <p className="mt-1 text-[0.88rem] text-slate-500 dark:text-slate-400">
+            <p className="mt-1 text-[0.88rem] leading-6 text-slate-600">
               Decida sem sair do fluxo
             </p>
           </button>
           <button
             type="button"
             onClick={() => goTo('calendar')}
-            className="rounded-[24px] border border-slate-200 bg-white p-4 text-left shadow-sm active:scale-[0.99] dark:border-slate-800 dark:bg-slate-900"
+            className="mobile-panel p-4 text-left active:scale-[0.99]"
           >
             <Clock className="mb-3 h-5 w-5 text-amber-500" />
-            <p className="text-[1rem] font-semibold text-slate-950 dark:text-slate-50">
+            <p className="text-[1rem] font-semibold text-slate-950">
               Planejamento
             </p>
-            <p className="mt-1 text-[0.88rem] text-slate-500 dark:text-slate-400">
+            <p className="mt-1 text-[0.88rem] leading-6 text-slate-600">
               Ajuste a fila do dia
             </p>
           </button>
@@ -300,14 +302,14 @@ export const DashboardMobile = () => {
         <button
           type="button"
           onClick={() => goTo('ideas')}
-          className="flex min-h-[52px] flex-1 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-[1rem] font-semibold text-slate-700 active:scale-[0.98] dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
+          className="flex min-h-[52px] flex-1 items-center justify-center rounded-[22px] border border-slate-200 bg-white px-4 text-[1rem] font-semibold text-slate-700 active:scale-[0.98]"
         >
           Nova ideia
         </button>
         <button
           type="button"
           onClick={() => goTo('scripts')}
-          className="flex min-h-[52px] flex-[1.15] items-center justify-center rounded-2xl bg-brand px-4 text-[1rem] font-semibold text-white shadow-[0_8px_24px_rgba(56,182,255,0.3)] active:scale-[0.98]"
+          className="flex min-h-[52px] flex-[1.15] items-center justify-center rounded-[22px] bg-brand px-4 text-[1rem] font-semibold text-white shadow-[0_10px_26px_rgba(56,182,255,0.3)] active:scale-[0.98]"
         >
           Criar roteiro
         </button>

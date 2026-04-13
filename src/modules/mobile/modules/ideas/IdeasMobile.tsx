@@ -253,44 +253,44 @@ export const IdeasMobile = () => {
   return (
     <>
       <MobilePage className="gap-5">
-        <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <section className="mobile-panel p-5">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <Badge variant="brand" className="mb-3 px-3 py-1 text-[0.8rem]">
+              <Badge variant="brand" className="mb-3 px-3 py-1 text-[0.76rem] uppercase tracking-[0.16em]">
                 Feed de ideias
               </Badge>
-              <h2 className="text-[1.45rem] font-semibold tracking-[-0.03em] text-slate-950 dark:text-slate-50">
+              <h2 className="text-[1.45rem] font-semibold tracking-[-0.03em] text-slate-950">
                 Tudo pronto para capturar rapido
               </h2>
-              <p className="mt-2 text-[1rem] text-slate-500 dark:text-slate-400">
+              <p className="mt-2 text-[0.98rem] leading-7 text-slate-600">
                 Pesquise, edite e empurre uma ideia para roteiro sem sair da mesma tela.
               </p>
             </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand/10 text-brand">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[linear-gradient(180deg,rgba(56,182,255,0.16)_0%,rgba(56,182,255,0.08)_100%)] text-brand">
               <Lightbulb className="h-6 w-6" />
             </div>
           </div>
 
-          <label className="mt-5 flex min-h-[52px] items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 dark:border-slate-800 dark:bg-slate-950">
+          <label className="mt-5 flex min-h-[54px] items-center gap-3 rounded-[22px] border border-slate-200 bg-slate-50/90 px-4">
             <Search className="h-5 w-5 text-slate-400" />
             <input
               type="search"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Buscar por titulo ou tag"
-              className="h-12 flex-1 bg-transparent text-[1rem] text-slate-900 outline-none placeholder:text-slate-400 dark:text-slate-50"
+              className="h-12 flex-1 bg-transparent text-[1rem] text-slate-900 outline-none placeholder:text-slate-400"
             />
           </label>
         </section>
 
         {!canManageIdeas && !isLoadingPermissions ? (
-          <div className="rounded-[24px] border border-amber-200 bg-amber-50 px-4 py-4 text-[0.95rem] text-amber-700 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-300">
+          <div className="rounded-[24px] border border-amber-200 bg-amber-50 px-4 py-4 text-[0.95rem] leading-6 text-amber-700">
             Voce pode consultar as ideias deste workspace, mas nao criar ou editar.
           </div>
         ) : null}
 
         {errorMessage ? (
-          <div className="rounded-[24px] border border-red-200 bg-red-50 px-4 py-4 text-[0.95rem] text-red-700 dark:border-red-900/70 dark:bg-red-950/30 dark:text-red-300">
+          <div className="rounded-[24px] border border-red-200 bg-red-50 px-4 py-4 text-[0.95rem] leading-6 text-red-700">
             {errorMessage}
           </div>
         ) : null}
@@ -305,12 +305,12 @@ export const IdeasMobile = () => {
             ))}
           </div>
         ) : filteredIdeas.length === 0 ? (
-          <div className="rounded-[28px] border border-dashed border-slate-300 bg-white px-5 py-12 text-center dark:border-slate-700 dark:bg-slate-900">
+          <div className="mobile-panel border-dashed px-5 py-12 text-center">
             <Sparkles className="mx-auto mb-4 h-8 w-8 text-brand" />
-            <p className="text-[1.05rem] font-semibold text-slate-950 dark:text-slate-50">
+            <p className="text-[1.05rem] font-semibold text-slate-950">
               Nenhuma ideia encontrada
             </p>
-            <p className="mt-2 text-[0.98rem] text-slate-500 dark:text-slate-400">
+            <p className="mt-2 text-[0.98rem] leading-7 text-slate-600">
               Crie uma nova entrada para alimentar sua esteira de conteudo.
             </p>
           </div>
@@ -323,7 +323,7 @@ export const IdeasMobile = () => {
               return (
                 <div
                   key={idea.id}
-                  className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm transition-transform active:scale-[0.995] dark:border-slate-800 dark:bg-slate-900"
+                  className="mobile-panel overflow-hidden transition-transform active:scale-[0.995]"
                 >
                   <button
                     type="button"
@@ -338,14 +338,14 @@ export const IdeasMobile = () => {
                         <Badge variant={priority.variant}>{priority.label}</Badge>
                         <span className="text-[0.82rem] text-slate-400">{idea.status}</span>
                       </div>
-                      <p className="text-[1rem] font-semibold text-slate-950 dark:text-slate-50">
+                      <p className="text-[1rem] font-semibold text-slate-950">
                         {idea.title}
                       </p>
                       <div className="mt-2 flex flex-wrap gap-2">
                         {idea.tags.slice(0, 3).map((tag) => (
                           <span
                             key={tag}
-                            className="rounded-full bg-slate-100 px-2.5 py-1 text-[0.78rem] text-slate-500 dark:bg-slate-800 dark:text-slate-300"
+                            className="rounded-full bg-slate-100 px-2.5 py-1 text-[0.78rem] font-medium text-slate-500"
                           >
                             #{tag}
                           </span>
@@ -355,29 +355,29 @@ export const IdeasMobile = () => {
                   </button>
 
                   {isActive ? (
-                    <div className="grid grid-cols-3 gap-2 border-t border-slate-100 px-4 py-3 dark:border-slate-800">
+                    <div className="grid grid-cols-2 gap-2 border-t border-slate-100 px-4 py-3">
                       <button
                         type="button"
                         onClick={() => openEditSheet(idea)}
-                        className="flex min-h-[44px] items-center justify-center gap-2 rounded-2xl bg-slate-100 text-[0.92rem] font-medium text-slate-700 active:scale-[0.98] dark:bg-slate-800 dark:text-slate-100"
+                        className="flex min-h-[46px] items-center justify-center gap-2 rounded-[20px] bg-slate-100 text-[0.92rem] font-medium text-slate-700 active:scale-[0.98]"
                       >
                         <Edit3 className="h-4 w-4" />
                         Editar
                       </button>
                       <button
                         type="button"
-                        onClick={handleConvertToScript}
-                        className="flex min-h-[44px] items-center justify-center rounded-2xl bg-brand text-[0.92rem] font-medium text-white active:scale-[0.98]"
-                      >
-                        Roteiro
-                      </button>
-                      <button
-                        type="button"
                         onClick={() => void handleDeleteIdea(idea.id)}
-                        className="flex min-h-[44px] items-center justify-center gap-2 rounded-2xl bg-red-50 text-[0.92rem] font-medium text-red-600 active:scale-[0.98] dark:bg-red-950/40 dark:text-red-300"
+                        className="flex min-h-[46px] items-center justify-center gap-2 rounded-[20px] bg-red-50 text-[0.92rem] font-medium text-red-600 active:scale-[0.98]"
                       >
                         <Trash2 className="h-4 w-4" />
                         Excluir
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleConvertToScript}
+                        className="col-span-2 flex min-h-[48px] items-center justify-center rounded-[20px] bg-brand text-[0.94rem] font-semibold text-white shadow-[0_10px_26px_rgba(56,182,255,0.24)] active:scale-[0.98]"
+                      >
+                        Transformar em roteiro
                       </button>
                     </div>
                   ) : null}
@@ -390,7 +390,7 @@ export const IdeasMobile = () => {
         <button
           type="button"
           onClick={openCreateSheet}
-          className="fixed bottom-24 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-brand text-white shadow-[0_12px_30px_rgba(56,182,255,0.38)] active:scale-[0.98] md:hidden"
+          className="fixed bottom-28 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-brand text-white shadow-[0_16px_36px_rgba(56,182,255,0.38)] active:scale-[0.98] md:hidden"
           aria-label="Nova ideia"
         >
           <Plus className="h-6 w-6" />
@@ -404,38 +404,38 @@ export const IdeasMobile = () => {
       >
         <form onSubmit={handleSaveIdea} className="space-y-5">
           <div className="space-y-2">
-            <label className="block text-[0.9rem] font-medium text-slate-700 dark:text-slate-300">
+            <label className="block text-[0.9rem] font-medium text-slate-700">
               Titulo
             </label>
             <input
               value={newIdeaTitle}
               onChange={(e) => setNewIdeaTitle(e.target.value)}
               placeholder="Sobre o que e sua ideia?"
-              className="min-h-[52px] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-[1rem] text-slate-900 outline-none focus:border-brand dark:border-slate-800 dark:bg-slate-950 dark:text-slate-50"
+              className="min-h-[52px] w-full rounded-[22px] border border-slate-200 bg-slate-50 px-4 text-[1rem] text-slate-900 outline-none focus:border-brand"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="block text-[0.9rem] font-medium text-slate-700 dark:text-slate-300">
+            <label className="block text-[0.9rem] font-medium text-slate-700">
               Tags
             </label>
             <input
               value={newIdeaTags}
               onChange={(e) => setNewIdeaTags(e.target.value)}
               placeholder="vlog, dicas, educativo"
-              className="min-h-[52px] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-[1rem] text-slate-900 outline-none focus:border-brand dark:border-slate-800 dark:bg-slate-950 dark:text-slate-50"
+              className="min-h-[52px] w-full rounded-[22px] border border-slate-200 bg-slate-50 px-4 text-[1rem] text-slate-900 outline-none focus:border-brand"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <label className="block text-[0.9rem] font-medium text-slate-700 dark:text-slate-300">
+              <label className="block text-[0.9rem] font-medium text-slate-700">
                 Prioridade
               </label>
               <select
                 value={newIdeaPriority}
                 onChange={(e) => setNewIdeaPriority(e.target.value)}
-                className="min-h-[52px] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-[1rem] text-slate-900 outline-none focus:border-brand dark:border-slate-800 dark:bg-slate-950 dark:text-slate-50"
+                className="min-h-[52px] w-full rounded-[22px] border border-slate-200 bg-slate-50 px-4 text-[1rem] text-slate-900 outline-none focus:border-brand"
               >
                 <option value="Low">Baixa</option>
                 <option value="Medium">Media</option>
@@ -443,13 +443,13 @@ export const IdeasMobile = () => {
               </select>
             </div>
             <div className="space-y-2">
-              <label className="block text-[0.9rem] font-medium text-slate-700 dark:text-slate-300">
+              <label className="block text-[0.9rem] font-medium text-slate-700">
                 Status
               </label>
               <select
                 value={newIdeaStatus}
                 onChange={(e) => setNewIdeaStatus(e.target.value)}
-                className="min-h-[52px] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-[1rem] text-slate-900 outline-none focus:border-brand dark:border-slate-800 dark:bg-slate-950 dark:text-slate-50"
+                className="min-h-[52px] w-full rounded-[22px] border border-slate-200 bg-slate-50 px-4 text-[1rem] text-slate-900 outline-none focus:border-brand"
               >
                 <option value="Backlog">Backlog</option>
                 <option value="Planned">Planejada</option>
@@ -458,19 +458,19 @@ export const IdeasMobile = () => {
             </div>
           </div>
 
-          <div className="sticky bottom-0 mx-[-1.25rem] border-t border-slate-200/80 bg-white/85 px-5 pb-2 pt-4 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/80">
+          <div className="sticky bottom-0 mx-[-1.25rem] border-t border-slate-200/80 bg-white/90 px-5 pb-2 pt-4 backdrop-blur-xl">
             <div className="flex gap-3">
               <button
                 type="button"
                 onClick={() => setIsSheetOpen(false)}
-                className="flex min-h-[52px] flex-1 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-[1rem] font-semibold text-slate-700 active:scale-[0.98] dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
+                className="flex min-h-[52px] flex-1 items-center justify-center rounded-[22px] border border-slate-200 bg-white px-4 text-[1rem] font-semibold text-slate-700 active:scale-[0.98]"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
                 disabled={isSavingIdea}
-                className="flex min-h-[52px] flex-[1.15] items-center justify-center rounded-2xl bg-brand px-4 text-[1rem] font-semibold text-white shadow-[0_8px_24px_rgba(56,182,255,0.3)] active:scale-[0.98] disabled:opacity-60"
+                className="flex min-h-[52px] flex-[1.15] items-center justify-center rounded-[22px] bg-brand px-4 text-[1rem] font-semibold text-white shadow-[0_10px_26px_rgba(56,182,255,0.3)] active:scale-[0.98] disabled:opacity-60"
               >
                 {isSavingIdea ? 'Salvando...' : editingIdea ? 'Salvar' : 'Criar ideia'}
               </button>

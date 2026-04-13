@@ -4,8 +4,10 @@
   --color-brand: #38B6FF;
   --color-brand-hover: #2da1e6;
   --color-bg-main: #F9F9F9;
+  --color-bg-soft: #EEF6FB;
   --color-text-primary: #1F2937;
   --color-text-secondary: #6B7280;
+  --color-text-muted: #516174;
   
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 }
@@ -47,11 +49,23 @@
 
 @layer components {
   .card-shadow {
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
   }
 
   .mobile-skeleton {
     @apply animate-pulse rounded-3xl bg-slate-200/70 dark:bg-slate-800;
+  }
+
+  .mobile-surface {
+    @apply border border-white/70 bg-white/88 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl;
+  }
+
+  .mobile-panel {
+    @apply rounded-[28px] border border-[#D8E8F5] bg-white/92 shadow-[0_18px_40px_rgba(15,23,42,0.08)] backdrop-blur-xl;
+  }
+
+  .mobile-panel-muted {
+    @apply rounded-[24px] border border-white/70 bg-white/78 shadow-[0_14px_30px_rgba(15,23,42,0.06)] backdrop-blur-xl;
   }
 }
 
@@ -98,5 +112,32 @@
   .posthub-scrollbar-thin::-webkit-scrollbar {
     width: 8px;
     height: 8px;
+  }
+
+  @media (max-width: 767px) {
+    .posthub-mobile-fallback {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .posthub-mobile-fallback .grid {
+      gap: 1rem;
+    }
+
+    .posthub-mobile-fallback .grid-cols-2,
+    .posthub-mobile-fallback .grid-cols-3,
+    .posthub-mobile-fallback .grid-cols-4 {
+      grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    .posthub-mobile-fallback .overflow-x-auto {
+      margin-inline: -0.35rem;
+      padding-inline: 0.35rem;
+    }
+
+    .posthub-mobile-fallback table {
+      min-width: 640px;
+    }
   }
 }
