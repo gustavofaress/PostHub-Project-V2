@@ -95,9 +95,11 @@ export const Onboarding = () => {
   const [showQuiz, setShowQuiz] = React.useState(!hasQuizCompleted);
   const [quizDismissedLocally, setQuizDismissedLocally] = React.useState(hasQuizCompleted);
   const [isSavingQuiz, setIsSavingQuiz] = React.useState(false);
+  const [isTransitioningQuizStep, setIsTransitioningQuizStep] = React.useState(false);
   const [quizError, setQuizError] = React.useState('');
   const [quizStep, setQuizStep] = React.useState(-1);
   const [showCelebration, setShowCelebration] = React.useState(false);
+  const quizAutoAdvanceTimeoutRef = React.useRef<number | null>(null);
   const [quizAnswers, setQuizAnswers] = React.useState<QuizAnswers>({
     work_model: user?.onboarding?.work_model ?? '',
     operation_size: user?.onboarding?.operation_size ?? '',
@@ -142,6 +144,14 @@ export const Onboarding = () => {
     setShowCelebration(true);
   }, [user?.onboarding?.guided_flow_completed_at]);
 
+  React.useEffect(() => {
+    return () => {
+      if (quizAutoAdvanceTimeoutRef.current !== null) {
+        window.clearTimeout(quizAutoAdvanceTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const shouldRenderQuiz = showQuiz && !quizDismissedLocally && !hasQuizCompleted;
 
   const currentQuestion = quizStep >= 0 ? QUIZ_QUESTIONS[quizStep] : null;
@@ -169,7 +179,7 @@ export const Onboarding = () => {
   }, [quizAnswers.operation_size, quizAnswers.work_model]);
 
   const handleOptionSelect = (option: string) => {
-    if (!currentQuestion || isSavingQuiz) return;
+    if (!currentQuestion || isSavingQuiz || isTransitioningQuizStep) return;
 
     setQuizError('');
     setQuizAnswers((prev) => ({
@@ -178,7 +188,10 @@ export const Onboarding = () => {
     }));
 
     if (quizStep < QUIZ_QUESTIONS.length - 1) {
-      window.setTimeout(() => {
+      setIsTransitioningQuizStep(true);
+      quizAutoAdvanceTimeoutRef.current = window.setTimeout(() => {
+        quizAutoAdvanceTimeoutRef.current = null;
+        setIsTransitioningQuizStep(false);
         setQuizStep((prev) => prev + 1);
       }, 250);
     }
@@ -229,7 +242,7 @@ export const Onboarding = () => {
               initial={{ scale: 0.96, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.96, opacity: 0 }}
-              className="w-full max-w-[480px] overflow-hidden rounded-xl bg-white shadow-2xl"
+              className="max-h-[calc(100vh-2rem)] w-full max-w-[480px] overflow-y-auto rounded-xl bg-white shadow-2xl"
             >
               <div className="h-1.5 w-full bg-gray-100">
                 <div
@@ -288,7 +301,7 @@ export const Onboarding = () => {
                       </h2>
                     </div>
 
-                    <div className="relative min-h-[280px]">
+                    <div>
                       <AnimatePresence mode="wait">
                         <motion.div
                           key={quizStep}
@@ -296,7 +309,7 @@ export const Onboarding = () => {
                           animate={{ opacity: 1, x: 0 }}
                           exit={{ opacity: 0, x: -10 }}
                           transition={{ duration: 0.2 }}
-                          className="absolute inset-0 space-y-3"
+                          className="min-h-[280px] space-y-3"
                         >
                           {currentQuestion?.options.map((option) => {
                             const isSelected = selectedOption === option;
@@ -306,8 +319,9 @@ export const Onboarding = () => {
                                 key={option}
                                 type="button"
                                 onClick={() => handleOptionSelect(option)}
+                                disabled={isSavingQuiz || isTransitioningQuizStep}
                                 className={cn(
-                                  'w-full rounded-lg border px-5 py-4 text-left transition-all duration-200',
+                                  'w-full rounded-lg border px-5 py-4 text-left transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-70',
                                   isSelected
                                     ? 'border-[#38B6FF] bg-[#38B6FF]/5'
                                     : 'border-gray-200 bg-white hover:border-[#38B6FF]'
