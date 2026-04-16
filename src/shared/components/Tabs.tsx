@@ -19,6 +19,7 @@ export const Tabs = ({ tabs, activeTab, onChange, className }: TabsProps) => {
       {tabs.map((tab) => (
         <button
           key={tab.id}
+          type="button"
           onClick={() => onChange(tab.id)}
           className={cn(
             'relative flex shrink-0 items-center gap-2 whitespace-nowrap rounded-t-2xl px-4 py-2 text-sm font-medium transition-all',
