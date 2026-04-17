@@ -40,6 +40,10 @@ export const Sidebar = () => {
           items = items.filter(() => !!user?.isAdmin);
         }
 
+        if (user?.isMemberOnlyAccount) {
+          items = items.filter((item) => item.id !== 'onboarding');
+        }
+
         items = items.filter((item) => canOpenWorkspaceModule(item.id));
 
         return {

@@ -35,6 +35,114 @@ const buildPassword = () => {
 const MEMBER_SELECT =
   'id, user_id, email, full_name, role, status, permissions, created_at, invite_sent_at';
 
+const findAuthUserByEmail = async ({
+  serviceClient,
+  email,
+}: {
+  serviceClient: ReturnType<typeof createClient>;
+  email: string;
+}) => {
+  let page = 1;
+
+  while (true) {
+    const { data, error } = await serviceClient.auth.admin.listUsers({
+      page,
+      perPage: 1000,
+    });
+
+    if (error) {
+      throw new Error(error.message || 'Não foi possível consultar os usuários de autenticação.');
+    }
+
+    const matchedUser =
+      data.users.find((candidate) => candidate.email?.trim().toLowerCase() === email) ?? null;
+
+    if (matchedUser) {
+      return matchedUser;
+    }
+
+    if (!data.nextPage || data.nextPage <= page) {
+      return null;
+    }
+
+    page = data.nextPage;
+  }
+};
+
+const shouldPreserveStandaloneAuthUser = async ({
+  serviceClient,
+  authUserId,
+  email,
+  userMetadata,
+}: {
+  serviceClient: ReturnType<typeof createClient>;
+  authUserId: string;
+  email: string;
+  userMetadata: Record<string, unknown> | null | undefined;
+}) => {
+  if (userMetadata?.workspace_member === true) {
+    return false;
+  }
+
+  // Owner accounts created by the standard signup flow carry profile bootstrap metadata.
+  if (typeof userMetadata?.initial_profile_name === 'string' && userMetadata.initial_profile_name.trim()) {
+    return true;
+  }
+
+  const { count: ownedProfilesCount, error: ownedProfilesError } = await serviceClient
+    .from('client_profiles')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', authUserId);
+
+  if (ownedProfilesError) {
+    throw new Error(ownedProfilesError.message);
+  }
+
+  if ((ownedProfilesCount ?? 0) > 0) {
+    return true;
+  }
+
+  const { count: onboardingCount, error: onboardingError } = await serviceClient
+    .from('user_onboarding')
+    .select('user_id', { count: 'exact', head: true })
+    .eq('user_id', authUserId);
+
+  if (onboardingError) {
+    throw new Error(onboardingError.message);
+  }
+
+  if ((onboardingCount ?? 0) > 0) {
+    return true;
+  }
+
+  const { data: usuarioRecords, error: usuarioError } = await serviceClient
+    .from('usuarios')
+    .select('id, current_plan, trial_started_at, trial_expires_at, is_admin')
+    .or(`id.eq.${authUserId},email.eq.${email}`);
+
+  if (usuarioError) {
+    throw new Error(usuarioError.message);
+  }
+
+  return (usuarioRecords ?? []).some((usuario) => {
+    return (
+      !!usuario.is_admin ||
+      !!usuario.current_plan ||
+      !!usuario.trial_started_at ||
+      !!usuario.trial_expires_at
+    );
+  });
+};
+
+const canReuseExistingAuthUser = async (input: {
+  serviceClient: ReturnType<typeof createClient>;
+  authUserId: string;
+  email: string;
+  userMetadata: Record<string, unknown> | null | undefined;
+}) => {
+  return !(await shouldPreserveStandaloneAuthUser(input));
+};
+
 const ensureMemberAuthUser = async ({
   serviceClient,
   existingAuthUserId,
@@ -53,8 +161,8 @@ const ensureMemberAuthUser = async ({
     workspace_member: true,
   };
 
-  if (existingAuthUserId) {
-    const { data, error } = await serviceClient.auth.admin.updateUserById(existingAuthUserId, {
+  const upsertAuthUser = async (authUserId: string) => {
+    const { data, error } = await serviceClient.auth.admin.updateUserById(authUserId, {
       email,
       password,
       email_confirm: true,
@@ -68,6 +176,10 @@ const ensureMemberAuthUser = async ({
     }
 
     return data.user.id;
+  };
+
+  if (existingAuthUserId) {
+    return upsertAuthUser(existingAuthUserId);
   }
 
   const { data, error } = await serviceClient.auth.admin.createUser({
@@ -79,6 +191,23 @@ const ensureMemberAuthUser = async ({
 
   if (error || !data.user?.id) {
     if (error?.message?.toLowerCase().includes('already registered')) {
+      const existingAuthUser = await findAuthUserByEmail({
+        serviceClient,
+        email,
+      });
+
+      if (
+        existingAuthUser?.id &&
+        (await canReuseExistingAuthUser({
+          serviceClient,
+          authUserId: existingAuthUser.id,
+          email,
+          userMetadata: existingAuthUser.user_metadata,
+        }))
+      ) {
+        return upsertAuthUser(existingAuthUser.id);
+      }
+
       throw new Error(
         'Esse email já está cadastrado em outra conta. Use outro email para o membro ou reutilize o acesso existente.'
       );
@@ -142,17 +271,24 @@ const cleanupMemberAuthIfUnused = async ({
     return;
   }
 
-  const { data: usuarioRecord, error: usuarioError } = await serviceClient
-    .from('usuarios')
-    .select('id')
-    .eq('id', userId)
-    .maybeSingle();
+  const { data: authUserResult, error: authUserError } = await serviceClient.auth.admin.getUserById(userId);
 
-  if (usuarioError) {
-    throw new Error(usuarioError.message);
+  if (authUserError) {
+    throw new Error(authUserError.message);
   }
 
-  if (usuarioRecord?.id) {
+  if (!authUserResult.user?.id) {
+    return;
+  }
+
+  const shouldPreserve = await shouldPreserveStandaloneAuthUser({
+    serviceClient,
+    authUserId: userId,
+    email: authUserResult.user.email?.trim().toLowerCase() ?? '',
+    userMetadata: authUserResult.user.user_metadata,
+  });
+
+  if (shouldPreserve) {
     return;
   }
 
