@@ -34,7 +34,6 @@ import { Tabs } from '../../shared/components/Tabs';
 import { cn } from '../../shared/utils/cn';
 import { useTrialGuidedFlow } from '../onboarding/hooks/useTrialGuidedFlow';
 import { useIsMobile } from '../mobile/hooks/useIsMobile';
-import { BottomSheet } from '../mobile/components/BottomSheet';
 import {
   renderCompressedVideo,
   TARGET_VIDEO_UPLOAD_SIZE,
@@ -907,6 +906,47 @@ export const References = () => {
     );
   };
 
+  const renderCreateModalActions = (mode: 'desktop' | 'mobile') => {
+    const isMobileSheet = mode === 'mobile';
+
+    return (
+      <div
+        className={cn(
+          'flex items-center gap-3 border-t border-gray-100 bg-white/95 backdrop-blur-xl',
+          isMobileSheet
+            ? 'shrink-0 px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4'
+            : 'justify-end px-6 py-4'
+        )}
+      >
+        <Button
+          variant="outline"
+          onClick={closeCreateModal}
+          disabled={isSaving}
+          className={cn(isMobileSheet && 'flex-1')}
+        >
+          Cancelar
+        </Button>
+        <Button
+          onClick={handleSaveReference}
+          disabled={isSaving}
+          data-tour-id="references-save-button"
+          className={cn(isMobileSheet && 'flex-[1.15]')}
+        >
+          {isSaving ? (
+            <span className="flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Salvando...
+            </span>
+          ) : editingReference ? (
+            'Salvar alterações'
+          ) : (
+            'Adicionar referência'
+          )}
+        </Button>
+      </div>
+    );
+  };
+
   const renderCreateModalContent = (mode: 'desktop' | 'mobile') => {
     const isMobileSheet = mode === 'mobile';
 
@@ -1183,41 +1223,6 @@ export const References = () => {
               </div>
             </Card>
           </div>
-        </div>
-
-        <div
-          className={cn(
-            'flex items-center gap-3 border-t border-gray-100',
-            isMobileSheet
-              ? 'sticky bottom-0 z-10 mx-[-1.25rem] bg-white/95 px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 backdrop-blur-xl'
-              : 'justify-end px-6 py-4'
-          )}
-        >
-          <Button
-            variant="outline"
-            onClick={closeCreateModal}
-            disabled={isSaving}
-            className={cn(isMobileSheet && 'flex-1')}
-          >
-            Cancelar
-          </Button>
-          <Button
-            onClick={handleSaveReference}
-            disabled={isSaving}
-            data-tour-id="references-save-button"
-            className={cn(isMobileSheet && 'flex-[1.15]')}
-          >
-            {isSaving ? (
-              <span className="flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Salvando...
-              </span>
-            ) : editingReference ? (
-              'Salvar alterações'
-            ) : (
-              'Adicionar referência'
-            )}
-          </Button>
         </div>
       </>
     );
@@ -1573,18 +1578,45 @@ export const References = () => {
         </div>
       </div>
 
-      <BottomSheet
-        isOpen={showCreateModal && isMobile}
-        onClose={closeCreateModal}
-        title={editingReference ? 'Editar referência' : 'Adicionar referência'}
-        fullScreen
-        className="h-[94dvh]"
-      >
-        <p className="mb-5 text-sm text-text-secondary">
-          A prévia visual será gerada a partir do link, do print enviado ou do arquivo de vídeo.
-        </p>
-        {renderCreateModalContent('mobile')}
-      </BottomSheet>
+      {showCreateModal && isMobile && (
+        <div className="fixed inset-0 z-[100] md:hidden">
+          <button
+            type="button"
+            aria-label="Fechar"
+            onClick={closeCreateModal}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          />
+
+          <div className="absolute inset-0 flex flex-col bg-white">
+            <div className="shrink-0 border-b border-gray-100 px-5 pb-4 pt-[calc(0.85rem+env(safe-area-inset-top))]">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="text-lg font-bold text-text-primary">
+                    {editingReference ? 'Editar referência' : 'Adicionar referência'}
+                  </h3>
+                  <p className="mt-1 text-sm text-text-secondary">
+                    A prévia visual será gerada a partir do link, do print enviado ou do arquivo de vídeo.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={closeCreateModal}
+                  className="shrink-0 rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-text-primary"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto px-5">
+              {renderCreateModalContent('mobile')}
+            </div>
+
+            {renderCreateModalActions('mobile')}
+          </div>
+        </div>
+      )}
 
       {showCreateModal && !isMobile && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
@@ -1608,6 +1640,7 @@ export const References = () => {
             </div>
 
             {renderCreateModalContent('desktop')}
+            {renderCreateModalActions('desktop')}
           </div>
         </div>
       )}
