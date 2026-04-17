@@ -31,6 +31,10 @@ export const ModuleRenderer = () => {
     return <Navigate to="/workspace/dashboard" replace />;
   }
 
+  if (activeModule === 'onboarding' && user?.isMemberOnlyAccount) {
+    return <Navigate to="/workspace/dashboard" replace />;
+  }
+
   const requiredPermission = WORKSPACE_MODULE_PERMISSION_MAP[activeModule];
   const isBlockedByWorkspacePermission =
     !!user?.isWorkspaceMember &&

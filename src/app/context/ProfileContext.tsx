@@ -89,36 +89,42 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setIsLoadingProfiles(true);
 
     try {
-      const { data: ownProfilesData, error: ownProfilesError } = await supabase
-        .from('client_profiles')
-        .select('id, profile_name, avatar_url, is_default, created_at')
-        .eq('user_id', user.id)
-        .order('is_default', { ascending: false })
-        .order('created_at', { ascending: true });
-
-      if (ownProfilesError) {
-        throw ownProfilesError;
-      }
-
+      const shouldIgnoreOwnedProfiles = !!user.isMemberOnlyAccount;
+      let ownProfilesData: any[] = [];
       let purchasedCredits = 0;
 
-      const { data: purchaseCreditsData, error: purchaseCreditsError } = await supabase
-        .from('profile_purchase_credits')
-        .select('quantity')
-        .eq('user_id', user.id);
+      if (!shouldIgnoreOwnedProfiles) {
+        const { data, error } = await supabase
+          .from('client_profiles')
+          .select('id, profile_name, avatar_url, is_default, created_at')
+          .eq('user_id', user.id)
+          .order('is_default', { ascending: false })
+          .order('created_at', { ascending: true });
 
-      if (purchaseCreditsError) {
-        if (isMissingProfileCreditsTableError(purchaseCreditsError)) {
-          console.warn(
-            '[ProfileContext] Tabela profile_purchase_credits ainda não disponível; seguindo com 0 créditos extras.'
-          );
-        } else {
-          throw purchaseCreditsError;
+        if (error) {
+          throw error;
         }
-      } else {
-        purchasedCredits = (purchaseCreditsData ?? []).reduce((total, purchase) => {
-          return total + Math.max(Number(purchase.quantity) || 0, 0);
-        }, 0);
+
+        ownProfilesData = data ?? [];
+
+        const { data: purchaseCreditsData, error: purchaseCreditsError } = await supabase
+          .from('profile_purchase_credits')
+          .select('quantity')
+          .eq('user_id', user.id);
+
+        if (purchaseCreditsError) {
+          if (isMissingProfileCreditsTableError(purchaseCreditsError)) {
+            console.warn(
+              '[ProfileContext] Tabela profile_purchase_credits ainda não disponível; seguindo com 0 créditos extras.'
+            );
+          } else {
+            throw purchaseCreditsError;
+          }
+        } else {
+          purchasedCredits = (purchaseCreditsData ?? []).reduce((total, purchase) => {
+            return total + Math.max(Number(purchase.quantity) || 0, 0);
+          }, 0);
+        }
       }
 
       const ownProfiles: Profile[] = (ownProfilesData ?? []).map((profile) => ({

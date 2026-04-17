@@ -89,6 +89,20 @@ const buildMemberLoginUrl = (email: string) => {
 };
 
 const resolveFunctionErrorMessage = async (error: unknown, fallback: string) => {
+  const normalizeMessage = (message: string) => {
+    const normalizedMessage = message.trim();
+    const loweredMessage = normalizedMessage.toLowerCase();
+
+    if (
+      loweredMessage.includes('already been registered') ||
+      loweredMessage.includes('already registered')
+    ) {
+      return 'Esse email já possui um acesso cadastrado. Se ele já foi usado como membro antes, tente criar novamente após atualizar a página.';
+    }
+
+    return normalizedMessage;
+  };
+
   if (
     typeof error === 'object' &&
     error !== null &&
@@ -98,7 +112,7 @@ const resolveFunctionErrorMessage = async (error: unknown, fallback: string) => 
     try {
       const payload = await error.context.clone().json();
       if (typeof payload?.error === 'string' && payload.error.trim()) {
-        return payload.error;
+        return normalizeMessage(payload.error);
       }
     } catch {
       // Ignore JSON parsing errors and fall back to the generic message below.
@@ -106,7 +120,7 @@ const resolveFunctionErrorMessage = async (error: unknown, fallback: string) => 
   }
 
   if (error instanceof Error && error.message.trim()) {
-    return error.message;
+    return normalizeMessage(error.message);
   }
 
   return fallback;

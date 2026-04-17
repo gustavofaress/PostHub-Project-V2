@@ -33,6 +33,7 @@ interface User {
   currentPlan?: string | null;
   isAdmin?: boolean;
   isWorkspaceMember?: boolean;
+  isMemberOnlyAccount?: boolean;
   trialExpiresAt?: string | null;
   accessStatus?: UserAccessStatus;
   onboarding?: UserOnboardingState | null;
@@ -82,6 +83,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
+  const normalizeAuthErrorMessage = React.useCallback((error: any) => {
+    const rawMessage = `${error?.message || ''}`.trim();
+    const normalizedMessage = rawMessage.toLowerCase();
+
+    if (
+      normalizedMessage.includes('already been registered') ||
+      normalizedMessage.includes('already registered')
+    ) {
+      return 'Este email já possui um acesso criado. Se ele foi convidado como membro, use o login de membro em vez de criar uma nova conta.';
+    }
+
+    return rawMessage;
+  }, []);
+
   const syncMockUser = React.useCallback(
     async (seedUser?: Partial<User> | null): Promise<User | null> => {
       if (typeof window === 'undefined') return null;
@@ -108,6 +123,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         currentPlan: mergedUser.currentPlan ?? 'start_7',
         isAdmin: !!mergedUser.isAdmin,
         isWorkspaceMember: !!mergedUser.isWorkspaceMember,
+        isMemberOnlyAccount: !!mergedUser.isMemberOnlyAccount,
         trialExpiresAt: mergedUser.trialExpiresAt ?? null,
         accessStatus: mergedUser.accessStatus ?? 'trial_active',
         onboarding: mapOnboardingState(onboarding),
@@ -128,6 +144,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       currentPlan: null,
       isAdmin: false,
       isWorkspaceMember: false,
+      isMemberOnlyAccount: false,
       trialExpiresAt: null,
       accessStatus: 'unknown',
       onboarding: null,
@@ -231,11 +248,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.error('Error loading workspace membership:', error);
         }
 
-        const isWorkspaceMember =
-          !usuarioRecord?.is_admin && !!workspaceMembership;
-        const currentPlan = usuarioRecord?.current_plan ?? (isWorkspaceMember ? 'pro' : null);
-        const isAdmin = !!usuarioRecord?.is_admin;
-        const trialExpiresAt = usuarioRecord?.trial_expires_at ?? null;
+        const hasMemberAccountFlag = sessionUser.user_metadata?.workspace_member === true;
+        const hasWorkspaceMembership = !!workspaceMembership;
+        const isMemberOnlyAccount = hasMemberAccountFlag && hasWorkspaceMembership;
+        const isWorkspaceMember = !usuarioRecord?.is_admin && hasWorkspaceMembership;
+        const currentPlan = isMemberOnlyAccount
+          ? 'pro'
+          : usuarioRecord?.current_plan ?? (isWorkspaceMember ? 'pro' : null);
+        const isAdmin = isMemberOnlyAccount ? false : !!usuarioRecord?.is_admin;
+        const trialExpiresAt = isMemberOnlyAccount ? null : usuarioRecord?.trial_expires_at ?? null;
         const accessStatus = isWorkspaceMember
           ? 'paid'
           : getAccessStatus({
@@ -252,21 +273,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return {
           ...baseUser,
           name:
-            usuarioRecord?.nome ||
+            (isMemberOnlyAccount ? workspaceMembership?.full_name : usuarioRecord?.nome) ||
             workspaceMembership?.full_name ||
             sessionUser.user_metadata?.full_name ||
             baseUser.name,
           email:
-            usuarioRecord?.email ||
+            (isMemberOnlyAccount ? workspaceMembership?.email : usuarioRecord?.email) ||
             workspaceMembership?.email ||
             sessionUser.email ||
             baseUser.email,
           currentPlan,
           isAdmin,
           isWorkspaceMember,
+          isMemberOnlyAccount,
           trialExpiresAt,
           accessStatus,
-          onboarding: mapOnboardingState(onboarding),
+          onboarding: isMemberOnlyAccount ? null : mapOnboardingState(onboarding),
         };
       } catch (error) {
         console.error('Error building app user:', error);
@@ -275,6 +297,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           currentPlan: null,
           isAdmin: false,
           isWorkspaceMember: false,
+          isMemberOnlyAccount: false,
           trialExpiresAt: null,
           accessStatus: 'missing',
           onboarding: null,
@@ -387,6 +410,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           currentPlan: 'pro',
           isAdmin: false,
           isWorkspaceMember: true,
+          isMemberOnlyAccount: true,
           trialExpiresAt: null,
           accessStatus: 'paid',
           onboarding: null,
@@ -403,6 +427,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         currentPlan: 'start_7',
         isAdmin: false,
         isWorkspaceMember: false,
+        isMemberOnlyAccount: false,
         trialExpiresAt: null,
         accessStatus: 'trial_active',
         onboarding: null,
@@ -499,6 +524,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         currentPlan: 'start_7',
         isAdmin: false,
         isWorkspaceMember: false,
+        isMemberOnlyAccount: false,
         trialExpiresAt: null,
         accessStatus: 'trial_active',
         onboarding: null,
@@ -598,6 +624,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Signup error message:', error?.message);
       console.error('Signup error details:', error?.details);
       console.error('Signup error hint:', error?.hint);
+      const normalizedMessage = normalizeAuthErrorMessage(error);
+
+      if (normalizedMessage && normalizedMessage !== error?.message) {
+        throw new Error(normalizedMessage);
+      }
+
       throw error;
     }
   };

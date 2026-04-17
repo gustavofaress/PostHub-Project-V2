@@ -33,6 +33,7 @@ import { Badge } from '../../shared/components/Badge';
 import { Tabs } from '../../shared/components/Tabs';
 import { cn } from '../../shared/utils/cn';
 import { useTrialGuidedFlow } from '../onboarding/hooks/useTrialGuidedFlow';
+import { useIsMobile } from '../mobile/hooks/useIsMobile';
 import {
   renderCompressedVideo,
   TARGET_VIDEO_UPLOAD_SIZE,
@@ -228,6 +229,7 @@ export const References = () => {
   const { activeMembers } = useWorkspaceMembers();
   const profileId = activeProfile?.id;
   useTrialGuidedFlow();
+  const isMobile = useIsMobile();
 
   const [references, setReferences] = React.useState<ReferenceItem[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -383,6 +385,11 @@ export const References = () => {
   const openCreateModal = () => {
     resetForm();
     setShowCreateModal(true);
+  };
+
+  const closeCreateModal = () => {
+    setShowCreateModal(false);
+    resetForm();
   };
 
   const openEditModal = (reference: ReferenceItem) => {
@@ -899,6 +906,328 @@ export const References = () => {
     );
   };
 
+  const renderCreateModalActions = (mode: 'desktop' | 'mobile') => {
+    const isMobileSheet = mode === 'mobile';
+
+    return (
+      <div
+        className={cn(
+          'flex items-center gap-3 border-t border-gray-100 bg-white/95 backdrop-blur-xl',
+          isMobileSheet
+            ? 'shrink-0 px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4'
+            : 'justify-end px-6 py-4'
+        )}
+      >
+        <Button
+          variant="outline"
+          onClick={closeCreateModal}
+          disabled={isSaving}
+          className={cn(isMobileSheet && 'flex-1')}
+        >
+          Cancelar
+        </Button>
+        <Button
+          onClick={handleSaveReference}
+          disabled={isSaving}
+          data-tour-id="references-save-button"
+          className={cn(isMobileSheet && 'flex-[1.15]')}
+        >
+          {isSaving ? (
+            <span className="flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Salvando...
+            </span>
+          ) : editingReference ? (
+            'Salvar alterações'
+          ) : (
+            'Adicionar referência'
+          )}
+        </Button>
+      </div>
+    );
+  };
+
+  const renderCreateModalContent = (mode: 'desktop' | 'mobile') => {
+    const isMobileSheet = mode === 'mobile';
+
+    return (
+      <>
+        <div
+          className={cn(
+            'border-b border-gray-100',
+            isMobileSheet && 'sticky top-0 z-10 -mx-5 bg-white/95 px-5 pb-4 pt-1 backdrop-blur-xl'
+          )}
+        >
+          <div className={cn('flex flex-wrap gap-2', !isMobileSheet && 'px-6 pt-5')}>
+            {[
+              { key: 'link', label: 'Colar link', icon: LinkIcon },
+              { key: 'image', label: 'Subir print/imagem', icon: FileImage },
+              { key: 'video', label: 'Subir vídeo', icon: FileVideo },
+              { key: 'screen_recording', label: 'Gravação de tela', icon: PlayCircle },
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.key;
+
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => handleTabChange(tab.key as CreateTab)}
+                  className={cn(
+                    'inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-all',
+                    isActive
+                      ? 'border-brand bg-brand/10 text-brand'
+                      : 'border-gray-200 bg-white text-text-secondary hover:border-brand/30 hover:text-text-primary'
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div
+          className={cn(
+            'grid grid-cols-1 gap-6 overflow-x-hidden lg:grid-cols-[1fr_1fr]',
+            isMobileSheet ? 'py-5' : 'px-6 py-6'
+          )}
+        >
+          <div className="min-w-0 space-y-5">
+            {activeTab === 'link' ? (
+              <>
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-text-primary">
+                    Link da publicação
+                  </label>
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <Input
+                        placeholder="https://..."
+                        icon={<LinkIcon className="h-4 w-4" />}
+                        value={form.sourceUrl}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setForm((prev) => ({ ...prev, sourceUrl: e.target.value }))
+                        }
+                      />
+                    </div>
+                    <Button type="button" variant="outline" onClick={handleGenerateLinkPreview}>
+                      Gerar prévia
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-dashed border-brand/30 bg-brand/5 p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-brand shadow-sm">
+                      <Globe className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-text-primary">Prévia por link</h4>
+                      <p className="text-sm text-text-secondary">
+                        Neste MVP, a prévia é simulada visualmente. Depois você pode trocar isso por uma Edge Function que resolve metadados do link.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-text-primary">
+                  {activeTab === 'image'
+                    ? 'Upload de print ou imagem'
+                    : activeTab === 'video'
+                    ? 'Upload de vídeo'
+                    : 'Upload de gravação de tela'}
+                </label>
+
+                <label className="block cursor-pointer rounded-2xl border border-dashed border-brand/30 bg-brand/5 p-5 transition-colors hover:bg-brand/10">
+                  <input
+                    type="file"
+                    accept={getAcceptByTab(activeTab)}
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-brand shadow-sm">
+                      <Upload className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="font-semibold text-text-primary">Selecionar arquivo</h4>
+                      <p className="text-sm text-text-secondary">
+                        Suporta até 500MB. A thumbnail será o próprio print ou a prévia visual do vídeo enviado.
+                      </p>
+                    </div>
+                  </div>
+                </label>
+              </div>
+            )}
+
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-text-primary">Título</label>
+              <Input
+                placeholder="Ex: Reel com hook forte para social media"
+                value={form.title}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setForm((prev) => ({ ...prev, title: e.target.value }))
+                }
+              />
+            </div>
+
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-text-primary">Origem</label>
+                <Input
+                  placeholder="Instagram, TikTok, Upload, LinkedIn..."
+                  value={form.source}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setForm((prev) => ({ ...prev, source: e.target.value }))
+                  }
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-text-primary">Plataforma</label>
+                <Input
+                  placeholder="Instagram, TikTok, YouTube..."
+                  value={form.platform}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setForm((prev) => ({ ...prev, platform: e.target.value }))
+                  }
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-text-primary">Formato</label>
+                <Input
+                  placeholder="Reel, Story, Carrossel..."
+                  value={form.format}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setForm((prev) => ({ ...prev, format: e.target.value }))
+                  }
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-text-primary">Coleção</label>
+                <Input
+                  placeholder="Ex: Reels, Branding, Hooks..."
+                  value={form.folder}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setForm((prev) => ({ ...prev, folder: e.target.value }))
+                  }
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="mb-2 block text-sm font-semibold text-text-primary">Campanha</label>
+                <Input
+                  placeholder="Ex: Lançamento, Captação Premium..."
+                  value={form.campaign}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setForm((prev) => ({ ...prev, campaign: e.target.value }))
+                  }
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-text-primary">Tags</label>
+              <Input
+                placeholder="Separe por vírgula: hook, retenção, imobiliário"
+                value={form.tags}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setForm((prev) => ({ ...prev, tags: e.target.value }))
+                }
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-text-primary">Descrição</label>
+              <textarea
+                rows={4}
+                value={form.description}
+                onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+                placeholder="Explique por que essa referência é útil para a equipe."
+                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none transition-colors focus:border-brand"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-text-primary">
+                Notas criativas / adaptação para a marca
+              </label>
+              <textarea
+                rows={4}
+                value={form.notes}
+                onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
+                placeholder="Ex: adaptar esse hook para imóveis, trocar ritmo de edição, usar CTA mais direto..."
+                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none transition-colors focus:border-brand"
+              />
+            </div>
+
+            <MemberAssignmentField
+              members={activeMembers}
+              value={linkedMemberIds}
+              onChange={setLinkedMemberIds}
+            />
+          </div>
+
+          <div className="min-w-0 space-y-4">
+            <div>
+              <h4 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
+                Prévia da referência
+              </h4>
+              {renderModalPreview()}
+            </div>
+
+            <Card className="min-w-0 space-y-3 overflow-hidden">
+              <div className="flex items-center gap-2">
+                <Badge className="border-none bg-brand/10 text-brand">
+                  {TYPE_LABEL[activeTab as ReferenceType]}
+                </Badge>
+                {(form.platform || linkPreviewPlatform) && (
+                  <Badge className="border-none bg-gray-100 text-text-secondary">
+                    {form.platform || linkPreviewPlatform}
+                  </Badge>
+                )}
+              </div>
+
+              <div className="min-w-0">
+                <h5 className="line-clamp-2 break-words text-sm font-bold text-text-primary">
+                  {form.title.trim() || 'Título da referência'}
+                </h5>
+                <p className="mt-1 text-sm text-text-secondary">
+                  {form.description.trim() || 'A descrição aparecerá aqui.'}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Origem</p>
+                  <p className="break-words text-text-primary">{form.source.trim() || '—'}</p>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Tamanho</p>
+                  <p className="text-text-primary">
+                    {selectedFile
+                      ? `${(selectedFile.size / (1024 * 1024)).toFixed(1)} MB`
+                      : formatFileSize(editingReference?.file_size_mb)}
+                  </p>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Profile</p>
+                  <p className="break-words text-text-primary">{activeProfile?.name || profileId || '—'}</p>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </div>
+      </>
+    );
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-8">
@@ -1249,7 +1578,47 @@ export const References = () => {
         </div>
       </div>
 
-      {showCreateModal && (
+      {showCreateModal && isMobile && (
+        <div className="fixed inset-0 z-[100] md:hidden">
+          <button
+            type="button"
+            aria-label="Fechar"
+            onClick={closeCreateModal}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          />
+
+          <div className="absolute inset-0 flex flex-col bg-white">
+            <div className="shrink-0 border-b border-gray-100 px-5 pb-4 pt-[calc(0.85rem+env(safe-area-inset-top))]">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="text-lg font-bold text-text-primary">
+                    {editingReference ? 'Editar referência' : 'Adicionar referência'}
+                  </h3>
+                  <p className="mt-1 text-sm text-text-secondary">
+                    A prévia visual será gerada a partir do link, do print enviado ou do arquivo de vídeo.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={closeCreateModal}
+                  className="shrink-0 rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-text-primary"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto px-5">
+              {renderCreateModalContent('mobile')}
+            </div>
+
+            {renderCreateModalActions('mobile')}
+          </div>
+        </div>
+      )}
+
+      {showCreateModal && !isMobile && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
           <div className="max-h-[92vh] w-full max-w-5xl overflow-x-hidden overflow-y-auto rounded-2xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-gray-100 px-6 py-5">
@@ -1263,303 +1632,15 @@ export const References = () => {
               </div>
 
               <button
-                onClick={() => {
-                  setShowCreateModal(false);
-                  resetForm();
-                }}
+                onClick={closeCreateModal}
                 className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-text-primary"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="border-b border-gray-100 px-6 pt-5">
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { key: 'link', label: 'Colar link', icon: LinkIcon },
-                  { key: 'image', label: 'Subir print/imagem', icon: FileImage },
-                  { key: 'video', label: 'Subir vídeo', icon: FileVideo },
-                  { key: 'screen_recording', label: 'Gravação de tela', icon: PlayCircle },
-                ].map((tab) => {
-                  const Icon = tab.icon;
-                  const isActive = activeTab === tab.key;
-
-                  return (
-                    <button
-                      key={tab.key}
-                      onClick={() => handleTabChange(tab.key as CreateTab)}
-                      className={cn(
-                        'inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-all',
-                        isActive
-                          ? 'border-brand bg-brand/10 text-brand'
-                          : 'border-gray-200 bg-white text-text-secondary hover:border-brand/30 hover:text-text-primary'
-                      )}
-                    >
-                      <Icon className="h-4 w-4" />
-                      {tab.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-6 overflow-x-hidden px-6 py-6 lg:grid-cols-[1fr_1fr]">
-              <div className="min-w-0 space-y-5">
-                {activeTab === 'link' ? (
-                  <>
-                    <div>
-                      <label className="mb-2 block text-sm font-semibold text-text-primary">
-                        Link da publicação
-                      </label>
-                      <div className="flex gap-2">
-                        <div className="flex-1">
-                          <Input
-                            placeholder="https://..."
-                            icon={<LinkIcon className="h-4 w-4" />}
-                            value={form.sourceUrl}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                              setForm((prev) => ({ ...prev, sourceUrl: e.target.value }))
-                            }
-                          />
-                        </div>
-                        <Button type="button" variant="outline" onClick={handleGenerateLinkPreview}>
-                          Gerar prévia
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="rounded-2xl border border-dashed border-brand/30 bg-brand/5 p-4">
-                      <div className="flex items-start gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-brand shadow-sm">
-                          <Globe className="h-5 w-5" />
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-text-primary">Prévia por link</h4>
-                          <p className="text-sm text-text-secondary">
-                            Neste MVP, a prévia é simulada visualmente. Depois você pode trocar isso por uma Edge Function que resolve metadados do link.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-text-primary">
-                      {activeTab === 'image'
-                        ? 'Upload de print ou imagem'
-                        : activeTab === 'video'
-                        ? 'Upload de vídeo'
-                        : 'Upload de gravação de tela'}
-                    </label>
-
-                    <label className="block cursor-pointer rounded-2xl border border-dashed border-brand/30 bg-brand/5 p-5 transition-colors hover:bg-brand/10">
-                      <input
-                        type="file"
-                        accept={getAcceptByTab(activeTab)}
-                        className="hidden"
-                        onChange={handleFileChange}
-                      />
-
-                      <div className="flex items-start gap-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-brand shadow-sm">
-                          <Upload className="h-5 w-5" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <h4 className="font-semibold text-text-primary">Selecionar arquivo</h4>
-                          <p className="text-sm text-text-secondary">
-                            Suporta até 500MB. A thumbnail será o próprio print ou a prévia visual do vídeo enviado.
-                          </p>
-                        </div>
-                      </div>
-                    </label>
-                  </div>
-                )}
-
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-text-primary">Título</label>
-                  <Input
-                    placeholder="Ex: Reel com hook forte para social media"
-                    value={form.title}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                      setForm((prev) => ({ ...prev, title: e.target.value }))
-                    }
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-text-primary">Origem</label>
-                    <Input
-                      placeholder="Instagram, TikTok, Upload, LinkedIn..."
-                      value={form.source}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                        setForm((prev) => ({ ...prev, source: e.target.value }))
-                      }
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-text-primary">Plataforma</label>
-                    <Input
-                      placeholder="Instagram, TikTok, YouTube..."
-                      value={form.platform}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                        setForm((prev) => ({ ...prev, platform: e.target.value }))
-                      }
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-text-primary">Formato</label>
-                    <Input
-                      placeholder="Reel, Story, Carrossel..."
-                      value={form.format}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                        setForm((prev) => ({ ...prev, format: e.target.value }))
-                      }
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-text-primary">Coleção</label>
-                    <Input
-                      placeholder="Ex: Reels, Branding, Hooks..."
-                      value={form.folder}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                        setForm((prev) => ({ ...prev, folder: e.target.value }))
-                      }
-                    />
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className="mb-2 block text-sm font-semibold text-text-primary">Campanha</label>
-                    <Input
-                      placeholder="Ex: Lançamento, Captação Premium..."
-                      value={form.campaign}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                        setForm((prev) => ({ ...prev, campaign: e.target.value }))
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-text-primary">Tags</label>
-                  <Input
-                    placeholder="Separe por vírgula: hook, retenção, imobiliário"
-                    value={form.tags}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                      setForm((prev) => ({ ...prev, tags: e.target.value }))
-                    }
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-text-primary">Descrição</label>
-                  <textarea
-                    rows={4}
-                    value={form.description}
-                    onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-                    placeholder="Explique por que essa referência é útil para a equipe."
-                    className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none transition-colors focus:border-brand"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-text-primary">
-                    Notas criativas / adaptação para a marca
-                  </label>
-                  <textarea
-                    rows={4}
-                    value={form.notes}
-                    onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
-                    placeholder="Ex: adaptar esse hook para imóveis, trocar ritmo de edição, usar CTA mais direto..."
-                    className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none transition-colors focus:border-brand"
-                  />
-                </div>
-
-                <MemberAssignmentField
-                  members={activeMembers}
-                  value={linkedMemberIds}
-                  onChange={setLinkedMemberIds}
-                />
-              </div>
-
-              <div className="min-w-0 space-y-4">
-                <div>
-                  <h4 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
-                    Prévia da referência
-                  </h4>
-                  {renderModalPreview()}
-                </div>
-
-                <Card className="min-w-0 space-y-3 overflow-hidden">
-                  <div className="flex items-center gap-2">
-                    <Badge className="border-none bg-brand/10 text-brand">
-                      {TYPE_LABEL[activeTab as ReferenceType]}
-                    </Badge>
-                    {(form.platform || linkPreviewPlatform) && (
-                      <Badge className="border-none bg-gray-100 text-text-secondary">
-                        {form.platform || linkPreviewPlatform}
-                      </Badge>
-                    )}
-                  </div>
-
-                  <div className="min-w-0">
-                    <h5 className="line-clamp-2 break-words text-sm font-bold text-text-primary">
-                      {form.title.trim() || 'Título da referência'}
-                    </h5>
-                    <p className="mt-1 text-sm text-text-secondary">
-                      {form.description.trim() || 'A descrição aparecerá aqui.'}
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Origem</p>
-                      <p className="break-words text-text-primary">{form.source.trim() || '—'}</p>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Tamanho</p>
-                      <p className="text-text-primary">
-                        {selectedFile
-                          ? `${(selectedFile.size / (1024 * 1024)).toFixed(1)} MB`
-                          : formatFileSize(editingReference?.file_size_mb)}
-                      </p>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Profile</p>
-                      <p className="break-words text-text-primary">{activeProfile?.name || profileId || '—'}</p>
-                    </div>
-                  </div>
-                </Card>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-3 border-t border-gray-100 px-6 py-4">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowCreateModal(false);
-                  resetForm();
-                }}
-                disabled={isSaving}
-              >
-                Cancelar
-              </Button>
-              <Button onClick={handleSaveReference} disabled={isSaving} data-tour-id="references-save-button">
-                {isSaving ? (
-                  <span className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Salvando...
-                  </span>
-                ) : editingReference ? (
-                  'Salvar alterações'
-                ) : (
-                  'Adicionar referência'
-                )}
-              </Button>
-            </div>
+            {renderCreateModalContent('desktop')}
+            {renderCreateModalActions('desktop')}
           </div>
         </div>
       )}
