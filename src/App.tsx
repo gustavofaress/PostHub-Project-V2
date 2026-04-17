@@ -8,6 +8,7 @@ import { MemberLoginPage } from './pages/auth/MemberLoginPage';
 import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
 import { PublicApprovalPage } from './pages/PublicApprovalPage';
 import { PricingPage } from './pages/PricingPage';
+import { FocusedLandingPage } from './pages/FocusedLandingPage';
 import { ResponsiveWorkspaceLayout } from './modules/workspace/ResponsiveWorkspaceLayout';
 import { ProtectedRoute } from './shared/components/ProtectedRoute';
 import { trackMetaEvent } from './services/meta-conversions.service';
@@ -29,6 +30,7 @@ export default function App() {
     <Routes>
       {/* Public Routes */}
       <Route path="/" element={<LandingPage />} />
+      <Route path="/lp" element={<FocusedLandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/member-login" element={<MemberLoginPage />} />
