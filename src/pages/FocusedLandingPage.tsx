@@ -730,8 +730,10 @@ export const FocusedLandingPage = () => {
                     Se o conteúdo move o negócio, o bastidor precisa ter processo.
                   </h2>
                   <p className="mt-4 text-lg leading-8 text-slate-300">
-                    A nova `/lp` entrega essa mensagem com a cara do produto: clara,
-                    leve e convincente desde o primeiro scroll.
+                    Quando o conteúdo é parte da operação, ele não pode depender
+                    de improviso, mensagens soltas e retrabalho. A PostHub
+                    organiza o bastidor para que ideias, produção, aprovações e
+                    entregas avancem com clareza, ritmo e consistência.
                   </p>
                 </div>
 
