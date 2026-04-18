@@ -288,6 +288,8 @@ export const AdminDashboard = () => {
   const [passwordResetNotice, setPasswordResetNotice] = React.useState('');
   const [passwordResetError, setPasswordResetError] = React.useState('');
   const [isGeneratingPasswordResetLink, setIsGeneratingPasswordResetLink] = React.useState(false);
+  const [quickResetEmail, setQuickResetEmail] = React.useState('');
+  const [quickResetError, setQuickResetError] = React.useState('');
 
   const [searchTerm, setSearchTerm] = React.useState('');
   const [filterPlan, setFilterPlan] = React.useState('All');
@@ -470,6 +472,37 @@ export const AdminDashboard = () => {
     setPasswordResetError('');
   }, []);
 
+  const handleOpenQuickPasswordResetModal = React.useCallback(() => {
+    const normalizedEmail = quickResetEmail.trim().toLowerCase();
+
+    if (!normalizedEmail) {
+      setQuickResetError('Informe o email da cliente para gerar o link.');
+      return;
+    }
+
+    const matchedUser = users.find(
+      (currentUser) => currentUser.email.trim().toLowerCase() === normalizedEmail
+    );
+
+    setQuickResetError('');
+
+    openPasswordResetModal(
+      matchedUser ?? {
+        id: `manual-password-reset-${normalizedEmail}`,
+        name: 'Cliente',
+        email: normalizedEmail,
+        plan: 'Trial',
+        trialStatus: 'N/A',
+        workModel: '',
+        operationSize: '',
+        currentWorkflow: '',
+        quizCompleted: false,
+        setupCompleted: false,
+        createdAt: null,
+      }
+    );
+  }, [openPasswordResetModal, quickResetEmail, users]);
+
   const handleGeneratePasswordResetLink = React.useCallback(async () => {
     if (!passwordResetUser?.email) {
       setPasswordResetError('Selecione um usuario valido antes de gerar o link.');
@@ -605,6 +638,49 @@ export const AdminDashboard = () => {
             tone="yellow"
           />
         </div>
+
+        <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Redefinição de senha
+              </h2>
+              <p className="mt-1 max-w-2xl text-sm text-gray-500">
+                Gere um link de suporte sem precisar procurar a última coluna da tabela.
+                Basta informar o email da cliente.
+              </p>
+            </div>
+
+            <div className="w-full max-w-xl space-y-3">
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex-1">
+                  <input
+                    type="email"
+                    value={quickResetEmail}
+                    onChange={(event) => setQuickResetEmail(event.target.value)}
+                    placeholder="cliente@empresa.com"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-700 focus:border-[#38B6FF] focus:outline-none focus:ring-2 focus:ring-[#38B6FF]/30"
+                  />
+                </div>
+
+                <Button
+                  type="button"
+                  className="gap-2 sm:min-w-[220px]"
+                  onClick={handleOpenQuickPasswordResetModal}
+                >
+                  <KeyRound className="h-4 w-4" />
+                  Gerar link por email
+                </Button>
+              </div>
+
+              {quickResetError ? (
+                <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
+                  {quickResetError}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </section>
 
         <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
@@ -885,7 +961,9 @@ export const AdminDashboard = () => {
                   <th className="px-6 py-4">Fluxo atual</th>
                   <th className="px-6 py-4">Onboarding</th>
                   <th className="px-6 py-4">Entrada</th>
-                  <th className="px-6 py-4">Acesso</th>
+                  <th className="sticky right-0 z-10 px-6 py-4 bg-gray-50 shadow-[-12px_0_12px_-12px_rgba(15,23,42,0.18)]">
+                    Acesso
+                  </th>
                 </tr>
               </thead>
 
@@ -906,7 +984,10 @@ export const AdminDashboard = () => {
                   </tr>
                 ) : (
                   filteredUsers.map((currentUser) => (
-                    <tr key={currentUser.id} className="align-top transition-colors hover:bg-gray-50/50">
+                    <tr
+                      key={currentUser.id}
+                      className="group align-top transition-colors hover:bg-gray-50/50"
+                    >
                       <td className="px-6 py-4">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
@@ -986,7 +1067,7 @@ export const AdminDashboard = () => {
                         </div>
                       </td>
 
-                      <td className="px-6 py-4">
+                      <td className="sticky right-0 px-6 py-4 bg-white shadow-[-12px_0_12px_-12px_rgba(15,23,42,0.18)] transition-colors group-hover:bg-gray-50/50">
                         <Button
                           type="button"
                           variant="secondary"
