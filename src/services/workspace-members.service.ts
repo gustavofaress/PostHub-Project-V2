@@ -7,6 +7,7 @@ import {
 } from '../shared/constants/workspaceMembers';
 import { teamMembersStorage } from '../modules/settings/teamMembers.storage';
 import { memberAuthStorage } from '../modules/settings/memberAuth.storage';
+import { buildAppUrl } from '../shared/utils/appUrl';
 
 interface WorkspaceMemberRow {
   id: string;
@@ -79,13 +80,7 @@ const generateMemberPassword = () => {
 };
 
 const buildMemberLoginUrl = (email: string) => {
-  if (typeof window === 'undefined') {
-    return `/member-login?email=${encodeURIComponent(email.trim().toLowerCase())}`;
-  }
-
-  return `${window.location.origin}/member-login?email=${encodeURIComponent(
-    email.trim().toLowerCase()
-  )}`;
+  return buildAppUrl(`/member-login?email=${encodeURIComponent(email.trim().toLowerCase())}`);
 };
 
 const resolveFunctionErrorMessage = async (error: unknown, fallback: string) => {

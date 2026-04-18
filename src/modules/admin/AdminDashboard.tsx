@@ -1,7 +1,9 @@
 import * as React from 'react';
 import {
   CheckCircle2,
+  Copy,
   Filter,
+  KeyRound,
   Mail,
   MonitorPlay,
   Search,
@@ -18,6 +20,8 @@ import {
   type AdminDashboardLandingPageMetrics,
   type AdminDashboardUser as UserData,
 } from '../../services/admin-dashboard.service';
+import { Button } from '../../shared/components/Button';
+import { Modal } from '../../shared/components/Modal';
 
 const WORK_MODEL_OPTIONS = [
   'Social Media Autônomo',
@@ -275,6 +279,15 @@ export const AdminDashboard = () => {
   const [isLandingAnalyticsLoading, setIsLandingAnalyticsLoading] = React.useState(true);
   const [error, setError] = React.useState('');
   const [landingAnalyticsError, setLandingAnalyticsError] = React.useState('');
+  const [passwordResetUser, setPasswordResetUser] = React.useState<UserData | null>(null);
+  const [generatedPasswordResetLink, setGeneratedPasswordResetLink] = React.useState('');
+  const [generatedPasswordResetMaskedEmail, setGeneratedPasswordResetMaskedEmail] =
+    React.useState('');
+  const [generatedPasswordResetExpiresAt, setGeneratedPasswordResetExpiresAt] =
+    React.useState<string | null>(null);
+  const [passwordResetNotice, setPasswordResetNotice] = React.useState('');
+  const [passwordResetError, setPasswordResetError] = React.useState('');
+  const [isGeneratingPasswordResetLink, setIsGeneratingPasswordResetLink] = React.useState(false);
 
   const [searchTerm, setSearchTerm] = React.useState('');
   const [filterPlan, setFilterPlan] = React.useState('All');
@@ -437,6 +450,71 @@ export const AdminDashboard = () => {
       minute: '2-digit',
     }).format(new Date(dateString));
   };
+
+  const closePasswordResetModal = React.useCallback(() => {
+    setPasswordResetUser(null);
+    setGeneratedPasswordResetLink('');
+    setGeneratedPasswordResetMaskedEmail('');
+    setGeneratedPasswordResetExpiresAt(null);
+    setPasswordResetNotice('');
+    setPasswordResetError('');
+    setIsGeneratingPasswordResetLink(false);
+  }, []);
+
+  const openPasswordResetModal = React.useCallback((targetUser: UserData) => {
+    setPasswordResetUser(targetUser);
+    setGeneratedPasswordResetLink('');
+    setGeneratedPasswordResetMaskedEmail('');
+    setGeneratedPasswordResetExpiresAt(null);
+    setPasswordResetNotice('');
+    setPasswordResetError('');
+  }, []);
+
+  const handleGeneratePasswordResetLink = React.useCallback(async () => {
+    if (!passwordResetUser?.email) {
+      setPasswordResetError('Selecione um usuario valido antes de gerar o link.');
+      return;
+    }
+
+    setIsGeneratingPasswordResetLink(true);
+    setPasswordResetNotice('');
+    setPasswordResetError('');
+
+    try {
+      const result = await adminDashboardService.generatePasswordResetLink(passwordResetUser.email);
+      setGeneratedPasswordResetLink(result.supportResetUrl);
+      setGeneratedPasswordResetMaskedEmail(result.maskedEmail);
+      setGeneratedPasswordResetExpiresAt(result.expiresAt);
+      setPasswordResetNotice(
+        'Link de suporte gerado com sucesso. Compartilhe apenas com a cliente e prefira usar imediatamente.'
+      );
+    } catch (passwordResetLinkError) {
+      console.error('Erro ao gerar link manual de redefinicao:', passwordResetLinkError);
+      setGeneratedPasswordResetLink('');
+      setGeneratedPasswordResetMaskedEmail('');
+      setGeneratedPasswordResetExpiresAt(null);
+      setPasswordResetError(
+        passwordResetLinkError instanceof Error
+          ? passwordResetLinkError.message
+          : 'Nao foi possivel gerar o link manual de redefinicao.'
+      );
+    } finally {
+      setIsGeneratingPasswordResetLink(false);
+    }
+  }, [passwordResetUser?.email]);
+
+  const handleCopyPasswordResetLink = React.useCallback(async () => {
+    if (!generatedPasswordResetLink) return;
+
+    try {
+      await navigator.clipboard.writeText(generatedPasswordResetLink);
+      setPasswordResetNotice('Link copiado para a area de transferencia.');
+      setPasswordResetError('');
+    } catch (copyError) {
+      console.error('Erro ao copiar link manual de redefinicao:', copyError);
+      setPasswordResetError('Nao foi possivel copiar o link agora.');
+    }
+  }, [generatedPasswordResetLink]);
 
   const Badge = ({
     children,
@@ -797,7 +875,7 @@ export const AdminDashboard = () => {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1120px] text-left text-sm text-gray-600">
+            <table className="w-full min-w-[1280px] text-left text-sm text-gray-600">
               <thead className="border-b border-gray-100 bg-gray-50 font-medium text-gray-500">
                 <tr>
                   <th className="px-6 py-4">Cliente</th>
@@ -807,19 +885,20 @@ export const AdminDashboard = () => {
                   <th className="px-6 py-4">Fluxo atual</th>
                   <th className="px-6 py-4">Onboarding</th>
                   <th className="px-6 py-4">Entrada</th>
+                  <th className="px-6 py-4">Acesso</th>
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-gray-100">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
                       Carregando dados...
                     </td>
                   </tr>
                 ) : filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
                       {users.length === 0
                         ? 'Nenhum usuário disponível. Se você esperava dados aqui, aplique as policies do arquivo docs/admin-dashboard-rls.sql no Supabase.'
                         : 'Nenhum usuário encontrado com os filtros selecionados.'}
@@ -906,6 +985,19 @@ export const AdminDashboard = () => {
                           {formatDateTime(currentUser.createdAt)}
                         </div>
                       </td>
+
+                      <td className="px-6 py-4">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          className="w-full min-w-[180px] gap-2"
+                          onClick={() => openPasswordResetModal(currentUser)}
+                        >
+                          <KeyRound className="h-4 w-4" />
+                          Redefinir senha
+                        </Button>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -913,14 +1005,107 @@ export const AdminDashboard = () => {
             </table>
           </div>
 
-          <div className="flex items-center justify-between border-t border-gray-100 bg-gray-50/50 px-6 py-4 text-sm text-gray-500">
-            <span>
-              Exibindo {filteredUsers.length} de {users.length} clientes
-            </span>
+        <div className="flex items-center justify-between border-t border-gray-100 bg-gray-50/50 px-6 py-4 text-sm text-gray-500">
+          <span>
+            Exibindo {filteredUsers.length} de {users.length} clientes
+          </span>
 
-            <span>Clientes mais recentes aparecem primeiro.</span>
+          <span>Clientes mais recentes aparecem primeiro.</span>
+        </div>
+      </div>
+
+      <Modal
+        isOpen={!!passwordResetUser}
+        onClose={closePasswordResetModal}
+        title="Link de suporte para redefinicao"
+      >
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-700">
+            Gere um link unico para a cliente abrir, confirmar o proprio email e criar
+            uma nova senha sem depender do email automatico do Supabase.
+          </div>
+
+          <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-600">
+            <div className="font-semibold text-gray-900">{passwordResetUser?.name || 'Cliente'}</div>
+            <div className="mt-1 break-all">{passwordResetUser?.email || '-'}</div>
+          </div>
+
+          {passwordResetError ? (
+            <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm text-red-600">
+              {passwordResetError}
+            </div>
+          ) : null}
+
+          {passwordResetNotice ? (
+            <div className="rounded-2xl border border-green-100 bg-green-50 p-4 text-sm text-green-700">
+              {passwordResetNotice}
+            </div>
+          ) : null}
+
+          {generatedPasswordResetLink ? (
+            <div className="space-y-3">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-600">
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">
+                    Confirmacao
+                  </div>
+                  <div className="mt-2 font-medium text-gray-900">
+                    {generatedPasswordResetMaskedEmail || '-'}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-600">
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">
+                    Expira em
+                  </div>
+                  <div className="mt-2 font-medium text-gray-900">
+                    {generatedPasswordResetExpiresAt
+                      ? formatDateTime(generatedPasswordResetExpiresAt)
+                      : '-'}
+                  </div>
+                </div>
+              </div>
+
+              <label className="text-sm font-medium text-text-primary">
+                Link pronto para enviar
+              </label>
+              <textarea
+                readOnly
+                value={generatedPasswordResetLink}
+                className="min-h-[140px] w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 focus:outline-none"
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full gap-2"
+                onClick={handleCopyPasswordResetLink}
+              >
+                <Copy className="h-4 w-4" />
+                Copiar link
+              </Button>
+            </div>
+          ) : null}
+
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Button
+              type="button"
+              className="flex-1"
+              isLoading={isGeneratingPasswordResetLink}
+              onClick={handleGeneratePasswordResetLink}
+            >
+              {generatedPasswordResetLink ? 'Gerar novo link' : 'Gerar link seguro'}
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              className="flex-1"
+              onClick={closePasswordResetModal}
+            >
+              Fechar
+            </Button>
           </div>
         </div>
+      </Modal>
       </div>
     </div>
   );

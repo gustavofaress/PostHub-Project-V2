@@ -5,6 +5,7 @@ import { onboardingService } from '../../services/onboarding.service';
 import { userService } from '../../services/user.service';
 import { normalizePlan } from '../../shared/constants/plans';
 import { memberAuthStorage } from '../../modules/settings/memberAuth.storage';
+import { buildAppUrl } from '../../shared/utils/appUrl';
 
 interface UserOnboardingState {
   work_model: string | null;
@@ -95,6 +96,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     return rawMessage;
+  }, []);
+
+  const normalizePasswordResetErrorMessage = React.useCallback((error: any) => {
+    const rawMessage = `${error?.message || ''}`.trim();
+    const normalizedMessage = rawMessage.toLowerCase();
+    const errorCode = `${error?.code || ''}`.trim().toLowerCase();
+
+    if (
+      normalizedMessage.includes('error sending recovery email') ||
+      errorCode === 'unexpected_failure'
+    ) {
+      return 'Nao foi possivel enviar o email automatico agora. Gere um link manual no Admin Dashboard ou tente novamente em alguns minutos.';
+    }
+
+    if (errorCode === 'over_email_send_rate_limit') {
+      return 'A redefinicao de senha foi solicitada ha pouco tempo. Aguarde alguns segundos e tente novamente.';
+    }
+
+    return rawMessage || 'Nao foi possivel enviar o email de recuperacao.';
   }, []);
 
   const syncMockUser = React.useCallback(
@@ -450,7 +470,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { error: otpError } = await supabase.auth.signInWithOtp({
           email,
           options: {
-            emailRedirectTo: window.location.origin + '/workspace/dashboard',
+            emailRedirectTo: buildAppUrl('/workspace/dashboard'),
           },
         });
         authError = otpError;
@@ -549,7 +569,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               full_name: sanitizedName,
               initial_profile_name: sanitizedProfileName,
             },
-            emailRedirectTo: window.location.origin + '/workspace/onboarding',
+            emailRedirectTo: buildAppUrl('/workspace/onboarding'),
           },
         });
         authError = signUpError;
@@ -561,7 +581,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               full_name: sanitizedName,
               initial_profile_name: sanitizedProfileName,
             },
-            emailRedirectTo: window.location.origin + '/workspace/onboarding',
+            emailRedirectTo: buildAppUrl('/workspace/onboarding'),
           },
         });
         authError = otpError;
@@ -639,12 +659,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw new Error('A recuperação de senha não está disponível sem o Supabase configurado.');
     }
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: buildAppUrl('/reset-password'),
+      });
 
-    if (error) {
-      throw error;
+      if (error) {
+        throw error;
+      }
+    } catch (error: any) {
+      throw new Error(normalizePasswordResetErrorMessage(error));
     }
   };
 
