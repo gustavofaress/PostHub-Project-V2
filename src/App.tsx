@@ -6,6 +6,7 @@ import { SignupPage } from './pages/auth/SignupPage';
 import { AcceptInvitePage } from './pages/auth/AcceptInvitePage';
 import { MemberLoginPage } from './pages/auth/MemberLoginPage';
 import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
+import { SupportPasswordResetPage } from './pages/auth/SupportPasswordResetPage';
 import { PublicApprovalPage } from './pages/PublicApprovalPage';
 import { PricingPage } from './pages/PricingPage';
 import { FocusedLandingPage } from './pages/FocusedLandingPage';
@@ -33,6 +34,7 @@ export default function App() {
       <Route path="/lp" element={<FocusedLandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/suporte/redefinir-senha" element={<SupportPasswordResetPage />} />
       <Route path="/member-login" element={<MemberLoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/pricing" element={<PricingPage />} />

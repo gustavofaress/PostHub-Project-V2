@@ -281,6 +281,10 @@ export const AdminDashboard = () => {
   const [landingAnalyticsError, setLandingAnalyticsError] = React.useState('');
   const [passwordResetUser, setPasswordResetUser] = React.useState<UserData | null>(null);
   const [generatedPasswordResetLink, setGeneratedPasswordResetLink] = React.useState('');
+  const [generatedPasswordResetMaskedEmail, setGeneratedPasswordResetMaskedEmail] =
+    React.useState('');
+  const [generatedPasswordResetExpiresAt, setGeneratedPasswordResetExpiresAt] =
+    React.useState<string | null>(null);
   const [passwordResetNotice, setPasswordResetNotice] = React.useState('');
   const [passwordResetError, setPasswordResetError] = React.useState('');
   const [isGeneratingPasswordResetLink, setIsGeneratingPasswordResetLink] = React.useState(false);
@@ -450,6 +454,8 @@ export const AdminDashboard = () => {
   const closePasswordResetModal = React.useCallback(() => {
     setPasswordResetUser(null);
     setGeneratedPasswordResetLink('');
+    setGeneratedPasswordResetMaskedEmail('');
+    setGeneratedPasswordResetExpiresAt(null);
     setPasswordResetNotice('');
     setPasswordResetError('');
     setIsGeneratingPasswordResetLink(false);
@@ -458,6 +464,8 @@ export const AdminDashboard = () => {
   const openPasswordResetModal = React.useCallback((targetUser: UserData) => {
     setPasswordResetUser(targetUser);
     setGeneratedPasswordResetLink('');
+    setGeneratedPasswordResetMaskedEmail('');
+    setGeneratedPasswordResetExpiresAt(null);
     setPasswordResetNotice('');
     setPasswordResetError('');
   }, []);
@@ -474,13 +482,17 @@ export const AdminDashboard = () => {
 
     try {
       const result = await adminDashboardService.generatePasswordResetLink(passwordResetUser.email);
-      setGeneratedPasswordResetLink(result.actionLink);
+      setGeneratedPasswordResetLink(result.supportResetUrl);
+      setGeneratedPasswordResetMaskedEmail(result.maskedEmail);
+      setGeneratedPasswordResetExpiresAt(result.expiresAt);
       setPasswordResetNotice(
-        'Link gerado com sucesso. Compartilhe apenas com a cliente e prefira usar imediatamente.'
+        'Link de suporte gerado com sucesso. Compartilhe apenas com a cliente e prefira usar imediatamente.'
       );
     } catch (passwordResetLinkError) {
       console.error('Erro ao gerar link manual de redefinicao:', passwordResetLinkError);
       setGeneratedPasswordResetLink('');
+      setGeneratedPasswordResetMaskedEmail('');
+      setGeneratedPasswordResetExpiresAt(null);
       setPasswordResetError(
         passwordResetLinkError instanceof Error
           ? passwordResetLinkError.message
@@ -1005,12 +1017,12 @@ export const AdminDashboard = () => {
       <Modal
         isOpen={!!passwordResetUser}
         onClose={closePasswordResetModal}
-        title="Link manual de redefinicao"
+        title="Link de suporte para redefinicao"
       >
         <div className="space-y-4">
           <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-700">
-            Use este fallback quando o email automatico do "Esqueci minha senha" falhar.
-            O link abre a tela segura de redefinicao no dominio principal do PostHub.
+            Gere um link unico para a cliente abrir, confirmar o proprio email e criar
+            uma nova senha sem depender do email automatico do Supabase.
           </div>
 
           <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-600">
@@ -1032,6 +1044,28 @@ export const AdminDashboard = () => {
 
           {generatedPasswordResetLink ? (
             <div className="space-y-3">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-600">
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">
+                    Confirmacao
+                  </div>
+                  <div className="mt-2 font-medium text-gray-900">
+                    {generatedPasswordResetMaskedEmail || '-'}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-600">
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">
+                    Expira em
+                  </div>
+                  <div className="mt-2 font-medium text-gray-900">
+                    {generatedPasswordResetExpiresAt
+                      ? formatDateTime(generatedPasswordResetExpiresAt)
+                      : '-'}
+                  </div>
+                </div>
+              </div>
+
               <label className="text-sm font-medium text-text-primary">
                 Link pronto para enviar
               </label>

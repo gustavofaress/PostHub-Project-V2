@@ -62,8 +62,9 @@ export interface AdminDashboardLandingPageMetrics {
 
 export interface AdminPasswordResetLinkResult {
   email: string;
-  actionLink: string;
-  redirectTo: string;
+  maskedEmail: string;
+  expiresAt: string;
+  supportResetUrl: string;
 }
 
 export class AdminDashboardAccessError extends Error {
@@ -194,8 +195,9 @@ export const adminDashboardService = {
       throw new AdminDashboardAccessError('Supabase nao esta configurado.');
     }
 
-    const { data, error } = await supabase.functions.invoke('admin-generate-password-reset', {
+    const { data, error } = await supabase.functions.invoke('support-password-reset', {
       body: {
+        mode: 'create',
         email,
       },
     });
@@ -209,14 +211,15 @@ export const adminDashboardService = {
       );
     }
 
-    if (!data?.actionLink || !data?.email || !data?.redirectTo) {
+    if (!data?.supportResetUrl || !data?.email || !data?.maskedEmail || !data?.expiresAt) {
       throw new Error('O Supabase nao retornou um link valido de redefinicao.');
     }
 
     return {
       email: data.email,
-      actionLink: data.actionLink,
-      redirectTo: data.redirectTo,
+      maskedEmail: data.maskedEmail,
+      expiresAt: data.expiresAt,
+      supportResetUrl: data.supportResetUrl,
     };
   },
 };
