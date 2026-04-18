@@ -1,11 +1,18 @@
 import * as React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, KeyRound, Mail, ShieldCheck } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  ArrowLeft,
+  ExternalLink,
+  KeyRound,
+  MessageCircleMore,
+  ShieldCheck,
+} from 'lucide-react';
 import { Card } from '../../shared/components/Card';
 import { Button } from '../../shared/components/Button';
 import { Input } from '../../shared/components/Input';
 import { useAuth } from '../../app/context/AuthContext';
 import { supabase } from '../../shared/utils/supabase';
+import { SUPPORT_WHATSAPP_URL } from '../../shared/constants/support';
 
 type ResetMode = 'request' | 'update';
 
@@ -30,18 +37,18 @@ const hasRecoveryTokens = () => {
 
 export const ResetPasswordPage = () => {
   const navigate = useNavigate();
-  const { requestPasswordReset, updatePassword } = useAuth();
+  const { updatePassword } = useAuth();
+  const [searchParams] = useSearchParams();
 
   const [mode, setMode] = React.useState<ResetMode>(() =>
     hasRecoveryTokens() ? 'update' : 'request'
   );
-  const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [confirmPassword, setConfirmPassword] = React.useState('');
   const [error, setError] = React.useState('');
-  const [info, setInfo] = React.useState('');
   const [isLoading, setIsLoading] = React.useState(false);
   const [isCheckingRecovery, setIsCheckingRecovery] = React.useState(() => hasRecoveryTokens());
+  const supportEmail = searchParams.get('email')?.trim() ?? '';
 
   React.useEffect(() => {
     if (!supabase) {
@@ -112,29 +119,10 @@ export const ResetPasswordPage = () => {
     };
   }, []);
 
-  const handleRequestReset = async (event: React.FormEvent) => {
-    event.preventDefault();
-    setIsLoading(true);
-    setError('');
-    setInfo('');
-
-    try {
-      await requestPasswordReset(email);
-      setInfo(
-        'Se o email estiver cadastrado, enviaremos uma mensagem com o link seguro para redefinir a senha.'
-      );
-    } catch (err: any) {
-      setError(err?.message || 'Não foi possível enviar o email de recuperação.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleUpdatePassword = async (event: React.FormEvent) => {
     event.preventDefault();
     setIsLoading(true);
     setError('');
-    setInfo('');
 
     if (password.length < 8) {
       setError('A nova senha precisa ter pelo menos 8 caracteres.');
@@ -166,15 +154,19 @@ export const ResetPasswordPage = () => {
       <Card className="w-full max-w-md p-8">
         <div className="mb-8 flex items-start gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand/10 text-brand">
-            {isRequestMode ? <Mail className="h-6 w-6" /> : <ShieldCheck className="h-6 w-6" />}
+            {isRequestMode ? (
+              <MessageCircleMore className="h-6 w-6" />
+            ) : (
+              <ShieldCheck className="h-6 w-6" />
+            )}
           </div>
           <div>
             <h1 className="text-2xl font-bold text-text-primary">
-              {isRequestMode ? 'Recuperar senha' : 'Criar nova senha'}
+              {isRequestMode ? 'Fale com o suporte' : 'Criar nova senha'}
             </h1>
             <p className="mt-1 text-sm text-text-secondary">
               {isRequestMode
-                ? 'Digite seu email para receber um link seguro de redefinição.'
+                ? 'Nossa equipe envia o link seguro de redefinicao pelo suporte.'
                 : 'Defina sua nova senha para voltar ao PostHub com segurança.'}
             </p>
           </div>
@@ -186,28 +178,36 @@ export const ResetPasswordPage = () => {
           </div>
         ) : null}
 
-        {info ? (
-          <div className="mb-4 rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-700">
-            {info}
-          </div>
-        ) : null}
-
         {isRequestMode ? (
-          <form onSubmit={handleRequestReset} className="space-y-4">
-            <Input
-              label="Seu email"
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              icon={<Mail className="h-4 w-4" />}
-              placeholder="voce@empresa.com"
-              required
-            />
+          <div className="space-y-4">
+            <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700">
+              Para redefinir sua senha, fale com o suporte no WhatsApp. Por la, nossa equipe
+              gera o link seguro de redefinicao para sua conta.
+            </div>
 
-            <Button type="submit" className="w-full" isLoading={isLoading}>
-              Enviar email de recuperação
-            </Button>
-          </form>
+            {supportEmail ? (
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">
+                  Email informado
+                </div>
+                <div className="mt-2 break-all font-medium text-gray-900">{supportEmail}</div>
+              </div>
+            ) : null}
+
+            <a
+              href={SUPPORT_WHATSAPP_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-brand px-4 py-3 text-sm font-medium text-white shadow-sm transition-colors hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-brand/50"
+            >
+              Conversar com o suporte no WhatsApp
+              <ExternalLink className="h-4 w-4" />
+            </a>
+
+            <p className="text-center text-sm text-text-secondary">
+              Se preferir, informe ao suporte o email da conta para agilizar o atendimento.
+            </p>
+          </div>
         ) : (
           <form onSubmit={handleUpdatePassword} className="space-y-4">
             {isCheckingRecovery ? (

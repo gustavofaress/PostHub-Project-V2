@@ -13,8 +13,7 @@ import { Card } from '../../shared/components/Card';
 import { Input } from '../../shared/components/Input';
 import { Badge } from '../../shared/components/Badge';
 import { cn } from '../../shared/utils/cn';
-
-const WHATSAPP_URL = 'https://wa.me/message/HL2WS5BLFN2ZP1';
+import { SUPPORT_WHATSAPP_URL } from '../../shared/constants/support';
 
 type HelpStatus = 'Disponivel agora' | 'Disponivel com escopo parcial' | 'Em evolucao';
 
@@ -587,7 +586,7 @@ export const Support = () => {
                     Se isso ainda nao resolveu sua duvida, fale comigo diretamente no WhatsApp.
                   </p>
                   <a
-                    href={WHATSAPP_URL}
+                    href={SUPPORT_WHATSAPP_URL}
                     target="_blank"
                     rel="noreferrer"
                     className={cn(
