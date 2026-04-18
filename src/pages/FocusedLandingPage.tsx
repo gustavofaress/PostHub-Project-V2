@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Button } from '../shared/components/Button';
+import { landingPageAnalyticsService } from '../services/landing-page-analytics.service';
 
 type HighlightItem = {
   icon: LucideIcon;
@@ -77,6 +78,9 @@ const navItems = [
   { href: '#cta', label: 'Teste grátis' },
 ];
 
+const LANDING_PAGE_PATH = '/lp';
+const LANDING_PAGE_VARIANT = 'focused';
+
 export const FocusedLandingPage = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [isScrolled, setIsScrolled] = React.useState(false);
@@ -85,6 +89,126 @@ export const FocusedLandingPage = () => {
   const [isInlineVideoPaused, setIsInlineVideoPaused] = React.useState(false);
   const [needsInlineAudioUnlock, setNeedsInlineAudioUnlock] = React.useState(false);
   const inlineVideoRef = React.useRef<HTMLVideoElement | null>(null);
+  const landingVisitPayloadRef = React.useRef<ReturnType<
+    typeof landingPageAnalyticsService.buildVisitPayload
+  > | null>(null);
+  const maxTrackedVideoPercentRef = React.useRef(0);
+  const maxTrackedVideoSecondsRef = React.useRef(0);
+  const maxTrackedVideoDurationRef = React.useRef<number | null>(null);
+  const lastPersistedVideoPercentRef = React.useRef(0);
+
+  if (!landingVisitPayloadRef.current) {
+    landingVisitPayloadRef.current = landingPageAnalyticsService.buildVisitPayload(
+      LANDING_PAGE_PATH,
+      LANDING_PAGE_VARIANT
+    );
+  }
+
+  const persistTrackedVideoProgress = React.useCallback((force = false) => {
+    const visitId = landingVisitPayloadRef.current?.visitId;
+    const maxVideoPercent = maxTrackedVideoPercentRef.current;
+
+    if (!visitId || maxVideoPercent <= 0) {
+      return;
+    }
+
+    const steppedAhead =
+      Math.floor(maxVideoPercent / 5) > Math.floor(lastPersistedVideoPercentRef.current / 5);
+    const crossedThruPlay =
+      maxVideoPercent >= 75 && lastPersistedVideoPercentRef.current < 75;
+    const crossedNearCompletion =
+      maxVideoPercent >= 95 && lastPersistedVideoPercentRef.current < 95;
+
+    if (!force && !steppedAhead && !crossedThruPlay && !crossedNearCompletion) {
+      return;
+    }
+
+    if (maxVideoPercent <= lastPersistedVideoPercentRef.current + 0.05) {
+      return;
+    }
+
+    lastPersistedVideoPercentRef.current = maxVideoPercent;
+
+    void landingPageAnalyticsService.recordVideoProgress({
+      visitId,
+      videoPercent: maxVideoPercent,
+      videoSeconds: maxTrackedVideoSecondsRef.current,
+      videoDurationSeconds: maxTrackedVideoDurationRef.current,
+      landingPath: LANDING_PAGE_PATH,
+      pageVariant: LANDING_PAGE_VARIANT,
+    });
+  }, []);
+
+  const captureVideoProgress = React.useCallback(
+    (video: HTMLVideoElement | null, options?: { force?: boolean }) => {
+      if (!video) return;
+
+      const duration = Number.isFinite(video.duration) ? video.duration : 0;
+      const currentTime = Number.isFinite(video.currentTime) ? video.currentTime : 0;
+
+      if (duration > 0) {
+        maxTrackedVideoDurationRef.current = Math.max(maxTrackedVideoDurationRef.current ?? 0, duration);
+      }
+
+      if (currentTime > 0) {
+        maxTrackedVideoSecondsRef.current = Math.max(maxTrackedVideoSecondsRef.current, currentTime);
+      }
+
+      if (duration > 0 && currentTime >= 0) {
+        maxTrackedVideoPercentRef.current = Math.max(
+          maxTrackedVideoPercentRef.current,
+          (currentTime / duration) * 100
+        );
+      }
+
+      persistTrackedVideoProgress(options?.force ?? false);
+    },
+    [persistTrackedVideoProgress]
+  );
+
+  const handleVideoTimeUpdate = React.useCallback(
+    (event: React.SyntheticEvent<HTMLVideoElement>) => {
+      captureVideoProgress(event.currentTarget);
+    },
+    [captureVideoProgress]
+  );
+
+  const handleVideoLoadedMetadata = React.useCallback(
+    (event: React.SyntheticEvent<HTMLVideoElement>) => {
+      captureVideoProgress(event.currentTarget);
+    },
+    [captureVideoProgress]
+  );
+
+  const handleVideoPauseCapture = React.useCallback(
+    (event: React.SyntheticEvent<HTMLVideoElement>) => {
+      captureVideoProgress(event.currentTarget, { force: true });
+    },
+    [captureVideoProgress]
+  );
+
+  const handleVideoEndedCapture = React.useCallback(
+    (event: React.SyntheticEvent<HTMLVideoElement>) => {
+      captureVideoProgress(event.currentTarget, { force: true });
+    },
+    [captureVideoProgress]
+  );
+
+  const handleInlineVideoPause = React.useCallback(
+    (event: React.SyntheticEvent<HTMLVideoElement>) => {
+      setIsInlineVideoPaused(true);
+      captureVideoProgress(event.currentTarget, { force: true });
+    },
+    [captureVideoProgress]
+  );
+
+  const handleInlineVideoPlay = React.useCallback(
+    (event: React.SyntheticEvent<HTMLVideoElement>) => {
+      setIsInlineVideoPaused(false);
+      captureVideoProgress(event.currentTarget);
+    },
+    [captureVideoProgress]
+  );
 
   const enableInlineVideoSound = React.useCallback(async () => {
     const video = inlineVideoRef.current;
@@ -151,6 +275,16 @@ export const FocusedLandingPage = () => {
 
     video.pause();
     setIsInlineVideoPaused(true);
+  }, []);
+
+  React.useEffect(() => {
+    const visitPayload = landingVisitPayloadRef.current;
+
+    if (!visitPayload) {
+      return;
+    }
+
+    void landingPageAnalyticsService.recordVisit(visitPayload);
   }, []);
 
   React.useEffect(() => {
@@ -241,6 +375,19 @@ export const FocusedLandingPage = () => {
       window.removeEventListener('keydown', handleUserInteraction);
     };
   }, [enableInlineVideoSound, needsInlineAudioUnlock]);
+
+  React.useEffect(() => {
+    const handlePageHide = () => {
+      persistTrackedVideoProgress(true);
+    };
+
+    window.addEventListener('pagehide', handlePageHide);
+
+    return () => {
+      persistTrackedVideoProgress(true);
+      window.removeEventListener('pagehide', handlePageHide);
+    };
+  }, [persistTrackedVideoProgress]);
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[linear-gradient(180deg,#f7fcff_0%,#eef7fc_34%,#ffffff_100%)] text-slate-900 selection:bg-brand selection:text-white">
@@ -426,8 +573,11 @@ export const FocusedLandingPage = () => {
                         playsInline
                         preload="metadata"
                         className="block aspect-video w-full h-auto bg-slate-950 object-contain"
-                        onPause={() => setIsInlineVideoPaused(true)}
-                        onPlay={() => setIsInlineVideoPaused(false)}
+                        onLoadedMetadata={handleVideoLoadedMetadata}
+                        onTimeUpdate={handleVideoTimeUpdate}
+                        onPause={handleInlineVideoPause}
+                        onPlay={handleInlineVideoPlay}
+                        onEnded={handleVideoEndedCapture}
                       />
                     </div>
 
@@ -793,6 +943,10 @@ export const FocusedLandingPage = () => {
                   playsInline
                   preload="metadata"
                   className="max-h-[80vh] w-full bg-black object-contain"
+                  onLoadedMetadata={handleVideoLoadedMetadata}
+                  onTimeUpdate={handleVideoTimeUpdate}
+                  onPause={handleVideoPauseCapture}
+                  onEnded={handleVideoEndedCapture}
                 />
               </div>
             </motion.div>

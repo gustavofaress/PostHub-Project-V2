@@ -35,6 +35,31 @@ export interface AdminDashboardUser {
   createdAt: string | null;
 }
 
+export interface AdminDashboardLandingPageVisitRow {
+  visit_id: string;
+  landing_path: string | null;
+  page_variant: string | null;
+  max_video_percent: number | null;
+  reached_thruplay: boolean | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface AdminDashboardLandingPageMetricWindow {
+  label: string;
+  shortLabel: string;
+  days: 1 | 7 | 15 | 30;
+  views: number;
+  averageViewedPercent: number;
+  thruPlayCount: number;
+  thruPlayRate: number;
+}
+
+export interface AdminDashboardLandingPageMetrics {
+  windows: AdminDashboardLandingPageMetricWindow[];
+  lastUpdatedAt: string | null;
+}
+
 export class AdminDashboardAccessError extends Error {
   constructor(message: string) {
     super(message);
@@ -101,7 +126,76 @@ export const adminDashboardService = {
         return bTime - aTime;
       });
   },
+
+  async getLandingPageMetrics(): Promise<AdminDashboardLandingPageMetrics> {
+    if (!supabase) {
+      throw new AdminDashboardAccessError('Supabase não está configurado.');
+    }
+
+    const { data, error } = await fetchLandingPageVideoVisits();
+
+    if (error) {
+      throw mapAdminDashboardError(error);
+    }
+
+    const visits = (data as AdminDashboardLandingPageVisitRow[] | null) ?? [];
+    const windows = LANDING_PAGE_WINDOWS.map(({ label, shortLabel, days }) => {
+      const visitsInWindow = visits.filter((visit) => isDateWithinLastDays(visit.created_at, days));
+      const views = visitsInWindow.length;
+      const thruPlayCount = visitsInWindow.filter(
+        (visit) =>
+          visit.reached_thruplay ||
+          safeNumber(visit.max_video_percent) >= THRU_PLAY_PERCENTAGE
+      ).length;
+      const averageViewedPercent =
+        views > 0
+          ? Number(
+              (
+                visitsInWindow.reduce(
+                  (total, visit) => total + safeNumber(visit.max_video_percent),
+                  0
+                ) / views
+              ).toFixed(1)
+            )
+          : 0;
+
+      return {
+        label,
+        shortLabel,
+        days,
+        views,
+        averageViewedPercent,
+        thruPlayCount,
+        thruPlayRate: views > 0 ? Math.round((thruPlayCount / views) * 100) : 0,
+      };
+    });
+
+    const lastUpdatedAt = visits
+      .map((visit) => visit.updated_at ?? visit.created_at)
+      .filter((value): value is string => !!value)
+      .sort((firstValue, secondValue) => {
+        return new Date(secondValue).getTime() - new Date(firstValue).getTime();
+      })[0] ?? null;
+
+    return {
+      windows,
+      lastUpdatedAt,
+    };
+  },
 };
+
+const THRU_PLAY_PERCENTAGE = 75;
+
+const LANDING_PAGE_WINDOWS: Array<{
+  label: string;
+  shortLabel: string;
+  days: 1 | 7 | 15 | 30;
+}> = [
+  { label: 'Último dia', shortLabel: '24h', days: 1 },
+  { label: 'Últimos 7 dias', shortLabel: '7d', days: 7 },
+  { label: 'Últimos 15 dias', shortLabel: '15d', days: 15 },
+  { label: 'Últimos 30 dias', shortLabel: '30d', days: 30 },
+];
 
 async function fetchAdminDashboardUsers() {
   const queries = [
@@ -185,6 +279,19 @@ async function fetchAdminDashboardOnboarding() {
   );
 }
 
+async function fetchLandingPageVideoVisits() {
+  const sinceDate = new Date();
+  sinceDate.setDate(sinceDate.getDate() - 30);
+
+  return (await supabase!
+    .from('landing_page_video_visits')
+    .select(
+      'visit_id, landing_path, page_variant, max_video_percent, reached_thruplay, created_at, updated_at'
+    )
+    .eq('landing_path', '/lp')
+    .gte('created_at', sinceDate.toISOString())) as AdminDashboardQueryResult<AdminDashboardLandingPageVisitRow>;
+}
+
 function resolveUserCreatedAt(
   usuario: Pick<AdminDashboardUserRow, 'created_at' | 'trial_started_at'>,
   onboarding?: Pick<AdminDashboardOnboardingRow, 'created_at'> | null
@@ -204,6 +311,20 @@ function resolveUserCreatedAt(
 function isMissingColumnError(error: { code?: string; message?: string | null }, columnName: string) {
   const normalizedMessage = (error.message || '').toLowerCase();
   return error.code === '42703' || normalizedMessage.includes(columnName.toLowerCase());
+}
+
+function isDateWithinLastDays(dateString: string | null, days: number) {
+  if (!dateString) return false;
+
+  const parsedDate = new Date(dateString);
+  if (Number.isNaN(parsedDate.getTime())) return false;
+
+  const difference = Date.now() - parsedDate.getTime();
+  return difference >= 0 && difference < days * 24 * 60 * 60 * 1000;
+}
+
+function safeNumber(value: number | null | undefined) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
 function getTrialStatus(
