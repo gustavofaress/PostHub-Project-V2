@@ -3,6 +3,7 @@ import {
   CheckCircle2,
   Filter,
   Mail,
+  MonitorPlay,
   Search,
   ShieldAlert,
   TrendingUp,
@@ -14,6 +15,7 @@ import { useAuth } from '../../app/context/AuthContext';
 import {
   adminDashboardService,
   AdminDashboardAccessError,
+  type AdminDashboardLandingPageMetrics,
   type AdminDashboardUser as UserData,
 } from '../../services/admin-dashboard.service';
 
@@ -208,12 +210,71 @@ const InsightBar = ({
   );
 };
 
+const LandingAnalyticsWindowCard = ({
+  label,
+  shortLabel,
+  views,
+  averageViewedPercent,
+  thruPlayCount,
+  thruPlayRate,
+}: {
+  label: string;
+  shortLabel: string;
+  views: number;
+  averageViewedPercent: string;
+  thruPlayCount: number;
+  thruPlayRate: number;
+}) => {
+  return (
+    <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-500">
+            {shortLabel}
+          </p>
+          <h3 className="mt-2 text-lg font-semibold text-gray-900">{label}</h3>
+        </div>
+
+        <div className="rounded-2xl bg-sky-50 p-3 text-sky-600">
+          <MonitorPlay className="h-5 w-5" />
+        </div>
+      </div>
+
+      <div className="mt-6">
+        <p className="text-sm font-medium text-gray-500">Views da LP</p>
+        <p className="mt-2 text-3xl font-semibold text-gray-900">{views}</p>
+      </div>
+
+      <div className="mt-5 space-y-3 border-t border-gray-100 pt-4 text-sm">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-gray-500">Média assistida</span>
+          <span className="font-semibold text-gray-900">{averageViewedPercent}</span>
+        </div>
+
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-gray-500">ThruPlay</span>
+          <span className="font-semibold text-gray-900">{thruPlayCount}</span>
+        </div>
+
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-gray-500">Taxa de ThruPlay</span>
+          <span className="font-semibold text-gray-900">{thruPlayRate}%</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const AdminDashboard = () => {
   const { user } = useAuth();
 
   const [users, setUsers] = React.useState<UserData[]>([]);
+  const [landingPageMetrics, setLandingPageMetrics] =
+    React.useState<AdminDashboardLandingPageMetrics | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [isLandingAnalyticsLoading, setIsLandingAnalyticsLoading] = React.useState(true);
   const [error, setError] = React.useState('');
+  const [landingAnalyticsError, setLandingAnalyticsError] = React.useState('');
 
   const [searchTerm, setSearchTerm] = React.useState('');
   const [filterPlan, setFilterPlan] = React.useState('All');
@@ -222,22 +283,42 @@ export const AdminDashboard = () => {
   const [filterWorkModel, setFilterWorkModel] = React.useState('All');
 
   const fetchAdminData = React.useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError('');
-      const adminUsers = await adminDashboardService.listUsers();
-      setUsers(adminUsers);
-    } catch (err: any) {
-      console.error('Erro ao carregar Admin Dashboard:', err);
+    setIsLoading(true);
+    setIsLandingAnalyticsLoading(true);
+    setError('');
+    setLandingAnalyticsError('');
+
+    const [usersResult, landingAnalyticsResult] = await Promise.allSettled([
+      adminDashboardService.listUsers(),
+      adminDashboardService.getLandingPageMetrics(),
+    ]);
+
+    if (usersResult.status === 'fulfilled') {
+      setUsers(usersResult.value);
+    } else {
+      console.error('Erro ao carregar Admin Dashboard:', usersResult.reason);
       setError(
-        err instanceof AdminDashboardAccessError
-          ? err.message
-          : err?.message ||
+        usersResult.reason instanceof AdminDashboardAccessError
+          ? usersResult.reason.message
+          : usersResult.reason?.message ||
               'Não foi possível carregar os dados do dashboard. Verifique as policies do Supabase.'
       );
-    } finally {
-      setIsLoading(false);
     }
+
+    if (landingAnalyticsResult.status === 'fulfilled') {
+      setLandingPageMetrics(landingAnalyticsResult.value);
+    } else {
+      console.error('Erro ao carregar analytics da LP:', landingAnalyticsResult.reason);
+      setLandingAnalyticsError(
+        landingAnalyticsResult.reason instanceof AdminDashboardAccessError
+          ? landingAnalyticsResult.reason.message
+          : landingAnalyticsResult.reason?.message ||
+              'Não foi possível carregar as métricas da landing page. Verifique a migration e as policies do Supabase.'
+      );
+    }
+
+    setIsLoading(false);
+    setIsLandingAnalyticsLoading(false);
   }, []);
 
   React.useEffect(() => {
@@ -327,6 +408,13 @@ export const AdminDashboard = () => {
           : 0,
     };
   }, [users, newestUsersThisWeek]);
+
+  const formatPercentage = React.useCallback((value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      maximumFractionDigits: 1,
+      minimumFractionDigits: Number.isInteger(value) ? 0 : 1,
+    }).format(value);
+  }, []);
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '-';
@@ -439,6 +527,62 @@ export const AdminDashboard = () => {
             tone="yellow"
           />
         </div>
+
+        <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Analytics da Landing Page
+              </h2>
+              <p className="text-sm text-gray-500">
+                Views da `/lp`, média do vídeo assistida por visita e ThruPlay
+                quando a pessoa assiste pelo menos 75% do vídeo.
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">
+              Última atualização:{' '}
+              {landingPageMetrics?.lastUpdatedAt
+                ? formatDateTime(landingPageMetrics.lastUpdatedAt)
+                : '-'}
+            </div>
+          </div>
+
+          {landingAnalyticsError ? (
+            <div className="mt-6 rounded-2xl border border-red-100 bg-red-50 px-4 py-4 text-sm text-red-600">
+              {landingAnalyticsError}
+            </div>
+          ) : isLandingAnalyticsLoading ? (
+            <div className="mt-6 rounded-2xl bg-slate-50 px-4 py-8 text-center text-sm text-gray-500">
+              Carregando métricas da landing page...
+            </div>
+          ) : landingPageMetrics && landingPageMetrics.windows.some((item) => item.views > 0) ? (
+            <>
+              <div className="mt-6 grid gap-4 xl:grid-cols-4">
+                {landingPageMetrics.windows.map((windowMetrics) => (
+                  <LandingAnalyticsWindowCard
+                    key={windowMetrics.days}
+                    label={windowMetrics.label}
+                    shortLabel={windowMetrics.shortLabel}
+                    views={windowMetrics.views}
+                    averageViewedPercent={`${formatPercentage(windowMetrics.averageViewedPercent)}%`}
+                    thruPlayCount={windowMetrics.thruPlayCount}
+                    thruPlayRate={windowMetrics.thruPlayRate}
+                  />
+                ))}
+              </div>
+
+              <p className="mt-4 text-xs text-gray-400">
+                Cada view representa uma visita registrada na página. O cálculo de
+                média assistida considera o maior percentual atingido em cada visita.
+              </p>
+            </>
+          ) : (
+            <div className="mt-6 rounded-2xl bg-slate-50 px-4 py-8 text-center text-sm text-gray-500">
+              Ainda não há visitas registradas na `/lp` nos últimos 30 dias.
+            </div>
+          )}
+        </section>
 
         <div className="grid gap-6 xl:grid-cols-[1.75fr_1fr]">
           <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
