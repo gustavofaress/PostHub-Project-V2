@@ -60,6 +60,12 @@ export interface AdminDashboardLandingPageMetrics {
   lastUpdatedAt: string | null;
 }
 
+export interface AdminPasswordResetLinkResult {
+  email: string;
+  actionLink: string;
+  redirectTo: string;
+}
+
 export class AdminDashboardAccessError extends Error {
   constructor(message: string) {
     super(message);
@@ -180,6 +186,37 @@ export const adminDashboardService = {
     return {
       windows,
       lastUpdatedAt,
+    };
+  },
+
+  async generatePasswordResetLink(email: string): Promise<AdminPasswordResetLinkResult> {
+    if (!supabase) {
+      throw new AdminDashboardAccessError('Supabase nao esta configurado.');
+    }
+
+    const { data, error } = await supabase.functions.invoke('admin-generate-password-reset', {
+      body: {
+        email,
+      },
+    });
+
+    if (error) {
+      throw new Error(
+        await resolveFunctionErrorMessage(
+          error,
+          'Nao foi possivel gerar o link manual de redefinicao.'
+        )
+      );
+    }
+
+    if (!data?.actionLink || !data?.email || !data?.redirectTo) {
+      throw new Error('O Supabase nao retornou um link valido de redefinicao.');
+    }
+
+    return {
+      email: data.email,
+      actionLink: data.actionLink,
+      redirectTo: data.redirectTo,
     };
   },
 };
@@ -358,4 +395,28 @@ function mapAdminDashboardError(error: { code?: string; message?: string | null 
     error.message ||
       'Não foi possível carregar os dados do dashboard. Verifique a conexão com o Supabase.'
   );
+}
+
+async function resolveFunctionErrorMessage(error: unknown, fallback: string) {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'context' in error &&
+    error.context instanceof Response
+  ) {
+    try {
+      const payload = await error.context.clone().json();
+      if (typeof payload?.error === 'string' && payload.error.trim()) {
+        return payload.error.trim();
+      }
+    } catch {
+      // Ignore parsing errors and fall back to the generic message below.
+    }
+  }
+
+  if (error instanceof Error && error.message.trim()) {
+    return error.message.trim();
+  }
+
+  return fallback;
 }
