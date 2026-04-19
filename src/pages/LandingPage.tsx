@@ -247,7 +247,7 @@ const howItWorksSteps = [
 ];
 
 const HERO_VIMEO_EMBED_URL =
-  'https://player.vimeo.com/video/1184592877?autoplay=1&muted=1&loop=0&autopause=1&title=0&byline=0&portrait=0&playsinline=1';
+  'https://player.vimeo.com/video/1184592877?autoplay=1&muted=1&title=0&byline=0&portrait=0&playsinline=1';
 
 const ApprovalPreview = () => (
   <div className="grid gap-4 xl:grid-cols-[1.06fr_0.94fr]">
@@ -576,9 +576,11 @@ export const LandingPage = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.12 }}
             src={HERO_VIMEO_EMBED_URL}
-            title="Apresentacao da PostHub"
-            className="relative left-1/2 mt-14 block aspect-video w-[calc(100vw-1rem)] max-w-none -translate-x-1/2 rounded-[24px] border-0 bg-black sm:w-[calc(100vw-1.5rem)] md:w-[calc(100vw-3rem)] lg:w-[calc(100vw-4rem)]"
-            allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"
+            frameBorder="0"
+            referrerPolicy="strict-origin-when-cross-origin"
+            title="posthub-apresentacao-v3"
+            className="relative left-1/2 mt-14 block aspect-video h-auto w-[calc(100vw-1rem)] max-w-none -translate-x-1/2 rounded-[24px] border-0 bg-black sm:w-[calc(100vw-1.5rem)] md:w-[calc(100vw-3rem)] lg:w-[calc(100vw-4rem)]"
+            allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media; web-share"
             allowFullScreen
           />
 
