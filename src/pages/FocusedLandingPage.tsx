@@ -32,25 +32,25 @@ const highlightItems: HighlightItem[] = [
     icon: Layers3,
     title: 'Tudo no mesmo fluxo',
     description:
-      'Ideia, planejamento, produção e aprovação deixam de morar em ferramentas separadas.',
+      'Planejamento, produção, aprovação e publicação ficam centralizados em um único sistema.',
   },
   {
     icon: CheckCircle2,
     title: 'Aprovação sem ruído',
     description:
-      'Centralize ajustes, contexto e status sem depender do vai-e-vem no WhatsApp.',
+      'Valide cada peça com comentários, contexto e status claros sem depender de WhatsApp e prints.',
   },
   {
     icon: UsersRound,
     title: 'Equipe alinhada',
     description:
-      'Cada entrega já nasce com responsáveis, observações e próximos passos visíveis.',
+      'Cada conteúdo avança com responsáveis, prazos e próximos passos visíveis para todo o time.',
   },
   {
     icon: Sparkles,
     title: 'Rotina com mais ritmo',
     description:
-      'Você sabe o que precisa andar hoje sem reabrir várias abas nem reconstruir contexto.',
+      'Ganhe velocidade para entregar mais campanhas sem perder controle da operação.',
   },
 ];
 
@@ -58,17 +58,17 @@ const dailyWins = [
   {
     title: 'Planeje com contexto',
     description:
-      'Cada post já entra no fluxo com título, canal, prazo e briefing organizados no mesmo lugar.',
+      'Organize pauta, canal, prazo e briefing no mesmo lugar antes da produção começar.',
   },
   {
     title: 'Execute com menos atrito',
     description:
-      'O time acompanha prioridades e sabe o que precisa fazer sem depender de cobrança manual.',
+      'O time enxerga prioridades com clareza e avança sem depender de cobrança manual.',
   },
   {
     title: 'Aprove com mais clareza',
     description:
-      'Feedbacks e ajustes ficam amarrados à peça certa, com menos ruído e menos retrabalho.',
+      'Feedbacks, ajustes e aprovações ficam ligados à peça certa, com menos ruído e retrabalho.',
   },
 ];
 
@@ -504,17 +504,17 @@ export const FocusedLandingPage = () => {
               >
                 <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-brand/15 bg-brand/10 px-3 py-1.5 text-xs font-semibold tracking-[0.14em] text-brand uppercase">
                   <span className="h-2 w-2 rounded-full bg-brand" />
-                  O sistema de gestão pensado por criadores de conteúdo
+                  Gestão de conteúdo para quem precisa escalar com processo
                 </div>
 
                 <h1 className="max-w-[14ch] text-4xl font-bold leading-[1.02] text-slate-950 sm:text-5xl lg:text-[4.25rem]">
-                  Pare de tocar sua operação de conteúdo no improviso.
+                  Centralize sua operação de conteúdo e entregue mais sem caos.
                 </h1>
 
                 <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600 md:text-xl">
-                  A PostHub junta planejamento, status, comentários e aprovação
-                  em um fluxo leve, com a mesma clareza do mobile e profundidade
-                  de um workspace pensado para quem entrega conteúdo todos os dias.
+                  Com a PostHub, sua equipe planeja, produz, revisa e aprova em
+                  um único sistema. Menos mensagens soltas, menos retrabalho e
+                  mais clareza para fazer o conteúdo avançar todos os dias.
                 </p>
 
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -554,10 +554,10 @@ export const FocusedLandingPage = () => {
                     <div className="border-b border-[#D8E8F5] bg-white/90 px-4 py-3">
                       <div>
                         <p className="text-sm font-semibold text-slate-900">
-                          Apresentação do fluxo PostHub
+                          Veja a PostHub em ação
                         </p>
                         <p className="text-xs text-slate-500">
-                          Hero com vídeo em destaque
+                          Como organizar pauta, produção e aprovação
                         </p>
                       </div>
                     </div>
@@ -633,12 +633,12 @@ export const FocusedLandingPage = () => {
                     Fluxo claro
                   </p>
                   <h2 className="mt-3 text-3xl font-bold leading-tight text-slate-950 md:text-4xl">
-                    Um sistema com cara de produto, não de planilha improvisada.
+                    Organize toda a operação em um fluxo que o time entende.
                   </h2>
                 </div>
                 <p className="max-w-xl text-sm leading-7 text-slate-600 md:text-base">
-                  A landing resume a mesma promessa do PostHub: menos ruido para
-                  operar e mais nitidez para saber o que acontece com cada entrega.
+                  A PostHub reduz ruído, centraliza decisões e mostra exatamente
+                  em que etapa cada entrega está, do briefing à aprovação final.
                 </p>
               </div>
 
@@ -674,8 +674,8 @@ export const FocusedLandingPage = () => {
                 Clareza no mobile. Controle no workspace.
               </h2>
               <p className="mt-4 text-lg leading-8 text-slate-600">
-                A nova LP puxa exatamente essa dualidade: leve o suficiente para
-                parecer acessivel, robusta o suficiente para vender processo.
+                Acompanhe a rotina no celular e tome decisões no workspace
+                completo, sem perder contexto entre time, peças e aprovações.
               </p>
             </div>
 
@@ -877,13 +877,13 @@ export const FocusedLandingPage = () => {
                     PostHub
                   </p>
                   <h2 className="mt-3 text-3xl font-bold leading-tight md:text-5xl">
-                    Se o conteúdo move o negócio, o bastidor precisa ter processo.
+                    Troque retrabalho por um fluxo que acelera suas entregas.
                   </h2>
                   <p className="mt-4 text-lg leading-8 text-slate-300">
-                    Quando o conteúdo é parte da operação, ele não pode depender
-                    de improviso, mensagens soltas e retrabalho. A PostHub
-                    organiza o bastidor para que ideias, produção, aprovações e
-                    entregas avancem com clareza, ritmo e consistência.
+                    A PostHub foi criada para marcas, criadores e equipes que
+                    precisam publicar com consistência. Centralize o bastidor,
+                    ganhe velocidade e mantenha o controle de cada etapa da
+                    operação de conteúdo.
                   </p>
                 </div>
 
