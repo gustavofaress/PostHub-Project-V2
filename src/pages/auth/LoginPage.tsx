@@ -14,6 +14,16 @@ export const LoginPage = () => {
   const [password, setPassword] = React.useState('');
   const [error, setError] = React.useState('');
   const resetWasSuccessful = searchParams.get('reset') === 'success';
+  const resetPasswordPath = React.useMemo(() => {
+    const normalizedEmail = email.trim();
+
+    if (!normalizedEmail) {
+      return '/reset-password';
+    }
+
+    const params = new URLSearchParams({ email: normalizedEmail });
+    return `/reset-password?${params.toString()}`;
+  }, [email]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,7 +80,7 @@ export const LoginPage = () => {
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium text-text-primary">Password</label>
-              <Link to="/reset-password" className="text-xs text-brand hover:underline">
+              <Link to={resetPasswordPath} className="text-xs text-brand hover:underline">
                 Forgot password?
               </Link>
             </div>
