@@ -2,104 +2,170 @@ import * as React from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight,
-  Menu,
-  X,
-  Lightbulb,
-  FileText,
   Calendar,
-  LayoutDashboard,
-  CheckCircle,
-  BarChart3,
   Check,
+  CheckCircle,
+  LayoutDashboard,
+  Lightbulb,
+  Menu,
+  MessageCircle,
+  ShieldCheck,
+  Sparkles,
+  UsersRound,
+  Workflow,
+  X,
+  Zap,
+  type LucideIcon,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import { Button } from '../shared/components/Button';
 import { STRIPE_PAYMENT_LINKS, type PlanId } from '../shared/constants/plans';
 import { trackMetaEvent } from '../services/meta-conversions.service';
 
-const modules = [
+type LandingModule = {
+  id: string;
+  title: string;
+  description: string;
+  icon: LucideIcon;
+  image?: string;
+  eyebrow: string;
+  topics: string[];
+  outcomes: string[];
+};
+
+const navItems = [
+  { href: '#recursos', label: 'Recursos' },
+  { href: '#como-funciona', label: 'Como funciona' },
+  { href: '#preco', label: 'Planos' },
+];
+
+const heroSignals: Array<{
+  title: string;
+  description: string;
+  icon: LucideIcon;
+}> = [
+  {
+    title: 'Fluxo visivel do briefing a aprovacao',
+    description:
+      'Cada etapa fica clara para quem cria, aprova e acompanha o conteudo no dia a dia.',
+    icon: Workflow,
+  },
+  {
+    title: 'Menos improviso, mais consistencia',
+    description:
+      'Ideias, roteiros e planejamento deixam de viver em ferramentas soltas e avancam com contexto.',
+    icon: Zap,
+  },
+  {
+    title: 'Aprovacao sem ruido',
+    description:
+      'Pare de depender de WhatsApp, prints e mensagens perdidas para fechar uma entrega.',
+    icon: ShieldCheck,
+  },
+];
+
+const heroMetrics = [
+  { value: '5 modulos', label: 'integrados em um fluxo unico' },
+  { value: '4 etapas', label: 'para sair do caos e operar com clareza' },
+  { value: '7 dias', label: 'de teste gratis para explorar a plataforma' },
+];
+
+const workflowPills = ['Ideias', 'Calendario', 'Kanban', 'Aprovacao', 'Membros'];
+
+const modules: LandingModule[] = [
   {
     id: 'ideias',
     title: 'Banco de Ideias',
     description:
-      'Nunca mais perca uma boa ideia. Capture, categorize e desenvolva seus insights em um repositório centralizado e organizado.',
+      'Nunca mais perca uma boa ideia. Capture, categorize e desenvolva seus insights em um repositorio centralizado e organizado.',
     icon: Lightbulb,
     image: '/banco-de-ideias.png',
+    eyebrow: 'Capte o que merece virar pauta',
     topics: [
-      'Captura rápida via atalhos',
-      'Categorização por tags e temas',
-      'Status de maturação da ideia',
-      'Integração direta com roteiros',
+      'Captura rapida via atalhos',
+      'Categorizacao por tags e temas',
+      'Status de maturacao da ideia',
+      'Integracao direta com roteiros',
     ],
-  },
-  {
-    id: 'roteiros',
-    title: 'Gerador de Roteiros',
-    description:
-      'Estruture seus vídeos e posts com templates validados. Do gancho à chamada para ação, crie roteiros que retêm a atenção.',
-    icon: FileText,
-    image: '/gerador-de-roteiros.png',
-    topics: [
-      'Templates para Reels, TikTok e YouTube',
-      'Estimativa de tempo de leitura e fala',
-      'Área de referências e links',
-      'Histórico de versões',
+    outcomes: [
+      'Centralize referencias e insights antes que eles virem retrabalho.',
+      'Leve cada ideia para o modulo certo sem perder timing nem contexto.',
     ],
   },
   {
     id: 'calendario',
-    title: 'Calendário Editorial',
+    title: 'Calendario Editorial',
     description:
-      'Tenha visão total da sua estratégia. Planeje semanas ou meses de conteúdo com uma interface visual e intuitiva.',
+      'Tenha visao total da sua estrategia. Planeje semanas ou meses de conteudo com uma interface visual e intuitiva.',
     icon: Calendar,
     image: '/calendario-editorial.png',
+    eyebrow: 'Planejamento com visao de calendario',
     topics: [
-      'Visão mensal, semanal e diária',
+      'Visao mensal, semanal e diaria',
       'Filtros por rede social e formato',
       'Arraste e solte para reagendar',
-      'Identificação de lacunas de postagem',
+      'Identificacao de lacunas de postagem',
+    ],
+    outcomes: [
+      'Organize campanhas, formatos e prioridades sem perder o panorama das proximas semanas.',
+      'Reaja rapido a mudancas de prazo sem desmontar toda a operacao.',
     ],
   },
   {
     id: 'kanban',
-    title: 'Kanban de Produção',
+    title: 'Kanban de Producao',
     description:
-      'Acompanhe cada etapa da criação. Saiba exatamente o que está sendo escrito, gravado, editado ou aguardando aprovação.',
+      'Acompanhe cada etapa da criacao. Saiba exatamente o que esta sendo escrito, gravado, editado ou aguardando aprovacao.',
     icon: LayoutDashboard,
     image: '/kanban.png',
+    eyebrow: 'Producao com dono, status e prazo',
     topics: [
-      'Colunas personalizáveis',
-      'Atribuição de responsáveis',
+      'Colunas personalizaveis',
+      'Atribuicao de responsaveis',
       'Prazos e alertas de atraso',
       'Anexos de arquivos pesados',
+    ],
+    outcomes: [
+      'Deixe visivel o que esta travado, em andamento e pronto para seguir adiante.',
+      'Reduza cobrancas manuais com um quadro que mostra a operacao em tempo real.',
     ],
   },
   {
     id: 'aprovacao',
-    title: 'Aprovação de Conteúdo',
+    title: 'Aprovacao de Conteudo',
     description:
-      'Elimine o vai-e-vem no WhatsApp. Compartilhe links de aprovação com clientes ou gestores e receba feedback pontual.',
+      'Elimine o vai-e-vem no WhatsApp. Compartilhe links de aprovacao com clientes ou gestores e receba feedback pontual.',
     icon: CheckCircle,
     image: '/aprovacao.png',
+    eyebrow: 'Feedback no lugar certo',
     topics: [
       'Links externos seguros',
-      'Comentários diretos na peça',
-      'Histórico de alterações',
-      'Aprovação com um clique',
+      'Comentarios diretos na peca',
+      'Historico de alteracoes',
+      'Aprovacao com um clique',
+    ],
+    outcomes: [
+      'Concentre comentarios, ajustes e status no mesmo espaco em que a peca sera aprovada.',
+      'Mostre mais profissionalismo ao cliente sem criar um fluxo paralelo fora da plataforma.',
     ],
   },
   {
-    id: 'performance',
-    title: 'Performance',
+    id: 'membros',
+    title: 'Membros',
     description:
-      'Entenda o que funciona. Analise métricas essenciais para otimizar sua estratégia e focar no que traz resultado real.',
-    icon: BarChart3,
-    image: '/performance.png',
+      'Centralize membros, permissoes, vinculos de tarefas e comentarios operacionais do workspace no mesmo lugar.',
+    icon: UsersRound,
+    image: '/membros.png',
+    eyebrow: 'Equipe, acessos e responsabilidades',
     topics: [
-      'Dashboards consolidados',
-      'Métricas de engajamento e alcance',
-      'Identificação de melhores formatos',
-      'Relatórios automatizados',
+      'Convite e gestao de membros no workspace',
+      'Permissoes por modulo e nivel de acesso',
+      'Demandas vinculadas a responsaveis',
+      'Visibilidade operacional por perfil ativo',
+    ],
+    outcomes: [
+      'Organize quem pode acessar cada area sem depender de controles manuais fora da plataforma.',
+      'Deixe claro quem responde por cada demanda e mantenha a operacao mais segura para crescer em equipe.',
     ],
   },
 ];
@@ -120,8 +186,8 @@ const pricingPlans: Array<{
     value: 57,
     description: 'Para organizar o essencial sem depender de planilhas soltas.',
     benefits: [
-      'Planeje seus conteúdos com mais clareza',
-      'Acompanhe cada entrega do rascunho à publicação',
+      'Planeje seus conteudos com mais clareza',
+      'Acompanhe cada entrega do rascunho a publicacao',
       'Guarde boas ideias antes que elas se percam',
     ],
   },
@@ -132,9 +198,9 @@ const pricingPlans: Array<{
     value: 117,
     description: 'Para transformar rotina em processo e mostrar mais contexto ao cliente.',
     benefits: [
-      'Use referências para criar com mais direção',
-      'Monte relatórios simples para fechar ciclos',
-      'Ganhe mais visibilidade sem aumentar o ruído',
+      'Use referencias para criar com mais direcao',
+      'Monte relatorios simples para fechar ciclos',
+      'Ganhe mais visibilidade sem aumentar o ruido',
     ],
   },
   {
@@ -142,13 +208,13 @@ const pricingPlans: Array<{
     name: 'Pro',
     price: 'R$147,90',
     value: 147.9,
-    description: 'Para operar como uma equipe profissional, com aprovação, IA e colaboração.',
+    description: 'Para operar como uma equipe profissional, com aprovacao, IA e colaboracao.',
     highlighted: true,
     benefits: [
-      'Envie conteúdos para aprovação com um clique',
+      'Envie conteudos para aprovacao com um clique',
       'Transforme ideias em roteiros prontos para gravar',
       'Traga sua equipe para o fluxo sem perder controle',
-      'Conecte a operação para reduzir tarefas manuais',
+      'Conecte a operacao para reduzir tarefas manuais',
     ],
   },
 ];
@@ -158,23 +224,151 @@ const howItWorksSteps = [
     num: '01',
     title: 'Capture ideias',
     desc: 'Registre insights no momento em que surgem, antes que se percam na rotina.',
+    tag: 'Entrada organizada',
   },
   {
     num: '02',
-    title: 'Monte a estratégia',
-    desc: 'Transforme ideias soltas em roteiros estruturados e posicione-os no calendário.',
+    title: 'Monte a estrategia',
+    desc: 'Transforme ideias soltas em roteiros estruturados e posicione-os no calendario.',
+    tag: 'Planejamento claro',
   },
   {
     num: '03',
     title: 'Execute com clareza',
-    desc: 'Acompanhe o status de cada peça no kanban. Grave, edite e aprove sem atrito.',
+    desc: 'Acompanhe o status de cada peca no kanban. Grave, edite e aprove sem atrito.',
+    tag: 'Producao alinhada',
   },
   {
     num: '04',
     title: 'Ajuste com dados',
     desc: 'Analise a performance do que foi publicado e retroalimente seu banco de ideias.',
+    tag: 'Melhoria continua',
   },
 ];
+
+const HERO_VIMEO_EMBED_URL =
+  'https://player.vimeo.com/video/1184592877?autoplay=1&muted=1&loop=0&autopause=1&title=0&byline=0&portrait=0&playsinline=1';
+
+const ApprovalPreview = () => (
+  <div className="grid gap-4 xl:grid-cols-[1.06fr_0.94fr]">
+    <div className="rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(9,16,32,0.98),rgba(4,8,18,0.95))] p-4 shadow-[0_18px_50px_rgba(2,8,23,0.35)]">
+      <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-4">
+        <div>
+          <p className="text-[0.65rem] font-semibold uppercase tracking-[0.24em] text-[#7CCEFF]">
+            Link de aprovacao
+          </p>
+          <p className="mt-2 text-sm font-semibold text-white">
+            Feedback e decisao no mesmo fluxo
+          </p>
+        </div>
+        <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[0.7rem] font-semibold text-emerald-200">
+          <ShieldCheck className="h-3.5 w-3.5" />
+          Seguro
+        </span>
+      </div>
+
+      <div className="mt-4 overflow-hidden rounded-[24px] border border-white/10 bg-[#0A1328]">
+        <div className="bg-[radial-gradient(circle_at_top_left,rgba(56,182,255,0.26),transparent_42%),linear-gradient(135deg,#132445_0%,#091120_100%)] p-5">
+          <div className="rounded-[22px] border border-white/10 bg-white/5 p-4 backdrop-blur">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-white">Reel campanha de lancamento</p>
+                <p className="mt-1 text-xs text-white/55">
+                  Cliente visualiza a peca, contexto e observacoes sem sair do link.
+                </p>
+              </div>
+              <span className="rounded-full bg-white/10 px-2.5 py-1 text-[0.65rem] font-semibold text-white/75">
+                Instagram
+              </span>
+            </div>
+
+            <div className="mt-4 rounded-[20px] border border-white/10 bg-[#050B16] p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-white/45">
+                  Status
+                </p>
+                <span className="rounded-full bg-amber-400/15 px-2.5 py-1 text-[0.7rem] font-semibold text-amber-200">
+                  Em revisao
+                </span>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                <div className="rounded-[18px] bg-white/5 px-3 py-3 text-sm text-white/80">
+                  Titulo: Manifesto da nova operacao de conteudo
+                </div>
+                <div className="rounded-[18px] border border-white/10 bg-white/5 px-3 py-3 text-sm text-white/60">
+                  Observacao do cliente: destacar CTA final e trazer mais clareza no beneficio.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t border-white/10 bg-white/[0.03] px-4 py-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-[18px] border border-white/10 bg-white/5 px-3 py-3">
+              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-white/40">
+                Comentarios
+              </p>
+              <p className="mt-2 text-sm text-white/78">
+                Comentarios ligados ao item certo, sem prints perdidos.
+              </p>
+            </div>
+            <div className="rounded-[18px] border border-white/10 bg-white/5 px-3 py-3">
+              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-white/40">
+                Decisao
+              </p>
+              <p className="mt-2 text-sm text-white/78">
+                Ajustar, aprovar ou validar com historico registrado.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div className="space-y-4">
+      <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-sm">
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#38B6FF]/12 text-[#7CCEFF]">
+          <MessageCircle className="h-5 w-5" />
+        </div>
+        <p className="mt-5 text-lg font-semibold text-white">Feedback com contexto</p>
+        <p className="mt-3 text-sm leading-7 text-white/60">
+          Cliente e time comentam em cima da mesma entrega, com menos ruído e menos retrabalho.
+        </p>
+      </div>
+
+      <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-sm">
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-500/14 text-indigo-200">
+          <ShieldCheck className="h-5 w-5" />
+        </div>
+        <p className="mt-5 text-lg font-semibold text-white">Mais profissionalismo</p>
+        <p className="mt-3 text-sm leading-7 text-white/60">
+          Envie um link limpo, seguro e facil de aprovar em vez de sustentar um fluxo paralelo.
+        </p>
+      </div>
+    </div>
+  </div>
+);
+
+const ImageModulePreview = ({ module }: { module: LandingModule }) => (
+  <div className="relative flex h-full items-center justify-center">
+    <div className="pointer-events-none absolute inset-0 rounded-[32px] bg-[radial-gradient(circle_at_center,rgba(56,182,255,0.16),transparent_62%)] blur-2xl" />
+    <img
+      src={module.image}
+      alt={module.title}
+      className="relative z-10 max-h-[460px] w-full object-contain drop-shadow-[0_28px_60px_rgba(2,8,23,0.45)] md:max-h-[560px]"
+    />
+  </div>
+);
+
+const ModulePreview = ({ module }: { module: LandingModule }) => {
+  return module.image ? (
+    <div className="xl:pl-4">
+      <ImageModulePreview module={module} />
+    </div>
+  ) : null;
+};
 
 export const LandingPage = () => {
   const [activeModuleId, setActiveModuleId] = React.useState(modules[0].id);
@@ -183,6 +377,7 @@ export const LandingPage = () => {
 
   React.useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
+    handleScroll();
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
@@ -207,273 +402,313 @@ export const LandingPage = () => {
   };
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#050816] text-white selection:bg-[#38B6FF] selection:text-white">
+    <div className="min-h-screen overflow-x-hidden bg-[#030711] text-white selection:bg-[#38B6FF] selection:text-white">
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top,rgba(56,182,255,0.18),transparent_34%),radial-gradient(circle_at_85%_18%,rgba(99,102,241,0.14),transparent_26%),linear-gradient(180deg,#030711_0%,#050916_44%,#040814_100%)]" />
+      <div className="pointer-events-none fixed left-[-8rem] top-24 h-72 w-72 rounded-full bg-[#38B6FF]/12 blur-3xl" />
+      <div className="pointer-events-none fixed right-[-10rem] top-32 h-96 w-96 rounded-full bg-indigo-500/12 blur-3xl" />
+
       <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          isScrolled
-            ? 'border-b border-white/10 bg-[#050816]/80 py-4 backdrop-blur-md'
-            : 'bg-transparent py-6'
+          isScrolled ? 'px-3 pt-3 md:px-6' : 'px-0 pt-0'
         }`}
       >
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 md:px-12">
-          <div className="flex items-center">
+        <div
+          className={`mx-auto flex max-w-7xl items-center justify-between transition-all duration-300 ${
+            isScrolled
+              ? 'rounded-[28px] border border-white/10 bg-[#07101f]/80 px-5 py-3 shadow-[0_20px_60px_rgba(2,8,23,0.45)] backdrop-blur-xl md:px-7'
+              : 'border-b border-white/8 bg-transparent px-6 py-5 md:px-12'
+          }`}
+        >
+          <Link to="/" className="flex shrink-0 items-center">
             <img
               src="/logo-full-white.png"
               alt="PostHub"
-              className="h-10 w-auto object-contain"
+              className="h-10 w-auto object-contain md:h-11"
             />
-          </div>
+          </Link>
 
           <nav className="hidden items-center gap-8 md:flex">
-            <a
-              href="#recursos"
-              className="text-sm font-medium text-white/70 transition-colors hover:text-white"
-            >
-              Recursos
-            </a>
-            <a
-              href="#como-funciona"
-              className="text-sm font-medium text-white/70 transition-colors hover:text-white"
-            >
-              Como funciona
-            </a>
-            <a
-              href="#preco"
-              className="text-sm font-medium text-white/70 transition-colors hover:text-white"
-            >
-              Teste grátis
-            </a>
+            {navItems.map((item) => (
+              <a
+                key={item.href}
+                href={item.href}
+                className="text-sm font-medium text-white/66 transition-colors hover:text-white"
+              >
+                {item.label}
+              </a>
+            ))}
           </nav>
 
-          <div className="hidden items-center gap-6 md:flex">
-            <Link
-              to="/login"
-              className="text-sm font-medium text-white/70 transition-colors hover:text-white"
-            >
-              Login
+          <div className="hidden items-center gap-3 md:flex">
+            <Link to="/login">
+              <Button
+                variant="ghost"
+                className="rounded-full px-5 text-sm text-white/70 hover:bg-white/6 hover:text-white"
+              >
+                Login
+              </Button>
             </Link>
             <Link to="/signup">
-              <Button className="rounded-full px-5 py-2.5 text-sm font-semibold">
-                Testar grátis
+              <Button className="rounded-full px-6 text-sm font-semibold shadow-[0_18px_34px_rgba(56,182,255,0.28)]">
+                Testar gratis
               </Button>
             </Link>
           </div>
 
           <button
-            className="text-white/70 hover:text-white md:hidden"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            aria-label="Abrir menu"
+            type="button"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/72 transition-colors hover:bg-white/8 md:hidden"
+            onClick={() => setMobileMenuOpen((current) => !current)}
+            aria-label={mobileMenuOpen ? 'Fechar menu' : 'Abrir menu'}
           >
-            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </div>
 
         <AnimatePresence>
-          {mobileMenuOpen && (
+          {mobileMenuOpen ? (
             <motion.div
-              initial={{ opacity: 0, y: -10 }}
+              initial={{ opacity: 0, y: -12 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="absolute top-full left-0 right-0 border-b border-white/10 bg-[#0A1023] p-6 shadow-2xl md:hidden"
+              exit={{ opacity: 0, y: -12 }}
+              className="mx-3 mt-3 rounded-[28px] border border-white/10 bg-[#07101f]/92 p-5 shadow-[0_20px_60px_rgba(2,8,23,0.5)] backdrop-blur-xl md:hidden"
             >
-              <div className="flex flex-col gap-4">
-                <a
-                  href="#recursos"
-                  className="py-2 text-base font-medium text-white/80 hover:text-white"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Recursos
-                </a>
-                <a
-                  href="#como-funciona"
-                  className="py-2 text-base font-medium text-white/80 hover:text-white"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Como funciona
-                </a>
-                <a
-                  href="#preco"
-                  className="py-2 text-base font-medium text-white/80 hover:text-white"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Teste grátis
-                </a>
+              <div className="flex flex-col gap-2">
+                {navItems.map((item) => (
+                  <a
+                    key={item.href}
+                    href={item.href}
+                    className="rounded-2xl px-4 py-3 text-sm font-medium text-white/75 transition-colors hover:bg-white/5 hover:text-white"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    {item.label}
+                  </a>
+                ))}
+
                 <div className="my-2 h-px bg-white/10" />
-                <Link
-                  to="/login"
-                  className="py-2 text-base font-medium text-white/80 hover:text-white"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Login
+
+                <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
+                  <Button
+                    variant="secondary"
+                    className="w-full rounded-2xl border-white/10 bg-white/5 text-sm text-white hover:bg-white/10"
+                  >
+                    Login
+                  </Button>
                 </Link>
-                <Link
-                  to="/signup"
-                  className="mt-2"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <Button className="w-full rounded-xl py-3 text-base font-semibold">
-                    Testar grátis
+                <Link to="/signup" onClick={() => setMobileMenuOpen(false)}>
+                  <Button className="mt-2 w-full rounded-2xl text-sm font-semibold">
+                    Testar gratis
                   </Button>
                 </Link>
               </div>
             </motion.div>
-          )}
+          ) : null}
         </AnimatePresence>
       </header>
 
-      <main>
-        <section className="relative overflow-hidden pt-32 pb-20 md:pt-48 md:pb-32">
-          <div className="pointer-events-none absolute top-1/2 left-1/2 h-[800px] w-[800px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#38B6FF]/10 blur-[120px]" />
+      <main className="relative z-10">
+        <section className="relative overflow-hidden px-6 pb-20 pt-32 md:px-12 md:pb-24 md:pt-44">
+          <div className="mx-auto max-w-5xl text-center">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55 }}
+            >
+              <div className="inline-flex items-center gap-2 rounded-full border border-[#38B6FF]/20 bg-[#38B6FF]/10 px-4 py-2 text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-[#8DD7FF]">
+                <Sparkles className="h-3.5 w-3.5" />
+                Organizacao, estrategia e execucao no mesmo sistema
+              </div>
 
-          <div className="relative z-10 mx-auto max-w-7xl px-6 md:px-12">
-            <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-8">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-                className="max-w-2xl"
-              >
-                <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
-                  <span className="h-2 w-2 rounded-full bg-[#38B6FF] animate-pulse" />
-                  <span className="text-xs font-medium text-white/80">
-                    Organização, estratégia e execução no mesmo sistema
+              <h1 className="mx-auto mt-8 max-w-[12ch] text-5xl font-semibold leading-[0.95] tracking-[-0.04em] text-white sm:text-6xl lg:text-[5.2rem]">
+                Pare de operar no improviso.
+                <span className="mt-2 block bg-gradient-to-r from-[#8DDBFF] via-[#4ABEFF] to-[#7C8CFF] bg-clip-text text-transparent">
+                  Faca o conteudo avancar com clareza.
+                </span>
+              </h1>
+
+              <p className="mx-auto mt-7 max-w-3xl text-lg leading-8 text-white/64 md:text-xl">
+                O PostHub centraliza ideias, roteiros, planejamento, fluxo de producao,
+                aprovacao e performance em um unico lugar. Feito para quem precisa publicar com
+                consistencia sem depender de ferramentas soltas.
+              </p>
+
+              <div className="mt-8 flex flex-wrap justify-center gap-2">
+                {workflowPills.map((pill) => (
+                  <span
+                    key={pill}
+                    className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-white/68"
+                  >
+                    {pill}
                   </span>
+                ))}
+              </div>
+
+              <div className="mt-10 flex flex-col justify-center gap-3 sm:flex-row sm:items-center">
+                <Link to="/signup">
+                  <Button
+                    size="lg"
+                    className="flex w-full items-center justify-center gap-2 rounded-full px-8 shadow-[0_20px_40px_rgba(56,182,255,0.3)] sm:w-auto"
+                  >
+                    Comecar teste gratis
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+
+                <a href="#recursos" className="w-full sm:w-auto">
+                  <Button
+                    variant="secondary"
+                    size="lg"
+                    className="flex w-full items-center justify-center rounded-full border-white/10 bg-white/6 px-8 text-white hover:bg-white/10 sm:w-auto"
+                  >
+                    Ver o produto
+                  </Button>
+                </a>
+              </div>
+
+              <p className="mt-5 text-sm text-white/42">
+                Teste gratis por 7 dias. Depois, continue no plano completo por R$ 147,90/mes.
+              </p>
+            </motion.div>
+          </div>
+
+          <motion.iframe
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.12 }}
+            src={HERO_VIMEO_EMBED_URL}
+            title="Apresentacao da PostHub"
+            className="relative left-1/2 mt-14 block aspect-video w-[calc(100vw-1rem)] max-w-none -translate-x-1/2 rounded-[24px] border-0 bg-black sm:w-[calc(100vw-1.5rem)] md:w-[calc(100vw-3rem)] lg:w-[calc(100vw-4rem)]"
+            allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"
+            allowFullScreen
+          />
+
+          <div className="mx-auto mt-6 max-w-7xl">
+            <div className="grid gap-3 border-y border-white/10 py-5 md:grid-cols-3">
+              {heroMetrics.map((metric) => (
+                <div key={metric.value} className="px-1 text-center md:px-5 md:text-left">
+                  <p className="text-lg font-semibold text-white">{metric.value}</p>
+                  <p className="mt-1 text-sm leading-6 text-white/48">{metric.label}</p>
                 </div>
+              ))}
+            </div>
 
-                <h1 className="mb-6 text-4xl font-bold leading-[1.1] md:text-5xl lg:text-6xl">
-                  Pare de criar conteúdo no improviso.{' '}
-                  <span className="bg-gradient-to-r from-[#38B6FF] to-cyan-300 bg-clip-text text-transparent">
-                    Transforme sua operação em um processo.
-                  </span>
-                </h1>
-
-                <p className="mb-10 max-w-xl text-lg leading-relaxed text-white/60 md:text-xl">
-                  O PostHub centraliza suas ideias, roteiros, planejamento, fluxo
-                  de produção e performance em um único lugar. Feito para quem
-                  leva conteúdo a sério.
-                </p>
-
-                <div className="mb-6 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
-                  <Link to="/signup">
-                    <Button className="flex w-full items-center justify-center gap-2 rounded-full px-8 py-4 text-base font-semibold shadow-[0_0_30px_rgba(56,182,255,0.25)] hover:shadow-[0_0_40px_rgba(56,182,255,0.4)] sm:w-auto">
-                      Começar teste grátis
-                      <ArrowRight size={18} />
-                    </Button>
-                  </Link>
-
-                  <Link to="/login">
-                    <Button
-                      variant="secondary"
-                      className="flex w-full items-center justify-center rounded-full border border-white/10 bg-white/5 px-8 py-4 text-base font-semibold text-white hover:bg-white/10 sm:w-auto"
-                    >
-                      Entrar na plataforma
-                    </Button>
-                  </Link>
-                </div>
-
-                <p className="text-sm text-white/40">
-                  Teste grátis por 7 dias. Depois, continue no plano completo por
-                  R$ 147,90/mês.
-                </p>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, x: 20 }}
-                animate={{ opacity: 1, scale: 1, x: 0 }}
-                transition={{ duration: 0.8, delay: 0.2 }}
-                className="relative flex items-center justify-center lg:h-[600px]"
-              >
-                <div className="absolute inset-0 rounded-3xl bg-gradient-to-tr from-[#38B6FF]/20 to-transparent blur-3xl" />
-                <div className="relative w-full overflow-hidden rounded-2xl border border-white/10 bg-[#0A1023]/80 shadow-2xl ring-1 ring-white/5 backdrop-blur-sm">
-                  <div className="flex h-8 items-center gap-2 border-b border-white/10 bg-[#050816]/50 px-4">
-                    <div className="h-3 w-3 rounded-full bg-white/20" />
-                    <div className="h-3 w-3 rounded-full bg-white/20" />
-                    <div className="h-3 w-3 rounded-full bg-white/20" />
+            <div className="mt-10 grid gap-4 md:grid-cols-3">
+              {heroSignals.map((signal) => (
+                <div
+                  key={signal.title}
+                  className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6 backdrop-blur-sm"
+                >
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/8 text-[#8DD7FF]">
+                    <signal.icon className="h-5 w-5" />
                   </div>
-                  <img
-                    src="/hero.png"
-                    alt="Interface do PostHub"
-                    className="block h-auto w-full object-cover"
-                  />
+                  <h2 className="mt-5 text-lg font-semibold text-white">{signal.title}</h2>
+                  <p className="mt-3 text-sm leading-7 text-white/62">{signal.description}</p>
                 </div>
-              </motion.div>
+              ))}
             </div>
           </div>
         </section>
 
-        <section id="recursos" className="relative bg-[#0A1023] py-24">
-          <div className="mx-auto max-w-7xl px-6 md:px-12">
-            <div className="mx-auto mb-16 max-w-3xl text-center">
-              <h2 className="mb-6 text-3xl font-bold md:text-4xl">
-                O sistema operacional do seu conteúdo
+        <section id="recursos" className="relative border-t border-white/8 bg-[#050A16]/90 px-6 py-24 md:px-12 md:py-28">
+          <div className="mx-auto max-w-7xl">
+            <div className="mx-auto max-w-3xl text-center">
+              <div className="inline-flex items-center gap-2 rounded-full border border-[#38B6FF]/18 bg-[#38B6FF]/10 px-4 py-2 text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-[#8DD7FF]">
+                <Sparkles className="h-3.5 w-3.5" />
+                O sistema operacional do seu conteudo
+              </div>
+              <h2 className="mt-6 text-4xl font-semibold tracking-[-0.03em] text-white md:text-5xl">
+                Tudo o que sua operacao precisa para sair do improviso.
               </h2>
-              <p className="text-lg text-white/60">
-                Módulos integrados que cobrem 100% do ciclo de vida do conteúdo.
-                Da primeira faísca de ideia até a análise de resultados.
+              <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-white/62">
+                Os modulos da PostHub cobrem o ciclo completo do conteudo e compartilham o mesmo
+                contexto. Voce para de alternar entre ferramentas e passa a enxergar o fluxo com
+                clareza.
               </p>
             </div>
 
-            <div className="hide-scrollbar mb-8 flex justify-start gap-2 overflow-x-auto pb-4 lg:justify-center">
-              {modules.map((mod) => (
+            <div className="hide-scrollbar mt-12 flex justify-start gap-2 overflow-x-auto pb-4 lg:justify-center">
+              {modules.map((module) => (
                 <button
-                  key={mod.id}
-                  onClick={() => setActiveModuleId(mod.id)}
-                  className={`flex items-center gap-2 whitespace-nowrap rounded-full border px-5 py-3 transition-all duration-300 ${
-                    activeModule.id === mod.id
-                      ? 'border-[#38B6FF]/30 bg-[#38B6FF]/10 text-[#38B6FF]'
-                      : 'border-white/5 bg-[#0F152B] text-white/60 hover:bg-white/5 hover:text-white'
+                  key={module.id}
+                  type="button"
+                  onClick={() => setActiveModuleId(module.id)}
+                  className={`flex items-center gap-2 whitespace-nowrap rounded-full border px-5 py-3 text-sm font-medium transition-all duration-300 ${
+                    activeModule.id === module.id
+                      ? 'border-[#38B6FF]/30 bg-[#38B6FF]/12 text-[#8DD7FF] shadow-[0_12px_28px_rgba(56,182,255,0.14)]'
+                      : 'border-white/8 bg-white/[0.03] text-white/60 hover:border-white/14 hover:bg-white/[0.05] hover:text-white'
                   }`}
                 >
-                  <mod.icon size={18} />
-                  <span className="text-sm font-medium">{mod.title}</span>
+                  <module.icon className="h-4 w-4" />
+                  {module.title}
                 </button>
               ))}
             </div>
 
-            <div className="overflow-hidden rounded-3xl border border-white/10 bg-[#0F152B] p-6 md:p-10">
+            <div className="mt-8 overflow-hidden rounded-[34px] border border-white/10 bg-[linear-gradient(180deg,rgba(9,16,32,0.98),rgba(4,8,18,0.96))] p-5 shadow-[0_30px_100px_rgba(2,8,23,0.45)] md:p-8">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={activeModule.id}
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.3 }}
-                  className="grid items-center gap-10 lg:grid-cols-12"
+                  exit={{ opacity: 0, y: -12 }}
+                  transition={{ duration: 0.28 }}
+                  className="grid items-start gap-8 xl:grid-cols-[0.88fr_1.12fr]"
                 >
-                  <div className="order-2 lg:order-1 lg:col-span-5">
-                    <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-xl border border-[#38B6FF]/20 bg-[#38B6FF]/10">
-                      <ActiveIcon className="text-[#38B6FF]" size={24} />
+                  <div className="flex h-full flex-col">
+                    <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-white/55">
+                      <ActiveIcon className="h-3.5 w-3.5 text-[#8DD7FF]" />
+                      {activeModule.eyebrow}
                     </div>
 
-                    <h3 className="mb-4 text-2xl font-bold md:text-3xl">
+                    <h3 className="mt-6 text-3xl font-semibold tracking-[-0.03em] text-white md:text-4xl">
                       {activeModule.title}
                     </h3>
 
-                    <p className="mb-8 text-lg leading-relaxed text-white/60">
+                    <p className="mt-4 text-lg leading-8 text-white/64">
                       {activeModule.description}
                     </p>
 
-                    <ul className="space-y-4">
-                      {activeModule.topics.map((topic, idx) => (
-                        <li key={idx} className="flex items-start gap-3">
-                          <div className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#38B6FF]/20">
-                            <div className="h-2 w-2 rounded-full bg-[#38B6FF]" />
-                          </div>
-                          <span className="text-white/80">{topic}</span>
-                        </li>
+                    <div className="mt-8 grid gap-3 sm:grid-cols-2">
+                      {activeModule.outcomes.map((outcome) => (
+                        <div
+                          key={outcome}
+                          className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4"
+                        >
+                          <p className="text-sm leading-7 text-white/76">{outcome}</p>
+                        </div>
                       ))}
-                    </ul>
+                    </div>
+
+                    <div className="mt-8 space-y-4">
+                      {activeModule.topics.map((topic) => (
+                        <div key={topic} className="flex items-start gap-3">
+                          <div className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#38B6FF]/14">
+                            <Check className="h-3 w-3 text-[#8DD7FF]" />
+                          </div>
+                          <span className="text-sm leading-7 text-white/76 md:text-base">{topic}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="mt-10 flex flex-col gap-3 sm:flex-row">
+                      <Link to="/signup">
+                        <Button className="w-full rounded-full px-7 text-sm font-semibold sm:w-auto">
+                          Testar o fluxo completo
+                        </Button>
+                      </Link>
+                      <a href="#preco" className="w-full sm:w-auto">
+                        <Button
+                          variant="secondary"
+                          className="w-full rounded-full border-white/10 bg-white/5 px-7 text-sm text-white hover:bg-white/10 sm:w-auto"
+                        >
+                          Ver planos
+                        </Button>
+                      </a>
+                    </div>
                   </div>
 
-                  <div className="order-1 lg:order-2 lg:col-span-7">
-                    <div className="relative flex items-center justify-center rounded-2xl border border-white/10 bg-[#050816] p-4 shadow-2xl md:p-6">
-                      <img
-                        src={activeModule.image}
-                        alt={activeModule.title}
-                        className="max-h-[420px] h-auto w-full object-contain md:max-h-[520px]"
-                      />
-                      <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10" />
-                    </div>
+                  <div>
+                    <ModulePreview module={activeModule} />
                   </div>
                 </motion.div>
               </AnimatePresence>
@@ -481,81 +716,109 @@ export const LandingPage = () => {
           </div>
         </section>
 
-        <section id="como-funciona" className="bg-[#050816] py-24">
-          <div className="mx-auto max-w-7xl px-6 md:px-12">
-            <div className="mb-16">
-              <h2 className="mb-4 text-3xl font-bold md:text-4xl">
-                O método PostHub
-              </h2>
-              <p className="max-w-2xl text-lg text-white/60">
-                Um fluxo de trabalho lógico e sequencial que elimina a ansiedade
-                da criação de conteúdo.
+        <section
+          id="como-funciona"
+          className="relative border-t border-white/8 bg-[#040814] px-6 py-24 md:px-12 md:py-28"
+        >
+          <div className="mx-auto max-w-7xl">
+            <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+              <div className="max-w-3xl">
+                <div className="inline-flex items-center gap-2 rounded-full border border-[#38B6FF]/18 bg-[#38B6FF]/10 px-4 py-2 text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-[#8DD7FF]">
+                  <Workflow className="h-3.5 w-3.5" />
+                  O metodo PostHub
+                </div>
+                <h2 className="mt-6 text-4xl font-semibold tracking-[-0.03em] text-white md:text-5xl">
+                  Uma sequencia clara para reduzir ansiedade e mover o conteudo adiante.
+                </h2>
+              </div>
+
+              <p className="max-w-2xl text-lg leading-8 text-white/60">
+                Em vez de apagar incendios, sua operacao passa a seguir um fluxo previsivel:
+                capturar, planejar, produzir, aprovar e usar os dados para melhorar a proxima rodada.
               </p>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-              {howItWorksSteps.map((step, idx) => (
+            <div className="mt-14 grid gap-5 lg:grid-cols-4">
+              {howItWorksSteps.map((step) => (
                 <div
-                  key={idx}
-                  className="group rounded-3xl border border-white/5 bg-[#0A1023] p-8 transition-all duration-300 hover:border-white/10 hover:bg-[#0F152B]"
+                  key={step.num}
+                  className="group relative overflow-hidden rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(9,16,32,0.92),rgba(4,8,18,0.96))] p-7 transition-transform duration-300 hover:-translate-y-1"
                 >
-                  <div className="mb-6 text-5xl font-bold text-white/5 transition-colors group-hover:text-[#38B6FF]/20">
-                    {step.num}
+                  <div className="absolute inset-x-7 top-0 h-px bg-gradient-to-r from-transparent via-[#38B6FF]/50 to-transparent" />
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-5xl font-semibold tracking-[-0.04em] text-white/10 transition-colors group-hover:text-[#38B6FF]/30">
+                      {step.num}
+                    </span>
+                    <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-white/48">
+                      {step.tag}
+                    </span>
                   </div>
-                  <h3 className="mb-3 text-xl font-bold">{step.title}</h3>
-                  <p className="leading-relaxed text-white/60">{step.desc}</p>
+
+                  <h3 className="mt-8 text-2xl font-semibold text-white">{step.title}</h3>
+                  <p className="mt-4 text-sm leading-7 text-white/60 md:text-base">{step.desc}</p>
                 </div>
               ))}
+            </div>
+
+            <div className="mt-10 rounded-[28px] border border-white/10 bg-white/[0.04] px-6 py-5 backdrop-blur-sm md:flex md:items-center md:justify-between">
+              <p className="max-w-2xl text-sm leading-7 text-white/66 md:text-base">
+                O resultado e um fluxo que fica mais facil de operar, revisar e escalar ao longo das semanas.
+              </p>
+              <Link to="/signup" className="mt-4 inline-flex md:mt-0">
+                <Button className="rounded-full px-6 text-sm font-semibold">
+                  Criar workspace gratis
+                </Button>
+              </Link>
             </div>
           </div>
         </section>
 
-        <section id="preco" className="relative overflow-hidden bg-[#0A1023] py-24">
-
-          <div className="relative z-10 mx-auto max-w-7xl px-6 md:px-12">
-            <div className="mx-auto mb-14 max-w-3xl text-center">
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#38B6FF]/20 bg-[#38B6FF]/10 px-3 py-1.5">
-                <span className="text-xs font-medium text-[#38B6FF]">
-                  Planos PostHub
-                </span>
+        <section
+          id="preco"
+          className="relative border-t border-white/8 bg-[#050A16]/90 px-6 py-24 md:px-12 md:py-28"
+        >
+          <div className="mx-auto max-w-7xl">
+            <div className="mx-auto max-w-3xl text-center">
+              <div className="inline-flex items-center gap-2 rounded-full border border-[#38B6FF]/18 bg-[#38B6FF]/10 px-4 py-2 text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-[#8DD7FF]">
+                <Sparkles className="h-3.5 w-3.5" />
+                Planos PostHub
               </div>
-
-              <h2 className="mb-6 text-3xl font-bold leading-tight md:text-5xl">
-                Escolha o plano para profissionalizar sua operação de conteúdo.
+              <h2 className="mt-6 text-4xl font-semibold tracking-[-0.03em] text-white md:text-5xl">
+                Escolha o plano para profissionalizar sua operacao de conteudo.
               </h2>
-
-              <p className="mx-auto max-w-2xl text-lg leading-relaxed text-white/60">
-                Comece com o essencial, avance com mais clareza e desbloqueie no
-                PRO o fluxo completo para aprovar, criar com IA e trabalhar em
-                equipe.
+              <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-white/60">
+                Comece com o essencial, avance com mais clareza e desbloqueie no PRO o fluxo
+                completo para aprovar, criar com IA e trabalhar em equipe.
               </p>
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-3">
+            <div className="mt-14 grid gap-6 lg:grid-cols-3">
               {pricingPlans.map((plan) => (
                 <div
                   key={plan.id}
-                  className={`relative flex flex-col rounded-lg border p-8 shadow-2xl ${
+                  className={`relative flex h-full flex-col rounded-[30px] border p-8 shadow-[0_24px_70px_rgba(2,8,23,0.35)] ${
                     plan.highlighted
-                      ? 'border-[#38B6FF] bg-[#050816] shadow-[#38B6FF]/20'
-                      : 'border-white/10 bg-[#050816]'
+                      ? 'border-[#38B6FF]/40 bg-[linear-gradient(180deg,rgba(8,16,32,1),rgba(4,9,19,1))] ring-1 ring-[#38B6FF]/30'
+                      : 'border-white/10 bg-[linear-gradient(180deg,rgba(9,16,32,0.94),rgba(4,8,18,0.96))]'
                   }`}
                 >
                   {plan.highlighted ? (
-                    <div className="absolute right-5 top-5 rounded-full bg-[#38B6FF] px-3 py-1 text-xs font-bold text-white">
+                    <div className="absolute right-6 top-6 rounded-full bg-[#38B6FF] px-3 py-1 text-[0.68rem] font-bold uppercase tracking-[0.14em] text-white">
                       Mais usado
                     </div>
                   ) : null}
 
                   <div className="mb-8">
-                    <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#38B6FF]">
+                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#8DD7FF]">
                       {plan.name}
                     </p>
                     <div className="mt-4 flex items-end gap-2">
-                      <span className="text-4xl font-bold text-white">{plan.price}</span>
-                      <span className="pb-1 text-sm text-white/50">/ mês</span>
+                      <span className="text-5xl font-semibold tracking-[-0.04em] text-white">
+                        {plan.price}
+                      </span>
+                      <span className="pb-2 text-sm text-white/45">/ mes</span>
                     </div>
-                    <p className="mt-4 min-h-[72px] text-sm leading-6 text-white/60">
+                    <p className="mt-5 min-h-[88px] text-sm leading-7 text-white/62">
                       {plan.description}
                     </p>
                   </div>
@@ -563,10 +826,10 @@ export const LandingPage = () => {
                   <div className="mb-8 flex-1 space-y-4">
                     {plan.benefits.map((benefit) => (
                       <div key={benefit} className="flex items-start gap-3">
-                        <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#38B6FF]/10">
-                          <Check size={12} className="text-[#38B6FF]" />
+                        <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#38B6FF]/14">
+                          <Check className="h-3 w-3 text-[#8DD7FF]" />
                         </div>
-                        <span className="text-sm leading-6 text-white/70">{benefit}</span>
+                        <span className="text-sm leading-7 text-white/78">{benefit}</span>
                       </div>
                     ))}
                   </div>
@@ -575,72 +838,86 @@ export const LandingPage = () => {
                     href={STRIPE_PAYMENT_LINKS[plan.id]}
                     rel="noreferrer"
                     onClick={() => handleCheckoutClick(plan)}
-                    className={`inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-base font-bold transition-colors ${
+                    className={`inline-flex w-full items-center justify-center gap-2 rounded-full px-5 py-3.5 text-sm font-semibold transition-all ${
                       plan.highlighted
-                        ? 'bg-[#38B6FF] text-white shadow-[0_0_20px_rgba(56,182,255,0.25)] hover:bg-[#2da1e6]'
+                        ? 'bg-[#38B6FF] text-white shadow-[0_18px_35px_rgba(56,182,255,0.24)] hover:bg-[#2da1e6]'
                         : 'border border-white/10 bg-white/5 text-white hover:bg-white/10'
                     }`}
                   >
-                    Começar agora
+                    Comecar agora
                     <ArrowRight className="h-4 w-4" />
                   </a>
                 </div>
               ))}
             </div>
+
+            <p className="mx-auto mt-8 max-w-2xl text-center text-sm leading-6 text-white/42">
+              O modulo de performance esta em preparacao e sera liberado no PRO quando estiver pronto para uso.
+            </p>
           </div>
         </section>
 
-        <section className="relative overflow-hidden border-t border-white/5 bg-[#050816] py-24">
-          <div className="pointer-events-none absolute bottom-0 left-1/2 h-[400px] w-[800px] -translate-x-1/2 rounded-full bg-[#38B6FF]/10 blur-[120px]" />
+        <section className="relative border-t border-white/8 bg-[#040814] px-6 py-20 md:px-12 md:py-24">
+          <div className="mx-auto max-w-7xl">
+            <div className="relative overflow-hidden rounded-[38px] border border-white/10 bg-[linear-gradient(135deg,#07111f_0%,#09172d_58%,#0d1330_100%)] px-6 py-10 shadow-[0_30px_100px_rgba(2,8,23,0.45)] md:px-10 md:py-12">
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(56,182,255,0.24),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(99,102,241,0.18),transparent_28%)]" />
 
-          <div className="relative z-10 mx-auto max-w-4xl px-6 text-center">
-            <div className="mx-auto mb-8">
-              <img
-                src="/logo-full-white.png"
-                alt="PostHub"
-                className="mx-auto h-12 w-auto object-contain"
-              />
+              <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+                <div className="max-w-2xl">
+                  <img
+                    src="/logo-full-white.png"
+                    alt="PostHub"
+                    className="h-11 w-auto object-contain"
+                  />
+
+                  <h2 className="mt-6 text-4xl font-semibold tracking-[-0.03em] text-white md:text-5xl">
+                    Se conteudo faz parte da sua operacao, ele precisa de processo.
+                  </h2>
+                  <p className="mt-5 text-lg leading-8 text-white/66">
+                    Junte-se a quem quer trocar retrabalho por clareza. Centralize o bastidor,
+                    publique com mais consistencia e mantenha o controle de cada etapa.
+                  </p>
+
+                  <div className="mt-6 flex flex-wrap gap-2">
+                    {workflowPills.slice(0, 5).map((pill) => (
+                      <span
+                        key={pill}
+                        className="rounded-full border border-white/10 bg-white/6 px-3 py-1.5 text-xs font-medium text-white/72"
+                      >
+                        {pill}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <Link to="/signup">
+                    <Button className="w-full rounded-full px-7 text-sm font-semibold shadow-[0_18px_35px_rgba(56,182,255,0.24)] sm:w-auto">
+                      Comecar teste gratis
+                    </Button>
+                  </Link>
+                  <Link to="/login">
+                    <Button
+                      variant="secondary"
+                      className="w-full rounded-full border-white/12 bg-white/8 px-7 text-sm text-white hover:bg-white/14 sm:w-auto"
+                    >
+                      Entrar na PostHub
+                    </Button>
+                  </Link>
+                </div>
+              </div>
             </div>
 
-            <h2 className="mb-6 text-4xl font-bold leading-tight md:text-5xl">
-              Se conteúdo é parte da sua operação,{' '}
-              <span className="bg-gradient-to-r from-[#38B6FF] to-cyan-300 bg-clip-text text-transparent">
-                ele precisa de processo.
-              </span>
-            </h2>
-
-            <p className="mx-auto mb-10 max-w-2xl text-xl text-white/60">
-              Junte-se aos profissionais que pararam de apagar incêndios e
-              começaram a construir ativos de forma previsível e organizada.
-            </p>
-
-            <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <Link to="/signup">
-                <Button className="w-full rounded-full px-8 py-4 text-base font-semibold shadow-[0_0_30px_rgba(56,182,255,0.25)] hover:shadow-[0_0_40px_rgba(56,182,255,0.4)] sm:w-auto">
-                  Começar teste grátis
-                </Button>
-              </Link>
-
-              <Link to="/login">
-                <Button
-                  variant="secondary"
-                  className="w-full rounded-full border border-white/10 bg-white/5 px-8 py-4 text-base font-semibold text-white hover:bg-white/10 sm:w-auto"
-                >
-                  Entrar na PostHub
-                </Button>
-              </Link>
-            </div>
-          </div>
-
-          <div className="mx-auto mt-32 flex max-w-7xl flex-col items-center justify-between gap-4 border-t border-white/10 px-6 pt-8 text-sm text-white/40 md:flex-row">
-            <p>© {new Date().getFullYear()} PostHub. Todos os direitos reservados.</p>
-            <div className="flex gap-6">
-              <a href="#" className="transition-colors hover:text-white">
-                Termos de Uso
-              </a>
-              <a href="#" className="transition-colors hover:text-white">
-                Privacidade
-              </a>
+            <div className="mt-10 flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-8 text-sm text-white/40 md:flex-row">
+              <p>© {new Date().getFullYear()} PostHub. Todos os direitos reservados.</p>
+              <div className="flex gap-6">
+                <a href="#" className="transition-colors hover:text-white">
+                  Termos de Uso
+                </a>
+                <a href="#" className="transition-colors hover:text-white">
+                  Privacidade
+                </a>
+              </div>
             </div>
           </div>
         </section>
