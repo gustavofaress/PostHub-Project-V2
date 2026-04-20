@@ -21,6 +21,11 @@ export interface AdminDashboardOnboardingRow {
   created_at?: string | null;
 }
 
+export interface AdminDashboardWorkspaceMemberRow {
+  user_id: string | null;
+  email: string | null;
+}
+
 export interface AdminDashboardUser {
   id: string;
   name: string;
@@ -90,8 +95,15 @@ export const adminDashboardService = {
       throw new AdminDashboardAccessError('Supabase não está configurado.');
     }
 
-    const [{ data: usuariosData, error: usuariosError }, { data: onboardingData, error: onboardingError }] =
-      await Promise.all([fetchAdminDashboardUsers(), fetchAdminDashboardOnboarding()]);
+    const [
+      { data: usuariosData, error: usuariosError },
+      { data: onboardingData, error: onboardingError },
+      { data: workspaceMembersData, error: workspaceMembersError },
+    ] = await Promise.all([
+      fetchAdminDashboardUsers(),
+      fetchAdminDashboardOnboarding(),
+      fetchAdminDashboardWorkspaceMembers(),
+    ]);
 
     if (usuariosError) {
       throw mapAdminDashboardError(usuariosError);
@@ -101,13 +113,35 @@ export const adminDashboardService = {
       throw mapAdminDashboardError(onboardingError);
     }
 
+    if (workspaceMembersError) {
+      throw mapAdminDashboardError(workspaceMembersError);
+    }
+
     const onboardingMap = new Map<string, AdminDashboardOnboardingRow>();
     (onboardingData as AdminDashboardOnboardingRow[] | null)?.forEach((row) => {
       onboardingMap.set(row.user_id, row);
     });
 
+    const workspaceMemberUserIds = new Set(
+      ((workspaceMembersData as AdminDashboardWorkspaceMemberRow[] | null) ?? [])
+        .map((member) => member.user_id)
+        .filter((userId): userId is string => !!userId)
+    );
+    const workspaceMemberEmails = new Set(
+      ((workspaceMembersData as AdminDashboardWorkspaceMemberRow[] | null) ?? [])
+        .map((member) => member.email?.trim().toLowerCase())
+        .filter((email): email is string => !!email)
+    );
+
     return ((usuariosData as AdminDashboardUserRow[] | null) ?? [])
-      .filter((usuario) => !usuario.is_admin)
+      .filter((usuario) => {
+        const email = usuario.email?.trim().toLowerCase() ?? '';
+        return (
+          !usuario.is_admin &&
+          !workspaceMemberUserIds.has(usuario.id) &&
+          (!email || !workspaceMemberEmails.has(email))
+        );
+      })
       .map((usuario) => {
         const onboarding = onboardingMap.get(usuario.id);
         const isPro = usuario.current_plan === 'pro';
@@ -319,6 +353,12 @@ async function fetchAdminDashboardOnboarding() {
   );
 }
 
+async function fetchAdminDashboardWorkspaceMembers() {
+  return (await supabase!
+    .from('workspace_members')
+    .select('user_id, email')) as AdminDashboardQueryResult<AdminDashboardWorkspaceMemberRow>;
+}
+
 async function fetchLandingPageVideoVisits() {
   const sinceDate = new Date();
   sinceDate.setDate(sinceDate.getDate() - 30);
@@ -390,7 +430,7 @@ function mapAdminDashboardError(error: { code?: string; message?: string | null 
 
   if (isPermissionError) {
     return new AdminDashboardAccessError(
-      'O Admin Dashboard não conseguiu ler todos os usuários. Aplique as policies de admin no Supabase para as tabelas usuarios e user_onboarding.'
+      'O Admin Dashboard não conseguiu ler todos os usuários. Aplique as policies de admin no Supabase para as tabelas usuarios, user_onboarding e workspace_members.'
     );
   }
 
