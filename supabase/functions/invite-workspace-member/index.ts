@@ -156,8 +156,10 @@ const ensureMemberAuthUser = async ({
   password: string;
   fullName: string | null;
 }) => {
+  const memberDisplayName = fullName?.trim() || email.split('@')[0] || 'Membro';
   const userMetadata = {
-    full_name: fullName,
+    full_name: memberDisplayName,
+    initial_profile_name: memberDisplayName,
     workspace_member: true,
   };
 
