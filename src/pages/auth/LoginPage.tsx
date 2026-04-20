@@ -5,6 +5,7 @@ import { Card } from '../../shared/components/Card';
 import { Button } from '../../shared/components/Button';
 import { Input } from '../../shared/components/Input';
 import { useAuth } from '../../app/context/AuthContext';
+import { BrandLogo } from '../../assets/branding/BrandLogo';
 
 export const LoginPage = () => {
   const { login } = useAuth();
@@ -33,7 +34,7 @@ export const LoginPage = () => {
     try {
       await login(email, password);
     } catch (err: any) {
-      setError(err.message || 'Failed to login');
+      setError(err.message || 'Não foi possível entrar.');
     } finally {
       setIsLoading(false);
     }
@@ -41,17 +42,17 @@ export const LoginPage = () => {
 
   return (
     <div className="min-h-screen bg-bg-main flex flex-col items-center justify-center p-4">
-      <div className="mb-8 flex items-center gap-2">
-        <div className="h-10 w-10 rounded-xl bg-brand flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-brand/20">
-          P
-        </div>
-        <span className="text-2xl font-bold tracking-tight text-text-primary">PostHub</span>
-      </div>
+      <BrandLogo
+        className="mb-8 flex justify-center"
+        imgClassName="h-12 w-auto object-contain"
+      />
 
       <Card className="w-full max-w-md p-8">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-text-primary">Welcome back</h1>
-          <p className="text-text-secondary">Enter your credentials to access your workspace</p>
+          <h1 className="text-2xl font-bold text-text-primary">Bem-vindo de volta</h1>
+          <p className="text-text-secondary">
+            Entre com seus dados para acessar seu espaço de trabalho
+          </p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
@@ -68,9 +69,9 @@ export const LoginPage = () => {
           )}
 
           <Input
-            label="Email Address"
+            label="E-mail"
             type="email"
-            placeholder="name@company.com"
+            placeholder="nome@empresa.com"
             icon={<Mail className="h-4 w-4" />}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -79,9 +80,9 @@ export const LoginPage = () => {
 
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <label className="text-sm font-medium text-text-primary">Password</label>
+              <label className="text-sm font-medium text-text-primary">Senha</label>
               <Link to={resetPasswordPath} className="text-xs text-brand hover:underline">
-                Forgot password?
+                Esqueceu a senha?
               </Link>
             </div>
 
@@ -96,7 +97,7 @@ export const LoginPage = () => {
           </div>
 
           <Button type="submit" className="w-full" isLoading={isLoading}>
-            Sign In
+            Entrar
           </Button>
         </form>
 
@@ -105,14 +106,14 @@ export const LoginPage = () => {
             <div className="w-full border-t border-gray-200"></div>
           </div>
           <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-white px-2 text-text-secondary">Or continue with</span>
+            <span className="bg-white px-2 text-text-secondary">Ou continue com</span>
           </div>
         </div>
 
         <div className="mt-6 grid grid-cols-2 gap-3">
           <Button variant="secondary" className="gap-2" type="button">
             <Github className="h-4 w-4" />
-            Github
+            GitHub
           </Button>
 
           <Button variant="secondary" className="gap-2" type="button">
@@ -139,16 +140,16 @@ export const LoginPage = () => {
         </div>
 
         <p className="mt-8 text-center text-sm text-text-secondary">
-          Don't have an account?{' '}
+          Ainda não tem uma conta?{' '}
           <Link to="/signup" className="font-semibold text-brand hover:underline">
-            Sign up for free
+            Cadastre-se grátis
           </Link>
         </p>
 
         <p className="mt-3 text-center text-sm text-text-secondary">
-          Received a member access?{' '}
+          Recebeu um acesso de membro?{' '}
           <Link to="/member-login" className="font-semibold text-brand hover:underline">
-            Member login
+            Login de membro
           </Link>
         </p>
       </Card>

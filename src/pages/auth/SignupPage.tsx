@@ -5,6 +5,7 @@ import { Card } from '../../shared/components/Card';
 import { Button } from '../../shared/components/Button';
 import { Input } from '../../shared/components/Input';
 import { useAuth } from '../../app/context/AuthContext';
+import { BrandLogo } from '../../assets/branding/BrandLogo';
 import { trackMetaEvent } from '../../services/meta-conversions.service';
 
 export const SignupPage = () => {
@@ -40,7 +41,7 @@ export const SignupPage = () => {
         err?.message ||
           err?.error_description ||
           (typeof err === 'string' ? err : JSON.stringify(err)) ||
-          'Failed to sign up'
+          'Não foi possível criar sua conta'
       );
     } finally {
       setIsLoading(false);
@@ -49,17 +50,17 @@ export const SignupPage = () => {
 
   return (
     <div className="min-h-screen bg-bg-main flex flex-col items-center justify-center p-4">
-      <div className="mb-8 flex items-center gap-2">
-        <div className="h-10 w-10 rounded-xl bg-brand flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-brand/20">
-          P
-        </div>
-        <span className="text-2xl font-bold tracking-tight text-text-primary">PostHub</span>
-      </div>
+      <BrandLogo
+        className="mb-8 flex justify-center"
+        imgClassName="h-12 w-auto object-contain"
+      />
 
       <Card className="w-full max-w-md p-8">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-text-primary">Create your account</h1>
-          <p className="text-text-secondary">Start managing your content like a pro today.</p>
+          <h1 className="text-2xl font-bold text-text-primary">Crie sua conta</h1>
+          <p className="text-text-secondary">
+            Comece a gerenciar seu conteúdo com mais profissionalismo.
+          </p>
         </div>
 
         <form onSubmit={handleSignup} className="space-y-4">
@@ -70,8 +71,8 @@ export const SignupPage = () => {
           )}
 
           <Input
-            label="Full Name"
-            placeholder="John Doe"
+            label="Nome completo"
+            placeholder="Ana Silva"
             icon={<User className="h-4 w-4" />}
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -79,8 +80,8 @@ export const SignupPage = () => {
           />
 
           <Input
-            label="Profile / Business Name"
-            placeholder="My Agency"
+            label="Nome do perfil ou negócio"
+            placeholder="Minha agência"
             icon={<Briefcase className="h-4 w-4" />}
             value={profileName}
             onChange={(e) => setProfileName(e.target.value)}
@@ -88,9 +89,9 @@ export const SignupPage = () => {
           />
 
           <Input
-            label="Email Address"
+            label="E-mail"
             type="email"
-            placeholder="name@company.com"
+            placeholder="nome@empresa.com"
             icon={<Mail className="h-4 w-4" />}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -98,7 +99,7 @@ export const SignupPage = () => {
           />
 
           <Input
-            label="Password"
+            label="Senha"
             type="password"
             placeholder="••••••••"
             icon={<Lock className="h-4 w-4" />}
@@ -112,27 +113,27 @@ export const SignupPage = () => {
               <Check className="h-3 w-3" />
             </div>
             <span className="text-xs text-text-secondary">
-              I agree to the{' '}
+              Eu concordo com os{' '}
               <Link to="#" className="text-brand hover:underline">
-                Terms of Service
+                Termos de Serviço
               </Link>{' '}
-              and{' '}
+              e a{' '}
               <Link to="#" className="text-brand hover:underline">
-                Privacy Policy
+                Política de Privacidade
               </Link>
               .
             </span>
           </div>
 
           <Button type="submit" className="w-full" isLoading={isLoading}>
-            Get Started
+            Criar conta
           </Button>
         </form>
 
         <p className="mt-8 text-center text-sm text-text-secondary">
-          Already have an account?{' '}
+          Já tem uma conta?{' '}
           <Link to="/login" className="font-semibold text-brand hover:underline">
-            Sign in
+            Entrar
           </Link>
         </p>
       </Card>
