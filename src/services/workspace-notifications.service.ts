@@ -9,6 +9,10 @@ import type {
   WorkspaceNotification,
   WorkspaceNotificationType,
 } from '../shared/constants/workspaceNotifications';
+import {
+  accountSettingsService,
+  shouldReceiveWorkspaceNotification,
+} from './account-settings.service';
 
 const STORAGE_KEY = 'posthub_workspace_notifications_v1';
 
@@ -242,7 +246,16 @@ export const workspaceNotificationsService = {
   async createMany(inputs: CreateWorkspaceNotificationInput[]) {
     if (inputs.length === 0) return;
 
-    const optimisticNotifications = inputs.map(
+    const preferencesByUserId = await accountSettingsService.listNotificationPreferences(
+      inputs.map((input) => input.recipientUserId)
+    );
+    const enabledInputs = inputs.filter((input) =>
+      shouldReceiveWorkspaceNotification(preferencesByUserId.get(input.recipientUserId), input.type)
+    );
+
+    if (enabledInputs.length === 0) return [];
+
+    const optimisticNotifications = enabledInputs.map(
       (input): WorkspaceNotification => ({
         id: buildId(),
         profileId: input.profileId,
@@ -270,7 +283,7 @@ export const workspaceNotificationsService = {
       const { data, error } = await supabase
         .from('workspace_notifications')
         .insert(
-          inputs.map((input) => ({
+          enabledInputs.map((input) => ({
             profile_id: input.profileId,
             recipient_user_id: input.recipientUserId,
             actor_user_id: input.actorUserId ?? null,

@@ -3,6 +3,7 @@ import { useAuth } from '../app/context/AuthContext';
 import { useProfile } from '../app/context/ProfileContext';
 import type { WorkspaceNotification } from '../shared/constants/workspaceNotifications';
 import { workspaceNotificationsService } from '../services/workspace-notifications.service';
+import { shouldReceiveWorkspaceNotification } from '../services/account-settings.service';
 
 export const useWorkspaceNotifications = () => {
   const { user } = useAuth();
@@ -20,14 +21,18 @@ export const useWorkspaceNotifications = () => {
 
     try {
       const data = await workspaceNotificationsService.list(activeProfile.id, user.id);
-      setNotifications(data);
+      setNotifications(
+        data.filter((notification) =>
+          shouldReceiveWorkspaceNotification(user.notificationPreferences, notification.type)
+        )
+      );
     } catch (error) {
       console.error('[useWorkspaceNotifications] Failed to load notifications:', error);
       setNotifications([]);
     } finally {
       setIsLoadingNotifications(false);
     }
-  }, [activeProfile?.id, user?.id]);
+  }, [activeProfile?.id, user?.id, user?.notificationPreferences]);
 
   React.useEffect(() => {
     void loadNotifications();
