@@ -1,15 +1,17 @@
 import * as React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LogOut, Lock } from 'lucide-react';
-import { NAV_GROUPS, NavItem } from '../../../shared/constants/navigation';
+import {
+  HIDDEN_WORKSPACE_MODULE_IDS,
+  NAV_GROUPS,
+  NavItem,
+} from '../../../shared/constants/navigation';
 import { cn } from '../../../shared/utils/cn';
 import { useAuth } from '../../../app/context/AuthContext';
 import { hasAccess } from '../../../shared/constants/plans';
 import { useTrialGuidedFlow } from '../../onboarding/hooks/useTrialGuidedFlow';
 import { useWorkspacePermissions } from '../../../hooks/useWorkspacePermissions';
 import { WORKSPACE_MODULE_PERMISSION_MAP } from '../../../shared/constants/workspaceAccess';
-
-const HIDDEN_MODULE_IDS = ['scheduler', 'performance'];
 
 export const Sidebar = () => {
   const location = useLocation();
@@ -34,7 +36,7 @@ export const Sidebar = () => {
 
     return NAV_GROUPS
       .map((group) => {
-        let items = group.items.filter((item) => !HIDDEN_MODULE_IDS.includes(item.id));
+        let items = group.items.filter((item) => !HIDDEN_WORKSPACE_MODULE_IDS.includes(item.id));
 
         if (group.label === 'Admin') {
           items = items.filter(() => !!user?.isAdmin);
@@ -77,7 +79,7 @@ export const Sidebar = () => {
   React.useEffect(() => {
     if (
       (hoveredItem?.item.id === 'admin' && !user?.isAdmin) ||
-      (hoveredItem?.item.id && HIDDEN_MODULE_IDS.includes(hoveredItem.item.id))
+      (hoveredItem?.item.id && HIDDEN_WORKSPACE_MODULE_IDS.includes(hoveredItem.item.id))
     ) {
       setHoveredItem(null);
     }

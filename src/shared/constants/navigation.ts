@@ -86,6 +86,12 @@ export interface NavGroup {
   items: NavItem[];
 }
 
+export const HIDDEN_WORKSPACE_MODULE_IDS: WorkspaceModule[] = [
+  'scheduler',
+  'performance',
+  'integrations',
+];
+
 export const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Visão Geral',

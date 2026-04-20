@@ -10,7 +10,6 @@ import { EditorialCalendar } from '../../calendar/EditorialCalendar';
 import { KanbanBoard } from '../../kanban/KanbanBoard';
 import { Performance } from '../../performance/Performance';
 import { References } from '../../references/References';
-import { Integrations } from '../../integrations/Integrations';
 import { Credits } from '../../credits/Credits';
 import { AccountArea } from '../../account/AccountArea';
 import { SettingsArea } from '../../settings/SettingsArea';
@@ -27,7 +26,11 @@ export const ModuleRenderer = () => {
   const { user } = useAuth();
   const { canAccess, canManageMembers } = useWorkspacePermissions();
 
-  if (activeModule === 'consultant' || activeModule === 'scheduler') {
+  if (
+    activeModule === 'consultant' ||
+    activeModule === 'scheduler' ||
+    activeModule === 'integrations'
+  ) {
     return <Navigate to="/workspace/dashboard" replace />;
   }
 
@@ -84,8 +87,6 @@ export const ModuleRenderer = () => {
       return <ReportsModule />;
     case 'references':
       return <References />;
-    case 'integrations':
-      return <Integrations />;
     case 'settings':
       return <SettingsArea />;
     case 'account':

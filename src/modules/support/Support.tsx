@@ -14,6 +14,7 @@ import { Input } from '../../shared/components/Input';
 import { Badge } from '../../shared/components/Badge';
 import { cn } from '../../shared/utils/cn';
 import { SUPPORT_WHATSAPP_URL } from '../../shared/constants/support';
+import { HIDDEN_WORKSPACE_MODULE_IDS } from '../../shared/constants/navigation';
 
 type HelpStatus = 'Disponivel agora' | 'Disponivel com escopo parcial' | 'Em evolucao';
 
@@ -351,13 +352,13 @@ const HELP_ARTICLES: HelpArticle[] = [
     category: 'Administracao',
     status: 'Disponivel com escopo parcial',
     summary:
-      'As Configuracoes do Workspace concentram visao de plano, uso mensal, equipe e integracoes. Parte da experiencia ja orienta o usuario sobre cobranca e acesso por plano, enquanto outros controles ainda servem como camada operacional em evolucao.',
+      'As Configuracoes do Workspace concentram visao de plano, uso mensal, equipe e acessos. Parte da experiencia ja orienta o usuario sobre cobranca e acesso por plano, enquanto outros controles ainda servem como camada operacional em evolucao.',
     keywords: ['configuracoes', 'workspace', 'plano', 'equipe', 'cobranca'],
     questions: [
       {
         question: 'O que eu consigo ajustar aqui hoje?',
         answer:
-          'Hoje o modulo organiza a leitura do plano atual, uso mensal estimado, blocos de integracao e acesso de equipe. Ele tambem mostra quando uma funcionalidade depende de plano superior.',
+          'Hoje o modulo organiza a leitura do plano atual, uso mensal estimado e acesso de equipe. Ele tambem mostra quando uma funcionalidade depende de plano superior.',
       },
       {
         question: 'A parte de equipe depende do plano?',
@@ -425,6 +426,11 @@ const HELP_ARTICLES: HelpArticle[] = [
   },
 ];
 
+const HIDDEN_HELP_ARTICLE_IDS = new Set<string>(HIDDEN_WORKSPACE_MODULE_IDS);
+const VISIBLE_HELP_ARTICLES = HELP_ARTICLES.filter(
+  (article) => !HIDDEN_HELP_ARTICLE_IDS.has(article.id)
+);
+
 const getStatusVariant = (status: HelpStatus) => {
   if (status === 'Disponivel agora') return 'success';
   if (status === 'Disponivel com escopo parcial') return 'warning';
@@ -437,9 +443,9 @@ export const Support = () => {
   const filteredArticles = React.useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
 
-    if (!query) return HELP_ARTICLES;
+    if (!query) return VISIBLE_HELP_ARTICLES;
 
-    return HELP_ARTICLES.filter((article) => {
+    return VISIBLE_HELP_ARTICLES.filter((article) => {
       const haystack = [
         article.title,
         article.category,
@@ -553,7 +559,7 @@ export const Support = () => {
               Nenhum artigo encontrado para essa busca.
             </p>
             <p className="mt-2 text-sm text-text-secondary">
-              Tente buscar pelo nome do modulo, como Calendario, Aprovacao, Roteiros ou Integracoes.
+              Tente buscar pelo nome do modulo, como Calendario, Aprovacao, Roteiros ou Referencias.
             </p>
           </Card>
         ) : (

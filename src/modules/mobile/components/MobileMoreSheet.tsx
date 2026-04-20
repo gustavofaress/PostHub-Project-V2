@@ -1,7 +1,10 @@
 import * as React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Lock, LogOut } from 'lucide-react';
-import { NAV_GROUPS } from '../../../shared/constants/navigation';
+import {
+  HIDDEN_WORKSPACE_MODULE_IDS,
+  NAV_GROUPS,
+} from '../../../shared/constants/navigation';
 import { cn } from '../../../shared/utils/cn';
 import { useAuth } from '../../../app/context/AuthContext';
 import { BottomSheet } from './BottomSheet';
@@ -14,7 +17,7 @@ interface MobileMoreSheetProps {
 }
 
 const MOBILE_READY_MODULES = new Set(['dashboard', 'ideas', 'calendar']);
-const HIDDEN_MODULE_IDS = new Set(['performance']);
+const HIDDEN_MODULE_IDS = new Set(HIDDEN_WORKSPACE_MODULE_IDS);
 
 export const MobileMoreSheet = ({
   isOpen,
