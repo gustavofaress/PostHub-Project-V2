@@ -35,6 +35,18 @@ const buildPassword = () => {
 const MEMBER_SELECT =
   'id, user_id, email, full_name, role, status, permissions, created_at, invite_sent_at';
 
+const isMissingDatabaseObjectError = (error: unknown) => {
+  const code = (error as { code?: string } | null)?.code;
+  const message = ((error as { message?: string } | null)?.message ?? '').toLowerCase();
+
+  return (
+    code === '42P01' ||
+    code === '42703' ||
+    message.includes('does not exist') ||
+    message.includes('schema cache')
+  );
+};
+
 const findAuthUserByEmail = async ({
   serviceClient,
   email,
@@ -66,6 +78,122 @@ const findAuthUserByEmail = async ({
     }
 
     page = data.nextPage;
+  }
+};
+
+const findAuthUserById = async ({
+  serviceClient,
+  userId,
+}: {
+  serviceClient: ReturnType<typeof createClient>;
+  userId: string;
+}) => {
+  const { data, error } = await serviceClient.auth.admin.getUserById(userId);
+
+  if (error || !data.user?.id) {
+    return null;
+  }
+
+  return data.user;
+};
+
+const deleteRowsByColumn = async ({
+  serviceClient,
+  table,
+  column,
+  value,
+}: {
+  serviceClient: ReturnType<typeof createClient>;
+  table: string;
+  column: string;
+  value: string;
+}) => {
+  const { error } = await serviceClient.from(table).delete().eq(column, value);
+
+  if (error && !isMissingDatabaseObjectError(error)) {
+    throw new Error(error.message);
+  }
+};
+
+const cleanupOrphanedAuthArtifactsByUserId = async ({
+  serviceClient,
+  userId,
+}: {
+  serviceClient: ReturnType<typeof createClient>;
+  userId: string;
+}) => {
+  await deleteRowsByColumn({
+    serviceClient,
+    table: 'profile_purchase_credits',
+    column: 'user_id',
+    value: userId,
+  });
+  await deleteRowsByColumn({
+    serviceClient,
+    table: 'user_account_settings',
+    column: 'user_id',
+    value: userId,
+  });
+  await deleteRowsByColumn({
+    serviceClient,
+    table: 'user_onboarding',
+    column: 'user_id',
+    value: userId,
+  });
+  await deleteRowsByColumn({
+    serviceClient,
+    table: 'client_profiles',
+    column: 'user_id',
+    value: userId,
+  });
+  await deleteRowsByColumn({
+    serviceClient,
+    table: 'usuarios',
+    column: 'id',
+    value: userId,
+  });
+};
+
+const cleanupOrphanedAuthArtifactsByEmail = async ({
+  serviceClient,
+  email,
+}: {
+  serviceClient: ReturnType<typeof createClient>;
+  email: string;
+}) => {
+  const { data: usuarioRows, error } = await serviceClient
+    .from('usuarios')
+    .select('id, email')
+    .eq('email', email);
+
+  if (error) {
+    if (isMissingDatabaseObjectError(error)) {
+      return;
+    }
+
+    throw new Error(error.message);
+  }
+
+  for (const usuario of usuarioRows ?? []) {
+    const usuarioId = typeof usuario.id === 'string' ? usuario.id : '';
+
+    if (!usuarioId) {
+      continue;
+    }
+
+    const authUser = await findAuthUserById({
+      serviceClient,
+      userId: usuarioId,
+    });
+
+    if (authUser?.id) {
+      continue;
+    }
+
+    await cleanupOrphanedAuthArtifactsByUserId({
+      serviceClient,
+      userId: usuarioId,
+    });
   }
 };
 
@@ -184,30 +312,70 @@ const ensureMemberAuthUser = async ({
     return upsertAuthUser(existingAuthUserId);
   }
 
-  const { data, error } = await serviceClient.auth.admin.createUser({
+  const existingAuthUser = await findAuthUserByEmail({
+    serviceClient,
+    email,
+  });
+
+  if (existingAuthUser?.id) {
+    if (
+      await canReuseExistingAuthUser({
+        serviceClient,
+        authUserId: existingAuthUser.id,
+        email,
+        userMetadata: existingAuthUser.user_metadata,
+      })
+    ) {
+      return upsertAuthUser(existingAuthUser.id);
+    }
+
+    throw new Error(
+      'Esse email já está cadastrado em outra conta. Use outro email para o membro ou reutilize o acesso existente.'
+    );
+  }
+
+  await cleanupOrphanedAuthArtifactsByEmail({
+    serviceClient,
+    email,
+  });
+
+  const createMemberUser = () => serviceClient.auth.admin.createUser({
     email,
     password,
     email_confirm: true,
     user_metadata: userMetadata,
   });
 
+  let { data, error } = await createMemberUser();
+
+  if (error?.message?.toLowerCase().includes('database error creating new user')) {
+    await cleanupOrphanedAuthArtifactsByEmail({
+      serviceClient,
+      email,
+    });
+
+    const retryResult = await createMemberUser();
+    data = retryResult.data;
+    error = retryResult.error;
+  }
+
   if (error || !data.user?.id) {
     if (error?.message?.toLowerCase().includes('already registered')) {
-      const existingAuthUser = await findAuthUserByEmail({
+      const registeredAuthUser = await findAuthUserByEmail({
         serviceClient,
         email,
       });
 
       if (
-        existingAuthUser?.id &&
+        registeredAuthUser?.id &&
         (await canReuseExistingAuthUser({
           serviceClient,
-          authUserId: existingAuthUser.id,
+          authUserId: registeredAuthUser.id,
           email,
-          userMetadata: existingAuthUser.user_metadata,
+          userMetadata: registeredAuthUser.user_metadata,
         }))
       ) {
-        return upsertAuthUser(existingAuthUser.id);
+        return upsertAuthUser(registeredAuthUser.id);
       }
 
       throw new Error(
@@ -299,6 +467,11 @@ const cleanupMemberAuthIfUnused = async ({
   if (deleteAuthError) {
     throw new Error(deleteAuthError.message);
   }
+
+  await cleanupOrphanedAuthArtifactsByUserId({
+    serviceClient,
+    userId,
+  });
 };
 
 Deno.serve(async (request) => {
