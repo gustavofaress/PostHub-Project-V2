@@ -4,7 +4,7 @@ import { supabase } from '../../shared/utils/supabase';
 import { TeamMemberRole } from '../../shared/constants/workspaceMembers';
 import { INCLUDED_PROFILES_PER_ACCOUNT } from '../../shared/constants/plans';
 
-interface Profile {
+export interface Profile {
   id: string;
   name: string;
   role: TeamMemberRole;
@@ -28,11 +28,15 @@ interface ProfileContextType {
   canCreateProfile: boolean;
   reloadProfiles: () => Promise<ProfileAccessSnapshot>;
   createProfile: (profileName: string) => Promise<void>;
+  updateProfileName: (profileId: string, profileName: string) => Promise<void>;
 }
 
 const ProfileContext = React.createContext<ProfileContextType | undefined>(undefined);
 
 const ACTIVE_PROFILE_KEY = 'posthub_active_profile_id';
+
+export const canManageProfileName = (profile?: Profile | null) =>
+  profile?.role === 'owner' || profile?.role === 'admin';
 
 const isMissingProfileCreditsTableError = (error: unknown) => {
   if (!error || typeof error !== 'object') return false;
@@ -272,6 +276,70 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     [loadProfiles, profiles, purchasedProfileCredits, user]
   );
 
+  const updateProfileName = React.useCallback(
+    async (profileId: string, profileName: string) => {
+      if (!user || !supabase) {
+        throw new Error('Você precisa estar autenticado para editar um perfil.');
+      }
+
+      const sanitizedProfileName = profileName.trim();
+
+      if (!sanitizedProfileName) {
+        throw new Error('Informe um nome para o perfil.');
+      }
+
+      const currentProfile = profiles.find((profile) => profile.id === profileId);
+
+      if (!currentProfile) {
+        throw new Error('Perfil não encontrado nesta conta.');
+      }
+
+      if (!canManageProfileName(currentProfile)) {
+        throw new Error('Você não tem permissão para editar este perfil.');
+      }
+
+      const { data, error } = await supabase
+        .from('client_profiles')
+        .update({ profile_name: sanitizedProfileName })
+        .eq('id', profileId)
+        .select('id, profile_name, avatar_url')
+        .maybeSingle();
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data) {
+        throw new Error('Não foi possível editar este perfil.');
+      }
+
+      const nextProfileName = data.profile_name || sanitizedProfileName;
+
+      setProfiles((currentProfiles) =>
+        currentProfiles.map((profile) =>
+          profile.id === profileId
+            ? {
+                ...profile,
+                name: nextProfileName,
+                avatar_url: data.avatar_url ?? profile.avatar_url,
+              }
+            : profile
+        )
+      );
+
+      setActiveProfileState((currentProfile) =>
+        currentProfile?.id === profileId
+          ? {
+              ...currentProfile,
+              name: nextProfileName,
+              avatar_url: data.avatar_url ?? currentProfile.avatar_url,
+            }
+          : currentProfile
+      );
+    },
+    [profiles, user]
+  );
+
   React.useEffect(() => {
     void loadProfiles();
   }, [loadProfiles]);
@@ -303,6 +371,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         canCreateProfile: availableProfileSlots > 0,
         reloadProfiles: loadProfiles,
         createProfile,
+        updateProfileName,
       }}
     >
       {children}

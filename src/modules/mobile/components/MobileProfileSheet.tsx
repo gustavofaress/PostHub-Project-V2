@@ -1,7 +1,7 @@
 import * as React from 'react';
-import { ChevronRight, ExternalLink, Plus } from 'lucide-react';
+import { ChevronRight, ExternalLink, Pencil, Plus } from 'lucide-react';
 import { useAuth } from '../../../app/context/AuthContext';
-import { useProfile } from '../../../app/context/ProfileContext';
+import { Profile, canManageProfileName, useProfile } from '../../../app/context/ProfileContext';
 import { buildExtraProfilePaymentLink, EXTRA_PROFILE_PRICE_LABEL, isExtraProfilePaymentLinkConfigured } from '../../../shared/constants/plans';
 import { Avatar } from '../../../shared/components/Avatar';
 import { Button } from '../../../shared/components/Button';
@@ -23,6 +23,7 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
     profiles,
     availableProfileSlots,
     createProfile,
+    updateProfileName,
     reloadProfiles,
     isLoadingProfiles,
   } = useProfile();
@@ -31,6 +32,10 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
   const [newProfileName, setNewProfileName] = React.useState('');
   const [profileActionError, setProfileActionError] = React.useState('');
   const [isSubmittingProfile, setIsSubmittingProfile] = React.useState(false);
+  const [profileBeingEdited, setProfileBeingEdited] = React.useState<Profile | null>(null);
+  const [profileNameDraft, setProfileNameDraft] = React.useState('');
+  const [editProfileError, setEditProfileError] = React.useState('');
+  const [isUpdatingProfileName, setIsUpdatingProfileName] = React.useState(false);
 
   const closeCreateProfileModal = React.useCallback(() => {
     if (isSubmittingProfile) return;
@@ -44,6 +49,24 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
     setNewProfileName('');
     setProfileActionError('');
   }, []);
+
+  const openEditProfileModal = React.useCallback((profile: Profile) => {
+    setProfileBeingEdited(profile);
+    setProfileNameDraft(profile.name);
+    setEditProfileError('');
+  }, []);
+
+  const resetEditProfileModal = React.useCallback(() => {
+    setProfileBeingEdited(null);
+    setProfileNameDraft('');
+    setEditProfileError('');
+  }, []);
+
+  const closeEditProfileModal = React.useCallback(() => {
+    if (isUpdatingProfileName) return;
+
+    resetEditProfileModal();
+  }, [isUpdatingProfileName, resetEditProfileModal]);
 
   const handleAddProfileClick = React.useCallback(async () => {
     setProfileActionError('');
@@ -90,6 +113,29 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
       }
     },
     [createProfile, newProfileName, onClose, resetCreateProfileModal]
+  );
+
+  const handleEditProfileSubmit = React.useCallback(
+    async (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+
+      if (!profileBeingEdited) return;
+
+      setEditProfileError('');
+      setIsUpdatingProfileName(true);
+
+      try {
+        await updateProfileName(profileBeingEdited.id, profileNameDraft);
+        resetEditProfileModal();
+      } catch (error) {
+        setEditProfileError(
+          error instanceof Error ? error.message : 'Não foi possível editar o perfil.'
+        );
+      } finally {
+        setIsUpdatingProfileName(false);
+      }
+    },
+    [profileBeingEdited, profileNameDraft, resetEditProfileModal, updateProfileName]
   );
 
   return (
@@ -140,13 +186,8 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
                   const isActive = activeProfile?.id === profile.id;
 
                   return (
-                    <button
+                    <div
                       key={profile.id}
-                      type="button"
-                      onClick={() => {
-                        setActiveProfile(profile);
-                        onClose();
-                      }}
                       className={cn(
                         'flex min-h-[74px] w-full items-center gap-4 rounded-[24px] border px-4 py-4 text-left transition-all active:scale-[0.99]',
                         isActive
@@ -154,27 +195,47 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
                           : 'border-slate-200 bg-white'
                       )}
                     >
-                      <Avatar
-                        src={profile.avatar_url}
-                        fallback={profile.name}
-                        size="md"
-                        className={cn(isActive ? 'border-brand/20' : 'border-slate-200')}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <p className="truncate text-base font-semibold text-slate-950">
-                            {profile.name}
-                          </p>
-                          {isActive ? (
-                            <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[0.68rem] font-semibold text-brand">
-                              Ativo
-                            </span>
-                          ) : null}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveProfile(profile);
+                          onClose();
+                        }}
+                        className="flex min-w-0 flex-1 items-center gap-4 text-left"
+                      >
+                        <Avatar
+                          src={profile.avatar_url}
+                          fallback={profile.name}
+                          size="md"
+                          className={cn(isActive ? 'border-brand/20' : 'border-slate-200')}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="truncate text-base font-semibold text-slate-950">
+                              {profile.name}
+                            </p>
+                            {isActive ? (
+                              <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[0.68rem] font-semibold text-brand">
+                                Ativo
+                              </span>
+                            ) : null}
+                          </div>
+                          <p className="text-sm text-slate-500">{profile.role}</p>
                         </div>
-                        <p className="text-sm text-slate-500">{profile.role}</p>
-                      </div>
-                      <ChevronRight className="h-4 w-4 text-slate-400" />
-                    </button>
+                        <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
+                      </button>
+
+                      {canManageProfileName(profile) ? (
+                        <button
+                          type="button"
+                          onClick={() => openEditProfileModal(profile)}
+                          aria-label={`Editar nome de ${profile.name}`}
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 transition-colors active:scale-[0.98]"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                      ) : null}
+                    </div>
                   );
                 })
               )}
@@ -258,6 +319,34 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
             </div>
           </div>
         )}
+      </Modal>
+
+      <Modal
+        isOpen={!!profileBeingEdited}
+        onClose={closeEditProfileModal}
+        title="Editar nome do perfil"
+      >
+        <form className="space-y-4" onSubmit={handleEditProfileSubmit}>
+          <Input
+            label="Nome do perfil"
+            placeholder="Ex.: Cliente XPTO"
+            value={profileNameDraft}
+            onChange={(event) => setProfileNameDraft(event.target.value)}
+            maxLength={80}
+            autoFocus
+          />
+          {editProfileError ? (
+            <p className="text-sm text-red-500">{editProfileError}</p>
+          ) : null}
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <Button type="button" variant="ghost" onClick={closeEditProfileModal}>
+              Cancelar
+            </Button>
+            <Button type="submit" isLoading={isUpdatingProfileName}>
+              Salvar
+            </Button>
+          </div>
+        </form>
       </Modal>
     </>
   );
