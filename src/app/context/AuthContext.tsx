@@ -6,6 +6,12 @@ import { userService } from '../../services/user.service';
 import { normalizePlan } from '../../shared/constants/plans';
 import { memberAuthStorage } from '../../modules/settings/memberAuth.storage';
 import { buildAppUrl } from '../../shared/utils/appUrl';
+import {
+  accountSettingsService,
+  normalizeNotificationPreferences,
+  normalizeWebsite,
+  type UserNotificationPreferences,
+} from '../../services/account-settings.service';
 
 interface UserOnboardingState {
   work_model: string | null;
@@ -31,6 +37,9 @@ interface User {
   id: string;
   name: string;
   email: string;
+  website?: string | null;
+  avatarUrl?: string | null;
+  notificationPreferences: UserNotificationPreferences;
   currentPlan?: string | null;
   isAdmin?: boolean;
   isWorkspaceMember?: boolean;
@@ -51,6 +60,12 @@ interface AuthContextType {
   ) => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
+  updateAccountProfile: (input: {
+    name: string;
+    website?: string | null;
+    avatarUrl?: string | null;
+    notificationPreferences?: Partial<UserNotificationPreferences> | null;
+  }) => Promise<void>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -140,6 +155,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: mergedUser.id,
         name: mergedUser.name || 'User',
         email: mergedUser.email || '',
+        website: mergedUser.website ?? null,
+        avatarUrl: mergedUser.avatarUrl ?? null,
+        notificationPreferences: normalizeNotificationPreferences(
+          mergedUser.notificationPreferences
+        ),
         currentPlan: mergedUser.currentPlan ?? 'start_7',
         isAdmin: !!mergedUser.isAdmin,
         isWorkspaceMember: !!mergedUser.isWorkspaceMember,
@@ -161,6 +181,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: sessionUser.id,
       name: sessionUser.user_metadata?.full_name || 'User',
       email: sessionUser.email || '',
+      website: sessionUser.user_metadata?.website ?? null,
+      avatarUrl: sessionUser.user_metadata?.avatar_url ?? null,
+      notificationPreferences: normalizeNotificationPreferences(
+        sessionUser.user_metadata?.notification_preferences
+      ),
       currentPlan: null,
       isAdmin: false,
       isWorkspaceMember: false,
@@ -226,6 +251,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           full_name?: string | null;
           email?: string | null;
         } | null = null;
+        let accountSettings = null;
 
         try {
           usuarioRecord = await userService.getCurrentUserRecord(
@@ -240,6 +266,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           onboarding = await onboardingService.getByUserId(sessionUser.id);
         } catch (error) {
           console.error('Error loading onboarding:', error);
+        }
+
+        try {
+          accountSettings = await accountSettingsService.getByUserId(sessionUser.id);
+        } catch (error) {
+          console.error('Error loading account settings:', error);
         }
 
         try {
@@ -293,6 +325,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return {
           ...baseUser,
           name:
+            accountSettings?.name ||
             (isMemberOnlyAccount ? workspaceMembership?.full_name : usuarioRecord?.nome) ||
             workspaceMembership?.full_name ||
             sessionUser.user_metadata?.full_name ||
@@ -309,6 +342,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           trialExpiresAt,
           accessStatus,
           onboarding: isMemberOnlyAccount ? null : mapOnboardingState(onboarding),
+          website:
+            accountSettings?.website ??
+            sessionUser.user_metadata?.website ??
+            baseUser.website ??
+            null,
+          avatarUrl:
+            accountSettings?.avatarUrl ||
+            sessionUser.user_metadata?.avatar_url ||
+            baseUser.avatarUrl ||
+            null,
+          notificationPreferences: normalizeNotificationPreferences(
+            accountSettings?.notificationPreferences ??
+              sessionUser.user_metadata?.notification_preferences
+          ),
         };
       } catch (error) {
         console.error('Error building app user:', error);
@@ -321,6 +368,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           trialExpiresAt: null,
           accessStatus: 'missing',
           onboarding: null,
+          notificationPreferences: normalizeNotificationPreferences(baseUser.notificationPreferences),
         };
       }
     },
@@ -427,6 +475,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           id: `member-${memberCredential.profileId}`,
           name: memberCredential.fullName,
           email,
+          website: null,
+          avatarUrl: null,
+          notificationPreferences: normalizeNotificationPreferences(),
           currentPlan: 'pro',
           isAdmin: false,
           isWorkspaceMember: true,
@@ -444,6 +495,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: '1',
         name: 'User',
         email,
+        website: null,
+        avatarUrl: null,
+        notificationPreferences: normalizeNotificationPreferences(),
         currentPlan: 'start_7',
         isAdmin: false,
         isWorkspaceMember: false,
@@ -541,6 +595,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: '1',
         name,
         email,
+        website: null,
+        avatarUrl: null,
+        notificationPreferences: normalizeNotificationPreferences(),
         currentPlan: 'start_7',
         isAdmin: false,
         isWorkspaceMember: false,
@@ -686,6 +743,102 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updateAccountProfile = async (input: {
+    name: string;
+    website?: string | null;
+    avatarUrl?: string | null;
+    notificationPreferences?: Partial<UserNotificationPreferences> | null;
+  }) => {
+    if (!user) {
+      throw new Error('Você precisa estar autenticado para atualizar o perfil.');
+    }
+
+    const name = input.name.trim();
+
+    if (!name) {
+      throw new Error('Informe seu nome.');
+    }
+
+    const website = input.website ? normalizeWebsite(input.website) : '';
+    const avatarUrl = input.avatarUrl ?? user.avatarUrl ?? null;
+    const notificationPreferences = normalizeNotificationPreferences(
+      input.notificationPreferences ?? user.notificationPreferences
+    );
+    const nextSettings = {
+      userId: user.id,
+      name,
+      website: website || null,
+      avatarUrl,
+      notificationPreferences,
+    };
+    let savedSettings = nextSettings;
+
+    if (supabase) {
+      const { error: authUpdateError } = await supabase.auth.updateUser({
+        data: {
+          full_name: nextSettings.name,
+          website: nextSettings.website,
+          avatar_url: nextSettings.avatarUrl,
+          notification_preferences: nextSettings.notificationPreferences,
+        },
+      });
+
+      if (authUpdateError) {
+        throw authUpdateError;
+      }
+
+      try {
+        savedSettings = await accountSettingsService.save(nextSettings);
+      } catch (error) {
+        console.warn('[AuthContext] Could not persist user_account_settings:', error);
+      }
+
+      try {
+        const { error: usuarioUpdateError } = await supabase
+          .from('usuarios')
+          .update({ nome: nextSettings.name })
+          .eq('id', user.id);
+
+        if (usuarioUpdateError) {
+          console.warn('[AuthContext] Could not update usuarios.nome:', usuarioUpdateError);
+        }
+      } catch (error) {
+        console.warn('[AuthContext] Unexpected error updating usuarios.nome:', error);
+      }
+
+      if (user.isMemberOnlyAccount) {
+        try {
+          const { error: memberUpdateError } = await supabase
+            .from('workspace_members')
+            .update({ full_name: nextSettings.name })
+            .eq('user_id', user.id);
+
+          if (memberUpdateError) {
+            console.warn('[AuthContext] Could not update workspace member name:', memberUpdateError);
+          }
+        } catch (error) {
+          console.warn('[AuthContext] Unexpected error updating workspace member name:', error);
+        }
+      }
+    } else {
+      savedSettings = await accountSettingsService.save(nextSettings);
+    }
+
+    const nextUser: User = {
+      ...user,
+      name: savedSettings.name,
+      website: savedSettings.website,
+      avatarUrl: savedSettings.avatarUrl,
+      notificationPreferences: savedSettings.notificationPreferences,
+    };
+
+    setUser(nextUser);
+
+    if (!supabase && typeof window !== 'undefined') {
+      window.localStorage.setItem('posthub_user', JSON.stringify(nextUser));
+    }
+  };
+
   const logout = async () => {
     try {
       if (supabase) {
@@ -709,6 +862,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signup,
         requestPasswordReset,
         updatePassword,
+        updateAccountProfile,
         logout,
         isAuthenticated: !!user,
         isLoading,
