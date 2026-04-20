@@ -1,14 +1,15 @@
 import * as React from 'react';
-import { Search, ChevronDown, Plus, ExternalLink } from 'lucide-react';
+import { Search, ChevronDown, Plus, ExternalLink, Pencil } from 'lucide-react';
 import { useApp } from '../../../app/context/AppContext';
 import { useAuth } from '../../../app/context/AuthContext';
-import { useProfile } from '../../../app/context/ProfileContext';
+import { Profile, canManageProfileName, useProfile } from '../../../app/context/ProfileContext';
 import { Avatar } from '../../../shared/components/Avatar';
 import { Dropdown, DropdownItem } from '../../../shared/components/Dropdown';
 import { Button } from '../../../shared/components/Button';
 import { NotificationsDropdown } from './NotificationsDropdown';
 import { Modal } from '../../../shared/components/Modal';
 import { Input } from '../../../shared/components/Input';
+import { cn } from '../../../shared/utils/cn';
 import {
   buildExtraProfilePaymentLink,
   EXTRA_PROFILE_PRICE_LABEL,
@@ -24,12 +25,17 @@ export const Header = () => {
     profiles,
     availableProfileSlots,
     createProfile,
+    updateProfileName,
     reloadProfiles,
   } = useProfile();
   const [isCreateProfileModalOpen, setIsCreateProfileModalOpen] = React.useState(false);
   const [newProfileName, setNewProfileName] = React.useState('');
   const [profileActionError, setProfileActionError] = React.useState('');
   const [isSubmittingProfile, setIsSubmittingProfile] = React.useState(false);
+  const [profileBeingEdited, setProfileBeingEdited] = React.useState<Profile | null>(null);
+  const [profileNameDraft, setProfileNameDraft] = React.useState('');
+  const [editProfileError, setEditProfileError] = React.useState('');
+  const [isUpdatingProfileName, setIsUpdatingProfileName] = React.useState(false);
 
   const handleNewContent = () => {
     setActiveModule('ideas');
@@ -47,6 +53,24 @@ export const Header = () => {
     setIsCreateProfileModalOpen(false);
     setNewProfileName('');
     setProfileActionError('');
+  };
+
+  const openEditProfileModal = (profile: Profile) => {
+    setProfileBeingEdited(profile);
+    setProfileNameDraft(profile.name);
+    setEditProfileError('');
+  };
+
+  const resetEditProfileModal = () => {
+    setProfileBeingEdited(null);
+    setProfileNameDraft('');
+    setEditProfileError('');
+  };
+
+  const closeEditProfileModal = () => {
+    if (isUpdatingProfileName) return;
+
+    resetEditProfileModal();
   };
 
   const handleAddProfileClick = async () => {
@@ -92,6 +116,26 @@ export const Header = () => {
     }
   };
 
+  const handleEditProfileSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!profileBeingEdited) return;
+
+    setEditProfileError('');
+    setIsUpdatingProfileName(true);
+
+    try {
+      await updateProfileName(profileBeingEdited.id, profileNameDraft);
+      resetEditProfileModal();
+    } catch (error) {
+      setEditProfileError(
+        error instanceof Error ? error.message : 'Não foi possível editar o perfil.'
+      );
+    } finally {
+      setIsUpdatingProfileName(false);
+    }
+  };
+
   return (
     <>
       <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-gray-200 bg-white/80 px-8 backdrop-blur-md">
@@ -133,18 +177,49 @@ export const Header = () => {
               <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
                 Switch Profile
               </div>
-              {profiles.map((profile) => (
-                <DropdownItem
-                  key={profile.id}
-                  onClick={() => setActiveProfile(profile)}
-                  className={activeProfile.id === profile.id ? 'bg-brand/5 text-brand font-medium' : ''}
-                >
-                  <div className="flex items-center gap-2">
-                    <Avatar src={profile.avatar_url} fallback={profile.name} size="sm" className="h-6 w-6" />
-                    <span>{profile.name}</span>
-                  </div>
-                </DropdownItem>
-              ))}
+              <div className="space-y-1 px-2">
+                {profiles.map((profile) => {
+                  const isActive = activeProfile.id === profile.id;
+                  const canEditProfile = canManageProfileName(profile);
+
+                  return (
+                    <div
+                      key={profile.id}
+                      className={cn(
+                        'flex items-center gap-1 rounded-lg transition-colors',
+                        isActive ? 'bg-brand/5 text-brand' : 'text-text-secondary hover:bg-gray-50'
+                      )}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setActiveProfile(profile)}
+                        className="flex min-w-0 flex-1 items-center gap-2 px-2 py-2 text-left text-sm transition-colors hover:text-text-primary"
+                      >
+                        <Avatar
+                          src={profile.avatar_url}
+                          fallback={profile.name}
+                          size="sm"
+                          className="h-6 w-6"
+                        />
+                        <span className={cn('truncate', isActive && 'font-medium')}>
+                          {profile.name}
+                        </span>
+                      </button>
+
+                      {canEditProfile ? (
+                        <button
+                          type="button"
+                          onClick={() => openEditProfileModal(profile)}
+                          aria-label={`Editar nome de ${profile.name}`}
+                          className="mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-white hover:text-brand"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
               <div className="my-1 border-t border-gray-100" />
               <DropdownItem icon={availableProfileSlots > 0 ? Plus : ExternalLink} onClick={handleAddProfileClick}>
                 {availableProfileSlots > 0 ? 'Criar novo perfil' : 'Comprar novo perfil'}
@@ -207,6 +282,34 @@ export const Header = () => {
             </div>
           </div>
         )}
+      </Modal>
+
+      <Modal
+        isOpen={!!profileBeingEdited}
+        onClose={closeEditProfileModal}
+        title="Editar nome do perfil"
+      >
+        <form className="space-y-4" onSubmit={handleEditProfileSubmit}>
+          <Input
+            label="Nome do perfil"
+            placeholder="Ex.: Cliente XPTO"
+            value={profileNameDraft}
+            onChange={(event) => setProfileNameDraft(event.target.value)}
+            maxLength={80}
+            autoFocus
+          />
+          {editProfileError ? (
+            <p className="text-sm text-red-500">{editProfileError}</p>
+          ) : null}
+          <div className="flex justify-end gap-3">
+            <Button type="button" variant="ghost" onClick={closeEditProfileModal}>
+              Cancelar
+            </Button>
+            <Button type="submit" isLoading={isUpdatingProfileName}>
+              Salvar
+            </Button>
+          </div>
+        </form>
       </Modal>
     </>
   );
