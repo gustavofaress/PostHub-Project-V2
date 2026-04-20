@@ -740,6 +740,10 @@ Deno.serve(async (request) => {
         password: generatedPassword,
         fullName,
       });
+      await cleanupOrphanedAuthArtifactsByUserId({
+        serviceClient,
+        userId: authUserId,
+      });
     } catch (error) {
       return json(
         {
