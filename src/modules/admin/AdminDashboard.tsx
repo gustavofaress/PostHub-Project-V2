@@ -1,13 +1,18 @@
 import * as React from 'react';
 import {
+  CalendarDays,
   CheckCircle2,
+  Clock3,
   Copy,
+  Eye,
   Filter,
   KeyRound,
+  ListChecks,
   Mail,
   MonitorPlay,
   Search,
   ShieldAlert,
+  Timer,
   TrendingUp,
   UserPlus,
   Users,
@@ -41,6 +46,14 @@ interface WeeklyGrowthPoint {
   shortDate: string;
   count: number;
 }
+
+interface TrialKanbanColumn {
+  day: number;
+  title: string;
+  users: UserData[];
+}
+
+const TRIAL_KANBAN_DAYS = [1, 2, 3, 4, 5, 6, 7] as const;
 
 const getStartOfDay = (value: Date) => {
   const nextDate = new Date(value);
@@ -82,6 +95,40 @@ const sortUsersByNewest = (users: UserData[]) =>
 
     return firstUser.name.localeCompare(secondUser.name, 'pt-BR');
   });
+
+const sortTrialLeadsByActivity = (users: UserData[]) =>
+  [...users].sort((firstUser, secondUser) => {
+    const firstActivityTime = firstUser.lastTrialAccessAt
+      ? new Date(firstUser.lastTrialAccessAt).getTime()
+      : firstUser.createdAt
+      ? new Date(firstUser.createdAt).getTime()
+      : 0;
+    const secondActivityTime = secondUser.lastTrialAccessAt
+      ? new Date(secondUser.lastTrialAccessAt).getTime()
+      : secondUser.createdAt
+      ? new Date(secondUser.createdAt).getTime()
+      : 0;
+
+    if (firstActivityTime !== secondActivityTime) {
+      return secondActivityTime - firstActivityTime;
+    }
+
+    return firstUser.name.localeCompare(secondUser.name, 'pt-BR');
+  });
+
+const buildTrialKanbanColumns = (users: UserData[]): TrialKanbanColumn[] => {
+  const trialUsers = users.filter(
+    (currentUser) => currentUser.plan === 'Trial' && currentUser.trialKanbanDay !== null
+  );
+
+  return TRIAL_KANBAN_DAYS.map((day) => ({
+    day,
+    title: `Dia ${day}`,
+    users: sortTrialLeadsByActivity(
+      trialUsers.filter((currentUser) => currentUser.trialKanbanDay === day)
+    ),
+  }));
+};
 
 const buildWeeklyGrowthData = (users: UserData[]): WeeklyGrowthPoint[] => {
   const dayLabelFormatter = new Intl.DateTimeFormat('pt-BR', { weekday: 'short' });
@@ -280,6 +327,7 @@ export const AdminDashboard = () => {
   const [error, setError] = React.useState('');
   const [landingAnalyticsError, setLandingAnalyticsError] = React.useState('');
   const [passwordResetUser, setPasswordResetUser] = React.useState<UserData | null>(null);
+  const [selectedTrialLead, setSelectedTrialLead] = React.useState<UserData | null>(null);
   const [generatedPasswordResetLink, setGeneratedPasswordResetLink] = React.useState('');
   const [generatedPasswordResetMaskedEmail, setGeneratedPasswordResetMaskedEmail] =
     React.useState('');
@@ -381,6 +429,18 @@ export const AdminDashboard = () => {
     );
   }, [users, searchTerm, filterPlan, filterQuiz, filterSetup, filterWorkModel]);
 
+  const trialKanbanColumns = React.useMemo(
+    () => buildTrialKanbanColumns(filteredUsers),
+    [filteredUsers]
+  );
+  const trialKanbanUsersCount = React.useMemo(
+    () =>
+      trialKanbanColumns.reduce(
+        (total, column) => total + column.users.length,
+        0
+      ),
+    [trialKanbanColumns]
+  );
   const weeklyGrowthData = React.useMemo(() => buildWeeklyGrowthData(users), [users]);
   const maxWeeklyGrowth = React.useMemo(
     () => Math.max(...weeklyGrowthData.map((item) => item.count), 1),
@@ -453,6 +513,30 @@ export const AdminDashboard = () => {
     }).format(new Date(dateString));
   };
 
+  const formatAccessDate = (dateString: string | null) => {
+    if (!dateString) return '-';
+
+    const [year, month, day] = dateString.split('-').map(Number);
+    if (!year || !month || !day) return dateString;
+
+    return new Intl.DateTimeFormat('pt-BR', {
+      day: '2-digit',
+      month: 'short',
+    }).format(new Date(year, month - 1, day));
+  };
+
+  const formatTrialAccessDaysLabel = (currentUser: UserData) => {
+    if (currentUser.trialAccessDays === 0) {
+      return 'Sem acesso diário registrado';
+    }
+
+    if (currentUser.trialAccessDays === 1) {
+      return '1 dia com acesso';
+    }
+
+    return `${currentUser.trialAccessDays} dias com acesso`;
+  };
+
   const closePasswordResetModal = React.useCallback(() => {
     setPasswordResetUser(null);
     setGeneratedPasswordResetLink('');
@@ -471,6 +555,13 @@ export const AdminDashboard = () => {
     setPasswordResetNotice('');
     setPasswordResetError('');
   }, []);
+
+  const handleOpenPasswordResetFromLead = React.useCallback(() => {
+    if (!selectedTrialLead) return;
+
+    setSelectedTrialLead(null);
+    openPasswordResetModal(selectedTrialLead);
+  }, [openPasswordResetModal, selectedTrialLead]);
 
   const handleOpenQuickPasswordResetModal = React.useCallback(() => {
     const normalizedEmail = quickResetEmail.trim().toLowerCase();
@@ -493,6 +584,14 @@ export const AdminDashboard = () => {
         email: normalizedEmail,
         plan: 'Trial',
         trialStatus: 'N/A',
+        trialStartedAt: null,
+        trialExpiresAt: null,
+        trialAccessDays: 0,
+        trialAccessDates: [],
+        trialKanbanDay: null,
+        firstTrialAccessAt: null,
+        lastTrialAccessAt: null,
+        totalTrialAccesses: 0,
         workModel: '',
         operationSize: '',
         currentWorkflow: '',
@@ -734,6 +833,132 @@ export const AdminDashboard = () => {
           ) : (
             <div className="mt-6 rounded-2xl bg-slate-50 px-4 py-8 text-center text-sm text-gray-500">
               Ainda não há visitas registradas na `/lp` nos últimos 30 dias.
+            </div>
+          )}
+        </section>
+
+        <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Kanban do teste grátis
+              </h2>
+              <p className="text-sm text-gray-500">
+                Leads em Trial organizados pelos dias distintos de acesso registrados.
+              </p>
+            </div>
+
+            <div className="inline-flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 text-sm font-medium text-slate-600">
+              <ListChecks className="h-4 w-4 text-[#38B6FF]" />
+              {trialKanbanUsersCount} leads em acompanhamento
+            </div>
+          </div>
+
+          {isLoading ? (
+            <div className="mt-6 rounded-2xl bg-slate-50 px-4 py-8 text-center text-sm text-gray-500">
+              Carregando kanban do trial...
+            </div>
+          ) : trialKanbanUsersCount === 0 ? (
+            <div className="mt-6 rounded-2xl bg-slate-50 px-4 py-8 text-center text-sm text-gray-500">
+              Nenhum lead de Trial encontrado com os filtros selecionados.
+            </div>
+          ) : (
+            <div className="-mx-2 mt-6 overflow-x-auto px-2 pb-2">
+              <div className="flex min-h-[430px] gap-4">
+                {trialKanbanColumns.map((column) => (
+                  <div
+                    key={column.day}
+                    className="flex w-[280px] shrink-0 flex-col rounded-2xl border border-gray-100 bg-slate-50/80"
+                  >
+                    <div className="flex items-start justify-between gap-3 border-b border-gray-100 px-4 py-4">
+                      <div>
+                        <h3 className="font-semibold text-gray-900">{column.title}</h3>
+                        <p className="mt-1 text-xs text-gray-500">
+                          {column.users.length === 1
+                            ? '1 lead'
+                            : `${column.users.length} leads`}
+                        </p>
+                      </div>
+
+                      <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-white px-2 text-sm font-semibold text-slate-700 shadow-sm">
+                        {column.users.length}
+                      </span>
+                    </div>
+
+                    <div className="flex-1 space-y-3 overflow-y-auto p-3">
+                      {column.users.length === 0 ? (
+                        <div className="rounded-2xl border border-dashed border-gray-200 bg-white/70 px-4 py-6 text-center text-sm text-gray-400">
+                          Sem leads neste dia.
+                        </div>
+                      ) : (
+                        column.users.map((currentUser) => (
+                          <button
+                            key={currentUser.id}
+                            type="button"
+                            className="w-full rounded-2xl border border-gray-100 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#38B6FF]/40 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#38B6FF]/30"
+                            onClick={() => setSelectedTrialLead(currentUser)}
+                            aria-label={`Abrir detalhes de ${currentUser.name}`}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="truncate font-semibold text-gray-900">
+                                  {currentUser.name}
+                                </div>
+                                <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
+                                  <Mail className="h-3.5 w-3.5 shrink-0" />
+                                  <span className="truncate">{currentUser.email}</span>
+                                </div>
+                              </div>
+
+                              <Badge
+                                variant={
+                                  currentUser.trialStatus === 'Active' ? 'green' : 'red'
+                                }
+                              >
+                                {currentUser.trialStatus === 'Active' ? 'Ativo' : 'Expirado'}
+                              </Badge>
+                            </div>
+
+                            <div className="mt-4 grid gap-2 text-xs text-gray-500">
+                              <div className="flex items-center gap-2">
+                                <CalendarDays className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                                <span className="truncate">
+                                  Entrada: {formatDate(currentUser.createdAt)}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Clock3 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                                <span className="truncate">
+                                  Último acesso: {formatDateTime(currentUser.lastTrialAccessAt)}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                              <span className="truncate">
+                                {formatTrialAccessDaysLabel(currentUser)}
+                              </span>
+                              <span className="shrink-0 font-semibold text-slate-800">
+                                {currentUser.totalTrialAccesses}
+                              </span>
+                            </div>
+
+                            <div className="mt-3 flex items-center justify-between gap-3 text-xs">
+                              <span className="text-gray-400">
+                                Quiz {currentUser.quizCompleted ? 'ok' : 'pendente'}
+                              </span>
+                              <Eye className="h-3.5 w-3.5 shrink-0 text-[#38B6FF]" />
+                              <span className="text-gray-400">
+                                Setup {currentUser.setupCompleted ? 'ok' : 'pendente'}
+                              </span>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </section>
@@ -1094,6 +1319,200 @@ export const AdminDashboard = () => {
           <span>Clientes mais recentes aparecem primeiro.</span>
         </div>
       </div>
+
+      <Modal
+        isOpen={!!selectedTrialLead}
+        onClose={() => setSelectedTrialLead(null)}
+        title="Detalhes do lead"
+        className="sm:max-w-3xl"
+      >
+        {selectedTrialLead ? (
+          <div className="space-y-5">
+            <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <div className="text-lg font-semibold text-gray-900">
+                    {selectedTrialLead.name}
+                  </div>
+                  <div className="mt-2 flex items-center gap-2 text-sm text-blue-700">
+                    <Mail className="h-4 w-4 shrink-0" />
+                    <span className="break-all">{selectedTrialLead.email}</span>
+                  </div>
+                  <div className="mt-2 break-all text-xs text-blue-600/80">
+                    ID: {selectedTrialLead.id}
+                  </div>
+                </div>
+
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                  <Badge variant="yellow">Trial</Badge>
+                  <Badge
+                    variant={selectedTrialLead.trialStatus === 'Active' ? 'green' : 'red'}
+                  >
+                    {selectedTrialLead.trialStatus === 'Active' ? 'Ativo' : 'Expirado'}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">
+                  <Timer className="h-4 w-4" />
+                  Dia
+                </div>
+                <div className="mt-3 text-2xl font-semibold text-gray-900">
+                  {selectedTrialLead.trialKanbanDay ?? '-'}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">
+                  <CalendarDays className="h-4 w-4" />
+                  Dias
+                </div>
+                <div className="mt-3 text-2xl font-semibold text-gray-900">
+                  {selectedTrialLead.trialAccessDays}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">
+                  <Clock3 className="h-4 w-4" />
+                  Acessos
+                </div>
+                <div className="mt-3 text-2xl font-semibold text-gray-900">
+                  {selectedTrialLead.totalTrialAccesses}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">
+                  <ListChecks className="h-4 w-4" />
+                  Setup
+                </div>
+                <div className="mt-3 text-sm font-semibold text-gray-900">
+                  {selectedTrialLead.quizCompleted && selectedTrialLead.setupCompleted
+                    ? 'Completo'
+                    : 'Pendente'}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className="rounded-2xl border border-gray-100 p-4">
+                <h4 className="text-sm font-semibold text-gray-900">Acesso e trial</h4>
+                <div className="mt-4 space-y-3 text-sm">
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-gray-500">Entrou</span>
+                    <span className="text-right font-medium text-gray-900">
+                      {formatDateTime(selectedTrialLead.createdAt)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-gray-500">Início do trial</span>
+                    <span className="text-right font-medium text-gray-900">
+                      {formatDateTime(selectedTrialLead.trialStartedAt)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-gray-500">Expiração</span>
+                    <span className="text-right font-medium text-gray-900">
+                      {formatDateTime(selectedTrialLead.trialExpiresAt)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-gray-500">Primeiro acesso</span>
+                    <span className="text-right font-medium text-gray-900">
+                      {formatDateTime(selectedTrialLead.firstTrialAccessAt)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-gray-500">Último acesso</span>
+                    <span className="text-right font-medium text-gray-900">
+                      {formatDateTime(selectedTrialLead.lastTrialAccessAt)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-gray-100 p-4">
+                <h4 className="text-sm font-semibold text-gray-900">Qualificação</h4>
+                <div className="mt-4 space-y-3 text-sm">
+                  <div className="flex items-start justify-between gap-4">
+                    <span className="text-gray-500">Modelo</span>
+                    <span className="text-right font-medium text-gray-900">
+                      {selectedTrialLead.workModel || '-'}
+                    </span>
+                  </div>
+                  <div className="flex items-start justify-between gap-4">
+                    <span className="text-gray-500">Operação</span>
+                    <span className="text-right font-medium text-gray-900">
+                      {selectedTrialLead.operationSize || '-'}
+                    </span>
+                  </div>
+                  <div className="flex items-start justify-between gap-4">
+                    <span className="text-gray-500">Fluxo atual</span>
+                    <span className="text-right font-medium text-gray-900">
+                      {selectedTrialLead.currentWorkflow || '-'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-gray-500">Quiz</span>
+                    <Badge variant={selectedTrialLead.quizCompleted ? 'green' : 'gray'}>
+                      {selectedTrialLead.quizCompleted ? 'Concluído' : 'Pendente'}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-gray-500">Setup</span>
+                    <Badge variant={selectedTrialLead.setupCompleted ? 'green' : 'gray'}>
+                      {selectedTrialLead.setupCompleted ? 'Concluído' : 'Pendente'}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-gray-100 p-4">
+              <h4 className="text-sm font-semibold text-gray-900">Dias acessados</h4>
+              {selectedTrialLead.trialAccessDates.length > 0 ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {selectedTrialLead.trialAccessDates.map((accessDate) => (
+                    <span
+                      key={accessDate}
+                      className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700"
+                    >
+                      {formatAccessDate(accessDate)}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-3 rounded-2xl bg-slate-50 px-4 py-4 text-sm text-gray-500">
+                  Nenhum acesso diário registrado para este lead.
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Button
+                type="button"
+                variant="secondary"
+                className="flex-1 gap-2"
+                onClick={handleOpenPasswordResetFromLead}
+              >
+                <KeyRound className="h-4 w-4" />
+                Redefinir senha
+              </Button>
+              <Button
+                type="button"
+                className="flex-1"
+                onClick={() => setSelectedTrialLead(null)}
+              >
+                Fechar
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
 
       <Modal
         isOpen={!!passwordResetUser}

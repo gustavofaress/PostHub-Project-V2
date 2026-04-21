@@ -26,12 +26,28 @@ export interface AdminDashboardWorkspaceMemberRow {
   email: string | null;
 }
 
+export interface AdminDashboardTrialAccessRow {
+  user_id: string | null;
+  access_date: string | null;
+  first_accessed_at: string | null;
+  last_accessed_at: string | null;
+  access_count: number | null;
+}
+
 export interface AdminDashboardUser {
   id: string;
   name: string;
   email: string;
   plan: 'Trial' | 'Pro';
   trialStatus: 'Active' | 'Expired' | 'N/A';
+  trialStartedAt: string | null;
+  trialExpiresAt: string | null;
+  trialAccessDays: number;
+  trialAccessDates: string[];
+  trialKanbanDay: number | null;
+  firstTrialAccessAt: string | null;
+  lastTrialAccessAt: string | null;
+  totalTrialAccesses: number;
   workModel: string;
   operationSize: string;
   currentWorkflow: string;
@@ -99,10 +115,12 @@ export const adminDashboardService = {
       { data: usuariosData, error: usuariosError },
       { data: onboardingData, error: onboardingError },
       { data: workspaceMembersData, error: workspaceMembersError },
+      { data: trialAccessData, error: trialAccessError },
     ] = await Promise.all([
       fetchAdminDashboardUsers(),
       fetchAdminDashboardOnboarding(),
       fetchAdminDashboardWorkspaceMembers(),
+      fetchAdminDashboardTrialAccesses(),
     ]);
 
     if (usuariosError) {
@@ -117,10 +135,20 @@ export const adminDashboardService = {
       throw mapAdminDashboardError(workspaceMembersError);
     }
 
+    if (trialAccessError && !isMissingRelationError(trialAccessError)) {
+      throw mapAdminDashboardError(trialAccessError);
+    }
+
     const onboardingMap = new Map<string, AdminDashboardOnboardingRow>();
     (onboardingData as AdminDashboardOnboardingRow[] | null)?.forEach((row) => {
       onboardingMap.set(row.user_id, row);
     });
+
+    const trialAccessMap = buildTrialAccessMap(
+      trialAccessError
+        ? []
+        : ((trialAccessData as AdminDashboardTrialAccessRow[] | null) ?? [])
+    );
 
     const workspaceMemberUserIds = new Set(
       ((workspaceMembersData as AdminDashboardWorkspaceMemberRow[] | null) ?? [])
@@ -145,6 +173,9 @@ export const adminDashboardService = {
       .map((usuario) => {
         const onboarding = onboardingMap.get(usuario.id);
         const isPro = usuario.current_plan === 'pro';
+        const trialAccessRows = trialAccessMap.get(usuario.id) ?? [];
+        const trialAccessDates = resolveTrialAccessDates(trialAccessRows);
+        const trialAccessDays = trialAccessDates.length;
 
         return {
           id: usuario.id,
@@ -152,6 +183,17 @@ export const adminDashboardService = {
           email: usuario.email?.trim() || '-',
           plan: isPro ? ('Pro' as const) : ('Trial' as const),
           trialStatus: getTrialStatus(usuario.current_plan, usuario.trial_expires_at),
+          trialStartedAt: usuario.trial_started_at,
+          trialExpiresAt: usuario.trial_expires_at,
+          trialAccessDays,
+          trialAccessDates,
+          trialKanbanDay: isPro ? null : clampTrialKanbanDay(trialAccessDays || 1),
+          firstTrialAccessAt: resolveFirstTrialAccessAt(trialAccessRows),
+          lastTrialAccessAt: resolveLastTrialAccessAt(trialAccessRows),
+          totalTrialAccesses: trialAccessRows.reduce(
+            (total, row) => total + safeNumber(row.access_count),
+            0
+          ),
           workModel: onboarding?.work_model || '',
           operationSize: onboarding?.operation_size || '',
           currentWorkflow: onboarding?.current_process || '',
@@ -359,6 +401,13 @@ async function fetchAdminDashboardWorkspaceMembers() {
     .select('user_id, email')) as AdminDashboardQueryResult<AdminDashboardWorkspaceMemberRow>;
 }
 
+async function fetchAdminDashboardTrialAccesses() {
+  return (await supabase!
+    .from('trial_lead_daily_accesses')
+    .select('user_id, access_date, first_accessed_at, last_accessed_at, access_count')
+    .order('access_date', { ascending: true })) as AdminDashboardQueryResult<AdminDashboardTrialAccessRow>;
+}
+
 async function fetchLandingPageVideoVisits() {
   const sinceDate = new Date();
   sinceDate.setDate(sinceDate.getDate() - 30);
@@ -391,6 +440,78 @@ function resolveUserCreatedAt(
 function isMissingColumnError(error: { code?: string; message?: string | null }, columnName: string) {
   const normalizedMessage = (error.message || '').toLowerCase();
   return error.code === '42703' || normalizedMessage.includes(columnName.toLowerCase());
+}
+
+function isMissingRelationError(error: { code?: string; message?: string | null }) {
+  const normalizedMessage = (error.message || '').toLowerCase();
+  return (
+    error.code === '42P01' ||
+    normalizedMessage.includes('relation') && normalizedMessage.includes('does not exist') ||
+    normalizedMessage.includes('trial_lead_daily_accesses')
+  );
+}
+
+function buildTrialAccessMap(rows: AdminDashboardTrialAccessRow[]) {
+  const accessMap = new Map<string, AdminDashboardTrialAccessRow[]>();
+
+  rows.forEach((row) => {
+    if (!row.user_id) return;
+
+    const currentRows = accessMap.get(row.user_id) ?? [];
+    currentRows.push(row);
+    accessMap.set(row.user_id, currentRows);
+  });
+
+  accessMap.forEach((currentRows) => {
+    currentRows.sort((firstRow, secondRow) => {
+      return compareDateStrings(firstRow.access_date, secondRow.access_date);
+    });
+  });
+
+  return accessMap;
+}
+
+function resolveTrialAccessDates(rows: AdminDashboardTrialAccessRow[]) {
+  return Array.from(
+    new Set(
+      rows
+        .map((row) => row.access_date)
+        .filter((value): value is string => !!value)
+    )
+  ).sort((firstDate, secondDate) => compareDateStrings(firstDate, secondDate));
+}
+
+function resolveFirstTrialAccessAt(rows: AdminDashboardTrialAccessRow[]) {
+  return resolveSortedAccessTimestamps(rows)[0] ?? null;
+}
+
+function resolveLastTrialAccessAt(rows: AdminDashboardTrialAccessRow[]) {
+  const timestamps = resolveSortedAccessTimestamps(rows);
+  return timestamps[timestamps.length - 1] ?? null;
+}
+
+function resolveSortedAccessTimestamps(rows: AdminDashboardTrialAccessRow[]) {
+  return rows
+    .flatMap((row) => [row.first_accessed_at, row.last_accessed_at])
+    .filter((value): value is string => !!value)
+    .map((value) => ({
+      value,
+      timestamp: new Date(value).getTime(),
+    }))
+    .filter((entry) => !Number.isNaN(entry.timestamp))
+    .sort((firstEntry, secondEntry) => firstEntry.timestamp - secondEntry.timestamp)
+    .map((entry) => entry.value);
+}
+
+function compareDateStrings(firstDate: string | null, secondDate: string | null) {
+  const firstTime = firstDate ? new Date(firstDate).getTime() : 0;
+  const secondTime = secondDate ? new Date(secondDate).getTime() : 0;
+
+  return firstTime - secondTime;
+}
+
+function clampTrialKanbanDay(day: number) {
+  return Math.min(Math.max(day, 1), 7);
 }
 
 function isDateWithinLastDays(dateString: string | null, days: number) {
