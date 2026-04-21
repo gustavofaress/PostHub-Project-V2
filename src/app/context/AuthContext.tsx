@@ -93,6 +93,11 @@ const getLocalIsoDate = (value = new Date()) => {
   return `${year}-${month}-${day}`;
 };
 
+const isExistingSignupUser = (authUser: any) => {
+  if (!authUser || !Array.isArray(authUser.identities)) return false;
+  return authUser.identities.length === 0;
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = React.useState<User | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -723,6 +728,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (authError) throw authError;
+
+      if (isExistingSignupUser(signedUpUser)) {
+        throw new Error(
+          'Este email já possui uma conta no PostHub. Entre com sua senha ou use a recuperação de senha.'
+        );
+      }
 
       if (!password || !signedUpSession || !signedUpUser) {
         return {
