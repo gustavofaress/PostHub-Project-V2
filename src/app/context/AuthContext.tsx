@@ -50,6 +50,11 @@ interface User {
   onboarding?: UserOnboardingState | null;
 }
 
+interface SignupResult {
+  requiresEmailConfirmation: boolean;
+  email: string;
+}
+
 interface AuthContextType {
   user: User | null;
   login: (email: string, password?: string) => Promise<void>;
@@ -58,7 +63,7 @@ interface AuthContextType {
     email: string,
     password?: string,
     profileName?: string
-  ) => Promise<void>;
+  ) => Promise<SignupResult>;
   requestPasswordReset: (email: string) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
   updateAccountProfile: (input: {
@@ -632,6 +637,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const errorMessage = `${error?.message || ''}`.toLowerCase();
 
+      if (errorMessage.includes('email not confirmed')) {
+        throw new Error(
+          'Confirme seu email antes de entrar. Enviamos um link de confirmação para sua caixa de entrada.'
+        );
+      }
+
       if (errorMessage.includes('invalid login credentials')) {
         throw new Error(
           'Email ou senha automática inválidos. Gere um novo acesso do membro nas configurações e tente novamente.'
@@ -647,12 +658,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     email: string,
     password?: string,
     profileName?: string
-  ) => {
+  ): Promise<SignupResult> => {
+    const sanitizedEmail = email.trim().toLowerCase();
+
     if (!supabase) {
       const mockUser: User = {
         id: '1',
         name,
-        email,
+        email: sanitizedEmail,
         website: null,
         avatarUrl: null,
         notificationPreferences: normalizeNotificationPreferences(),
@@ -666,18 +679,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
       await syncMockUser(mockUser);
       navigate('/workspace/onboarding');
-      return;
+      return {
+        requiresEmailConfirmation: false,
+        email: sanitizedEmail,
+      };
     }
 
     try {
       let authError: any = null;
+      let signedUpUser: any = null;
+      let signedUpSession: any = null;
 
       const sanitizedName = name.trim();
       const sanitizedProfileName = (profileName || name).trim();
 
       if (password) {
-        const { error: signUpError } = await supabase.auth.signUp({
-          email,
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email: sanitizedEmail,
           password,
           options: {
             data: {
@@ -688,9 +706,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           },
         });
         authError = signUpError;
+        signedUpUser = data?.user ?? null;
+        signedUpSession = data?.session ?? null;
       } else {
         const { error: otpError } = await supabase.auth.signInWithOtp({
-          email,
+          email: sanitizedEmail,
           options: {
             data: {
               full_name: sanitizedName,
@@ -704,23 +724,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (authError) throw authError;
 
-      if (!password) {
-        alert('Check your email for the signup link!');
-        return;
-      }
-
-      const {
-        data: { user: signedUpUser },
-        error: getUserError,
-      } = await supabase.auth.getUser();
-
-      if (getUserError) {
-        throw getUserError;
-      }
-
-      if (!signedUpUser) {
-        navigate('/workspace/onboarding');
-        return;
+      if (!password || !signedUpSession || !signedUpUser) {
+        return {
+          requiresEmailConfirmation: true,
+          email: signedUpUser?.email || sanitizedEmail,
+        };
       }
 
       let appUser: User | null = null;
@@ -754,6 +762,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       navigate('/workspace/onboarding');
+      return {
+        requiresEmailConfirmation: false,
+        email: appUser.email || sanitizedEmail,
+      };
     } catch (error: any) {
       console.error('Signup error:', error);
       console.error('Signup error message:', error?.message);
