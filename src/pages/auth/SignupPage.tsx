@@ -17,18 +17,35 @@ export const SignupPage = () => {
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [error, setError] = React.useState('');
+  const [confirmationEmail, setConfirmationEmail] = React.useState('');
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
+    setConfirmationEmail('');
 
     try {
-      await signup(name, email, password, profileName || name);
+      const result = await signup(name, email, password, profileName || name);
+      if (result.requiresEmailConfirmation) {
+        setConfirmationEmail(result.email);
+        trackMetaEvent({
+          eventName: 'CompleteRegistration',
+          userData: {
+            em: result.email,
+          },
+          customData: {
+            content_name: 'PostHub account',
+            status: 'pending_email_confirmation',
+          },
+        });
+        return;
+      }
+
       trackMetaEvent({
         eventName: 'CompleteRegistration',
         userData: {
-          em: email,
+          em: result.email,
         },
         customData: {
           content_name: 'PostHub account',
@@ -67,6 +84,13 @@ export const SignupPage = () => {
           {error && (
             <div className="p-3 text-sm text-red-500 bg-red-50 rounded-md border border-red-200 break-words">
               {error}
+            </div>
+          )}
+
+          {confirmationEmail && (
+            <div className="rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-800">
+              Enviamos um link de confirmação para <strong>{confirmationEmail}</strong>.
+              Confirme o email para liberar seu acesso ao PostHub.
             </div>
           )}
 
