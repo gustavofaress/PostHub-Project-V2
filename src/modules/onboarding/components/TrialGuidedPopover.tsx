@@ -147,16 +147,22 @@ export const TrialGuidedPopover = () => {
           <p className="mt-3 text-sm leading-[1.45] text-white/95">
             {currentTourStep.description}
           </p>
-          <div className="mt-4 flex justify-end">
-            <Button
-              variant="secondary"
-              className="rounded-[14px] border-none bg-white px-4 py-2.5 text-base font-bold text-[#38B6FF] shadow-none hover:bg-white/90"
-              isLoading={isSaving}
-              onClick={() => void handleNext()}
-            >
+          {currentTourStep.nextAction === 'wait_for_action' ? (
+            <div className="mt-4 rounded-[14px] bg-white/20 px-3 py-2 text-sm font-semibold text-white">
               {currentTourStep.buttonLabel}
-            </Button>
-          </div>
+            </div>
+          ) : (
+            <div className="mt-4 flex justify-end">
+              <Button
+                variant="secondary"
+                className="rounded-[14px] border-none bg-white px-4 py-2.5 text-base font-bold text-[#38B6FF] shadow-none hover:bg-white/90"
+                isLoading={isSaving}
+                onClick={() => void handleNext()}
+              >
+                {currentTourStep.buttonLabel}
+              </Button>
+            </div>
+          )}
         </div>
       </div>
       <div className="mt-2 px-2 text-xs font-medium text-[#38B6FF]">

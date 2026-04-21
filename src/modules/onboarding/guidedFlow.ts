@@ -15,11 +15,13 @@ export type GuidedTourStepId =
   | 'ideas-add'
   | 'calendar-nav'
   | 'calendar-schedule'
-  | 'kanban-nav'
-  | 'kanban-add'
+  | 'calendar-save'
+  | 'kanban-move'
   | 'approval-nav'
   | 'approval-create'
   | 'approval-preview';
+
+export type GuidedTourNextAction = 'click_target' | 'advance_only' | 'wait_for_action';
 
 export type GuidedPopoverPlacement = 'right' | 'bottom' | 'top';
 
@@ -39,7 +41,7 @@ export interface GuidedTourStep {
   description: string;
   buttonLabel: string;
   placement: GuidedPopoverPlacement;
-  nextAction: 'click_target' | 'advance_only';
+  nextAction: GuidedTourNextAction;
 }
 
 export const GUIDED_FLOW_STEPS: GuidedFlowStep[] = [
@@ -146,30 +148,30 @@ export const GUIDED_TOUR_STEPS: GuidedTourStep[] = [
     parentStepId: 'calendar',
     targetId: 'calendar-add-button',
     title: 'Passo #7',
-    description: 'Clique em agendar post para seguir com a organização editorial.',
+    description: 'Clique em agendar post para abrir o cadastro da tarefa no calendário.',
     buttonLabel: 'Próximo',
     placement: 'bottom',
     nextAction: 'click_target',
   },
   {
-    id: 'kanban-nav',
-    parentStepId: 'kanban',
-    targetId: 'sidebar-kanban',
+    id: 'calendar-save',
+    parentStepId: 'calendar',
+    targetId: 'calendar-save-button',
     title: 'Passo #8',
-    description: 'Abra o kanban editorial pela barra lateral.',
-    buttonLabel: 'Próximo',
-    placement: 'right',
-    nextAction: 'click_target',
+    description: 'Preencha o título da tarefa e salve. Depois disso, vamos abrir o Kanban com esse card.',
+    buttonLabel: 'Aguardando cadastro',
+    placement: 'top',
+    nextAction: 'wait_for_action',
   },
   {
-    id: 'kanban-add',
+    id: 'kanban-move',
     parentStepId: 'kanban',
-    targetId: 'kanban-add-button',
+    targetId: 'kanban-tour-card',
     title: 'Passo #9',
-    description: 'Clique em adicionar tarefa para acompanhar a produção.',
-    buttonLabel: 'Próximo',
+    description: 'Arraste a tarefa criada para a próxima coluna para testar a mudança de fase.',
+    buttonLabel: 'Aguardando movimento',
     placement: 'bottom',
-    nextAction: 'click_target',
+    nextAction: 'wait_for_action',
   },
   {
     id: 'approval-nav',
@@ -243,6 +245,10 @@ export const getCurrentGuidedTourStepId = (
   setupCompleted = false
 ): GuidedTourStepId | null => {
   if (setupCompleted) return null;
+
+  if (currentStep === 'kanban-nav' || currentStep === 'kanban-add') {
+    return 'calendar-nav';
+  }
 
   if (isGuidedTourStepId(currentStep)) return currentStep;
   if (isGuidedFlowStepId(currentStep)) return getFirstTourStepForFlowStep(currentStep).id;
