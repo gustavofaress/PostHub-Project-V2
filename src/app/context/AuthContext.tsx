@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../shared/utils/supabase';
 import { onboardingService } from '../../services/onboarding.service';
 import { userService } from '../../services/user.service';
+import { trialAccessService } from '../../services/trial-access.service';
 import { normalizePlan } from '../../shared/constants/plans';
 import { memberAuthStorage } from '../../modules/settings/memberAuth.storage';
 import { buildAppUrl } from '../../shared/utils/appUrl';
@@ -79,9 +80,18 @@ const isTrialStillActive = (trialExpiresAt?: string | null) => {
   return new Date(trialExpiresAt).getTime() > Date.now();
 };
 
+const getLocalIsoDate = (value = new Date()) => {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = React.useState<User | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
+  const lastRecordedTrialAccessRef = React.useRef('');
   const navigate = useNavigate();
 
   const mapOnboardingState = React.useCallback((onboarding: any): UserOnboardingState | null => {
@@ -407,6 +417,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const appUser = await buildAppUser(sessionUser);
     setUser(appUser);
   }, [buildAppUser, syncMockUser]);
+
+  const recordTrialAccessForUser = React.useCallback(async (targetUser: User | null) => {
+    if (
+      !targetUser?.id ||
+      targetUser.isAdmin ||
+      targetUser.isWorkspaceMember ||
+      targetUser.isMemberOnlyAccount ||
+      targetUser.accessStatus !== 'trial_active'
+    ) {
+      return;
+    }
+
+    const accessDate = getLocalIsoDate();
+    const recordKey = `${targetUser.id}:${accessDate}`;
+
+    if (lastRecordedTrialAccessRef.current === recordKey) {
+      return;
+    }
+
+    lastRecordedTrialAccessRef.current = recordKey;
+
+    try {
+      await trialAccessService.recordDailyAccess(accessDate);
+    } catch (error) {
+      console.warn('[AuthContext] Could not record trial daily access:', error);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void recordTrialAccessForUser(user);
+
+    if (!user?.id || typeof window === 'undefined' || typeof document === 'undefined') {
+      return;
+    }
+
+    const handleAccessSignal = () => {
+      if (document.visibilityState !== 'visible') return;
+      void recordTrialAccessForUser(user);
+    };
+
+    window.addEventListener('focus', handleAccessSignal);
+    document.addEventListener('visibilitychange', handleAccessSignal);
+
+    return () => {
+      window.removeEventListener('focus', handleAccessSignal);
+      document.removeEventListener('visibilitychange', handleAccessSignal);
+    };
+  }, [recordTrialAccessForUser, user]);
 
   React.useEffect(() => {
     const initializeAuth = async () => {
