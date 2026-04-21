@@ -28,18 +28,18 @@ import { TaskCommentsPanel } from '../../shared/components/TaskCommentsPanel';
 import { workspaceCollaborationService } from '../../services/workspace-collaboration.service';
 import type { WorkspaceTaskAssignment } from '../../shared/constants/workspaceCollaboration';
 import {
+  kanbanColumnsService,
+  mapEditorialColumnRow,
+  mapKanbanColumnNameToStatus,
+  type EditorialColumnRow,
+  type KanbanColumnRecord,
+} from '../../services/kanban-columns.service';
+import {
   readWorkspaceNotificationParams,
   withoutWorkspaceNotificationParams,
 } from '../../shared/constants/workspaceNotifications';
 
-interface KanbanColumn {
-  id: string;
-  profile_id: string;
-  name: string;
-  order: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
+type KanbanColumn = KanbanColumnRecord;
 
 interface KanbanCard {
   id: string;
@@ -54,16 +54,6 @@ interface KanbanCard {
   updatedAt: Date;
 }
 
-interface EditorialColumnRow {
-  id: string;
-  profile_id: string;
-  name: string;
-  position?: number | null;
-  order?: number | null;
-  created_at: string;
-  updated_at: string;
-}
-
 interface EditorialCalendarRow {
   id: string;
   user_id: string;
@@ -74,19 +64,6 @@ interface EditorialCalendarRow {
   scheduled_date: string;
   created_at: string;
   updated_at: string;
-}
-
-const DEFAULT_COLUMN_NAMES = ['Planning', 'Production', 'Review', 'Published'];
-
-function mapColumnRow(row: EditorialColumnRow): KanbanColumn {
-  return {
-    id: row.id,
-    profile_id: row.profile_id,
-    name: row.name,
-    order: row.position ?? row.order ?? 0,
-    createdAt: new Date(row.created_at),
-    updatedAt: new Date(row.updated_at),
-  };
 }
 
 function inferTaskType(title: string, status?: string | null): string {
@@ -126,23 +103,12 @@ function mapCardRow(row: EditorialCalendarRow): KanbanCard {
   };
 }
 
-function mapColumnNameToStatus(columnName: string): string {
-  const value = columnName.trim().toLowerCase();
-
-  if (value.includes('plan')) return 'Planned';
-  if (value.includes('draft') || value.includes('prod')) return 'Draft';
-  if (value.includes('review') || value.includes('rev')) return 'Review';
-  if (value.includes('publish')) return 'Published';
-
-  return 'Planned';
-}
-
 export const KanbanBoard = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { activeProfile } = useProfile();
   const { user } = useAuth();
   const { activeMembers } = useWorkspaceMembers();
-  useTrialGuidedFlow();
+  const guidedFlow = useTrialGuidedFlow();
 
   const [columns, setColumns] = React.useState<KanbanColumn[]>([]);
   const [cards, setCards] = React.useState<KanbanCard[]>([]);
@@ -165,6 +131,26 @@ export const KanbanBoard = () => {
   const [editingColumnName, setEditingColumnName] = React.useState('');
   const [isSavingColumn, setIsSavingColumn] = React.useState(false);
 
+  const tourMovableCardId = React.useMemo(() => {
+    if (guidedFlow.currentTourStepId !== 'kanban-move' || columns.length < 2) {
+      return null;
+    }
+
+    const firstColumnId = columns[0]?.id;
+    const cardInFirstColumn = cards.find((card) => card.columnId === firstColumnId);
+
+    if (cardInFirstColumn) {
+      return cardInFirstColumn.id;
+    }
+
+    return (
+      cards.find((card) => {
+        const columnIndex = columns.findIndex((column) => column.id === card.columnId);
+        return columnIndex >= 0 && columnIndex < columns.length - 1;
+      })?.id ?? null
+    );
+  }, [cards, columns, guidedFlow.currentTourStepId]);
+
   const loadBoard = React.useCallback(async () => {
     if (!supabase || !user?.id || !activeProfile?.id) {
       setColumns([]);
@@ -177,15 +163,11 @@ export const KanbanBoard = () => {
 
     try {
       const [
-        { data: columnsData, error: columnsError },
+        mappedColumns,
         { data: cardsData, error: cardsError },
         assignmentData,
       ] = await Promise.all([
-        supabase
-          .from('editorial_columns')
-          .select('*')
-          .eq('profile_id', activeProfile.id)
-          .order('position', { ascending: true }),
+        kanbanColumnsService.ensureDefaultColumns(activeProfile.id),
         supabase
           .from('editorial_calendar')
           .select('*')
@@ -194,34 +176,7 @@ export const KanbanBoard = () => {
         workspaceCollaborationService.listAssignments(activeProfile.id, 'editorial_calendar'),
       ]);
 
-      if (columnsError) throw columnsError;
       if (cardsError) throw cardsError;
-
-      let mappedColumns = ((columnsData ?? []) as EditorialColumnRow[])
-        .map(mapColumnRow)
-        .sort((a, b) => a.order - b.order);
-
-      if (mappedColumns.length === 0) {
-        const now = new Date().toISOString();
-        const { data: createdColumns, error: createColumnsError } = await supabase
-          .from('editorial_columns')
-          .insert(
-            DEFAULT_COLUMN_NAMES.map((name, index) => ({
-              profile_id: activeProfile.id,
-              name,
-              position: index,
-              created_at: now,
-              updated_at: now,
-            }))
-          )
-          .select('*');
-
-        if (createColumnsError) throw createColumnsError;
-
-        mappedColumns = ((createdColumns ?? []) as EditorialColumnRow[])
-          .map(mapColumnRow)
-          .sort((a, b) => a.order - b.order);
-      }
 
       const fallbackColumnId = mappedColumns[0]?.id ?? null;
 
@@ -279,7 +234,7 @@ export const KanbanBoard = () => {
 
       if (error) throw error;
 
-      const newColumn = mapColumnRow(data as EditorialColumnRow);
+      const newColumn = mapEditorialColumnRow(data as EditorialColumnRow);
       setColumns((prev) => [...prev, newColumn].sort((a, b) => a.order - b.order));
     } catch (error: any) {
       console.error('[KanbanBoard] Error adding column:', error);
@@ -336,7 +291,7 @@ export const KanbanBoard = () => {
 
       if (error) throw error;
 
-      const updatedColumn = mapColumnRow(data as EditorialColumnRow);
+      const updatedColumn = mapEditorialColumnRow(data as EditorialColumnRow);
 
       setColumns((prev) =>
         prev.map((col) => (col.id === columnId ? updatedColumn : col))
@@ -420,7 +375,7 @@ export const KanbanBoard = () => {
         .from('editorial_calendar')
         .update({
           kanban_column_id: targetColumn.id,
-          status: mapColumnNameToStatus(targetColumn.name),
+          status: mapKanbanColumnNameToStatus(targetColumn.name),
           updated_at: new Date().toISOString(),
         })
         .eq('id', taskId)
@@ -434,6 +389,10 @@ export const KanbanBoard = () => {
       setCards((prev) =>
         prev.map((card) => (card.id === taskId ? updatedCard : card))
       );
+
+      if (guidedFlow.currentTourStepId === 'kanban-move') {
+        await guidedFlow.advanceAfterRequiredAction();
+      }
     } catch (error: any) {
       console.error('[KanbanBoard] Error moving task:', error);
       setCards(previousCards);
@@ -497,7 +456,7 @@ export const KanbanBoard = () => {
       user_id: user.id,
       profile_id: activeProfile.id,
       title: newTaskTitle.trim(),
-      status: selectedColumn ? mapColumnNameToStatus(selectedColumn.name) : 'Planned',
+      status: selectedColumn ? mapKanbanColumnNameToStatus(selectedColumn.name) : 'Planned',
       kanban_column_id: newTaskColumn || null,
       scheduled_date: scheduledDateIso,
       updated_at: now,
@@ -647,6 +606,9 @@ export const KanbanBoard = () => {
     const targetColumn = columns.find((col) => col.id === columnId);
     if (!targetColumn) return;
 
+    const currentCard = cards.find((card) => card.id === cardId);
+    if (currentCard?.columnId === columnId) return;
+
     const previousCards = cards;
 
     setCards((prevCards) =>
@@ -660,7 +622,7 @@ export const KanbanBoard = () => {
         .from('editorial_calendar')
         .update({
           kanban_column_id: columnId,
-          status: mapColumnNameToStatus(targetColumn.name),
+          status: mapKanbanColumnNameToStatus(targetColumn.name),
           updated_at: new Date().toISOString(),
         })
         .eq('id', cardId)
@@ -675,6 +637,10 @@ export const KanbanBoard = () => {
       setCards((prevCards) =>
         prevCards.map((card) => (card.id === cardId ? updatedCard : card))
       );
+
+      if (guidedFlow.currentTourStepId === 'kanban-move') {
+        await guidedFlow.advanceAfterRequiredAction();
+      }
     } catch (error: any) {
       console.error('[KanbanBoard] Error dropping task:', error);
       setCards(previousCards);
@@ -812,6 +778,7 @@ export const KanbanBoard = () => {
                       padding="sm"
                       className="group hover:border-brand transition-all cursor-grab active:cursor-grabbing"
                       draggable
+                      data-tour-id={task.id === tourMovableCardId ? 'kanban-tour-card' : undefined}
                       onDragStart={(e: React.DragEvent) => handleDragStart(e, task.id)}
                     >
                       <div className="flex items-start justify-between mb-2">

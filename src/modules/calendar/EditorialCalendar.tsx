@@ -34,6 +34,7 @@ import { MemberAssignmentField } from '../../shared/components/MemberAssignmentF
 import { TaskCommentsPanel } from '../../shared/components/TaskCommentsPanel';
 import { workspaceCollaborationService } from '../../services/workspace-collaboration.service';
 import type { WorkspaceTaskAssignment } from '../../shared/constants/workspaceCollaboration';
+import { kanbanColumnsService } from '../../services/kanban-columns.service';
 import { useIsMobile } from '../mobile/hooks/useIsMobile';
 import {
   readWorkspaceNotificationParams,
@@ -61,6 +62,7 @@ interface EditorialCalendarRow {
   description: string | null;
   scheduled_date: string;
   status: string | null;
+  kanban_column_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -86,7 +88,7 @@ export const EditorialCalendar = () => {
   const { user } = useAuth();
   const { activeMembers } = useWorkspaceMembers();
   const isMobile = useIsMobile();
-  useTrialGuidedFlow();
+  const guidedFlow = useTrialGuidedFlow();
 
   const [currentDate, setCurrentDate] = React.useState(new Date());
   const [posts, setPosts] = React.useState<CalendarPost[]>([]);
@@ -240,17 +242,34 @@ export const EditorialCalendar = () => {
 
     const scheduledDateIso = new Date(`${newPostDate}T12:00:00`).toISOString();
 
-    const payload = {
-      user_id: user.id,
-      profile_id: activeProfile.id,
-      title: newPostTitle.trim(),
-      description: newPostDescription.trim() || null,
-      scheduled_date: scheduledDateIso,
-      status: newPostStatus,
-      updated_at: new Date().toISOString(),
-    };
-
     try {
+      let initialKanbanColumnId: string | null = null;
+
+      if (!editingPostId) {
+        try {
+          const kanbanColumns = await kanbanColumnsService.ensureDefaultColumns(activeProfile.id);
+          initialKanbanColumnId = kanbanColumns[0]?.id ?? null;
+        } catch (kanbanColumnError) {
+          console.warn(
+            '[EditorialCalendar] Could not prepare Kanban columns for the new calendar task:',
+            kanbanColumnError
+          );
+        }
+      }
+
+      const payload = {
+        user_id: user.id,
+        profile_id: activeProfile.id,
+        title: newPostTitle.trim(),
+        description: newPostDescription.trim() || null,
+        scheduled_date: scheduledDateIso,
+        status: newPostStatus,
+        updated_at: new Date().toISOString(),
+        ...(!editingPostId && initialKanbanColumnId
+          ? { kanban_column_id: initialKanbanColumnId }
+          : {}),
+      };
+
       if (editingPostId) {
         const { data, error } = await supabase
           .from('editorial_calendar')
@@ -328,6 +347,10 @@ export const EditorialCalendar = () => {
 
       setIsModalOpen(false);
       resetModalForm();
+
+      if (!editingPostId && guidedFlow.currentTourStepId === 'calendar-save') {
+        await guidedFlow.advanceAfterRequiredAction();
+      }
     } catch (error: any) {
       console.error('[EditorialCalendar] Error saving post:', error);
       setErrorMessage(error?.message || 'Não foi possível salvar o post.');

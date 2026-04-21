@@ -101,7 +101,7 @@ export const useTrialGuidedFlow = () => {
     if (currentTourStep.id.endsWith('-nav')) return;
   }, [currentStep, currentTourStep, goToStep, location.pathname]);
 
-  const handleNext = React.useCallback(async () => {
+  const advanceTour = React.useCallback(async (options: { clickTarget?: boolean } = {}) => {
     if (!currentTourStep || isSaving) return;
 
     const nextTourStep = getNextGuidedTourStep(currentTourStep.id);
@@ -116,7 +116,7 @@ export const useTrialGuidedFlow = () => {
     );
     const target = primaryTarget;
 
-    if (currentTourStep.nextAction === 'click_target' && target) {
+    if (options.clickTarget && currentTourStep.nextAction === 'click_target' && target) {
       target.click();
     }
 
@@ -148,6 +148,7 @@ export const useTrialGuidedFlow = () => {
     completedSteps,
     continueJourney,
     currentStep?.path,
+    currentStep?.id,
     currentTourStep,
     goToStep,
     isSaving,
@@ -157,6 +158,18 @@ export const useTrialGuidedFlow = () => {
     setActiveModule,
     user?.id,
   ]);
+
+  const handleNext = React.useCallback(async () => {
+    if (!currentTourStep || currentTourStep.nextAction === 'wait_for_action') return;
+
+    await advanceTour({ clickTarget: true });
+  }, [advanceTour, currentTourStep]);
+
+  const advanceAfterRequiredAction = React.useCallback(async () => {
+    if (!currentTourStep || currentTourStep.nextAction !== 'wait_for_action') return;
+
+    await advanceTour();
+  }, [advanceTour, currentTourStep]);
 
   const restartFromStep = React.useCallback(
     async (stepId: GuidedFlowStepId) => {
@@ -190,6 +203,7 @@ export const useTrialGuidedFlow = () => {
     continueJourney,
     goToStep,
     handleNext,
+    advanceAfterRequiredAction,
     restartFromStep,
     isStepCompleted: (stepId: GuidedFlowStepId) => completedSteps.includes(stepId),
     isCurrentStep: (stepId: GuidedFlowStepId) => currentStep?.id === stepId,
