@@ -1,6 +1,13 @@
 import { supabase } from '../shared/utils/supabase';
+import { metaAttributionService } from './meta-attribution.service';
 
-type MetaEventName = 'PageView' | 'InitiateCheckout' | 'CompleteRegistration' | 'Purchase';
+type MetaEventName =
+  | 'PageView'
+  | 'Lead'
+  | 'StartTrial'
+  | 'InitiateCheckout'
+  | 'CompleteRegistration'
+  | 'Purchase';
 
 interface MetaEventPayload {
   eventName: MetaEventName;
@@ -62,6 +69,8 @@ const sendConversionsEvent = (payload: MetaEventPayload & { eventId: string }) =
 
   if (!url || !anonKey) return;
 
+  const attribution = metaAttributionService.getSnapshot();
+
   const body = JSON.stringify({
     eventName: payload.eventName,
     eventId: payload.eventId,
@@ -69,8 +78,8 @@ const sendConversionsEvent = (payload: MetaEventPayload & { eventId: string }) =
     eventSourceUrl: payload.eventSourceUrl,
     userData: {
       ...payload.userData,
-      fbp: getCookie('_fbp'),
-      fbc: getFbc(),
+      fbp: attribution.fbp ?? getCookie('_fbp'),
+      fbc: attribution.fbc ?? getFbc(),
     },
     customData: payload.customData,
   });

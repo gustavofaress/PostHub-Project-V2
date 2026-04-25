@@ -3,956 +3,462 @@ import { Link } from 'react-router-dom';
 import {
   ArrowRight,
   CalendarDays,
-  CheckCircle2,
+  Check,
+  CircleAlert,
+  Compass,
+  FileCheck2,
+  FolderKanban,
+  ImageIcon,
   Layers3,
-  Menu,
-  MonitorPlay,
-  Pause,
-  Play,
-  Sparkles,
-  Smartphone,
-  UsersRound,
-  Volume2,
-  VolumeX,
-  X,
+  MessageCircleWarning,
+  MousePointerClick,
+  PanelTop,
+  Target,
   type LucideIcon,
 } from 'lucide-react';
-import { AnimatePresence, motion } from 'motion/react';
-import { Button } from '../shared/components/Button';
-import { landingPageAnalyticsService } from '../services/landing-page-analytics.service';
+import { BrandLogo } from '../assets/branding/BrandLogo';
 
-type HighlightItem = {
-  icon: LucideIcon;
+type SystemCard = {
   title: string;
   description: string;
+  icon: LucideIcon;
 };
 
-const highlightItems: HighlightItem[] = [
+type PainItem = {
+  text: string;
+};
+
+type FeatureBlock = {
+  eyebrow: string;
+  title: string;
+  body: string;
+  image: string;
+  imageAlt: string;
+  checks: string[];
+  reversed?: boolean;
+};
+
+const systemCards: SystemCard[] = [
   {
-    icon: Layers3,
-    title: 'Tudo no mesmo fluxo',
-    description:
-      'Planejamento, produção, aprovação e publicação ficam centralizados em um único sistema.',
+    title: 'Planejamento estratégico',
+    description: 'Organize ideias, campanhas e referências antes da produção começar.',
+    icon: Compass,
   },
   {
-    icon: CheckCircle2,
+    title: 'Produção centralizada',
+    description: 'Acompanhe cada conteúdo com status, responsáveis e próximos passos claros.',
+    icon: FolderKanban,
+  },
+  {
     title: 'Aprovação sem ruído',
-    description:
-      'Valide cada peça com comentários, contexto e status claros sem depender de WhatsApp e prints.',
-  },
-  {
-    icon: UsersRound,
-    title: 'Equipe alinhada',
-    description:
-      'Cada conteúdo avança com responsáveis, prazos e próximos passos visíveis para todo o time.',
-  },
-  {
-    icon: Sparkles,
-    title: 'Rotina com mais ritmo',
-    description:
-      'Ganhe velocidade para entregar mais campanhas sem perder controle da operação.',
+    description: 'Troque prints e mensagens soltas por um fluxo profissional de aprovação.',
+    icon: FileCheck2,
   },
 ];
 
-const dailyWins = [
+const painItems: PainItem[] = [
+  { text: 'Ideias se perdem entre WhatsApp, anotações e conversas de última hora.' },
+  { text: 'A equipe não sabe exatamente o que está em produção, revisão ou aprovado.' },
+  { text: 'O cliente comenta em lugares diferentes e o retrabalho vira rotina.' },
+  { text: 'Você sente que está apagando incêndio em vez de controlar a operação.' },
+];
+
+const featureBlocks: FeatureBlock[] = [
   {
-    title: 'Planeje com contexto',
-    description:
-      'Organize pauta, canal, prazo e briefing no mesmo lugar antes da produção começar.',
+    eyebrow: 'Interface completa',
+    title: 'Tenha todo o processo de conteúdo em uma única plataforma.',
+    body:
+      'Da primeira ideia ao acompanhamento de performance, a PostHub conecta as etapas que normalmente ficam espalhadas em planilhas, grupos e ferramentas soltas.',
+    image: '/kanban.png',
+    imageAlt: 'Kanban editorial da PostHub',
+    checks: [
+      'Visão clara do que precisa ser criado',
+      'Status de produção sempre atualizado',
+      'Mais controle sem aumentar a cobrança manual',
+    ],
   },
   {
-    title: 'Execute com menos atrito',
-    description:
-      'O time enxerga prioridades com clareza e avança sem depender de cobrança manual.',
+    eyebrow: 'Rotina conectada',
+    title: 'Acompanhe sua operação pelo computador e pelo celular.',
+    body:
+      'A experiência foi pensada para quem vive entre reuniões, gravações, revisões e aprovações. Tudo fica fácil de visualizar, mesmo fora da mesa.',
+    image: '/membros.png',
+    imageAlt: 'Visão de workspace e membros da PostHub',
+    checks: [
+      'Acesse informações importantes em poucos cliques',
+      'Mantenha equipe e clientes na mesma direção',
+      'Ganhe presença operacional sem depender de mensagens soltas',
+    ],
+    reversed: true,
   },
   {
-    title: 'Aprove com mais clareza',
-    description:
-      'Feedbacks, ajustes e aprovações ficam ligados à peça certa, com menos ruído e retrabalho.',
+    eyebrow: 'Calendário editorial',
+    title: 'Tenha uma visão clara de tudo que será publicado.',
+    body:
+      'Planeje semanas e campanhas com uma visualização limpa, onde datas, canais e prioridades deixam de ficar escondidos em planilhas.',
+    image: '/calendario-editorial.png',
+    imageAlt: 'Calendário editorial da PostHub',
+    checks: [
+      'Planejamento visual por período',
+      'Organização por cliente, formato e canal',
+      'Menos conflito de prazo entre demandas',
+    ],
+  },
+  {
+    eyebrow: 'Kanban editorial',
+    title: 'Organize cada etapa com um fluxo visual de produção.',
+    body:
+      'Veja o que está em rascunho, produção, revisão e aprovação. A operação deixa de depender da memória e passa a funcionar como processo.',
+    image: '/kanban.png',
+    imageAlt: 'Quadro kanban de produção da PostHub',
+    checks: [
+      'Colunas para cada fase da produção',
+      'Demandas com contexto e prioridade',
+      'Fluxo claro para social medias e agências',
+    ],
+    reversed: true,
+  },
+  {
+    eyebrow: 'Referências',
+    title: 'Salve referências com mood e contexto criativo.',
+    body:
+      'Guarde inspirações, exemplos e ideias no lugar certo para transformar repertório em briefing, pauta e produção com mais direção.',
+    image: '/banco-de-ideias.png',
+    imageAlt: 'Banco de ideias e referências da PostHub',
+    checks: [
+      'Repertório centralizado por tema',
+      'Ideias prontas para virar conteúdo',
+      'Menos tempo perdido procurando referências',
+    ],
   },
 ];
 
-const navItems = [
-  { href: '#fluxo', label: 'Fluxo' },
-  { href: '#superficies', label: 'Produto' },
-  { href: '#cta', label: 'Teste grátis' },
-];
-
-const LANDING_PAGE_PATH = '/lp';
-const LANDING_PAGE_VARIANT = 'focused';
-
-export const FocusedLandingPage = () => {
-  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
-  const [isScrolled, setIsScrolled] = React.useState(false);
-  const [isVideoModalOpen, setIsVideoModalOpen] = React.useState(false);
-  const [isInlineVideoMuted, setIsInlineVideoMuted] = React.useState(false);
-  const [isInlineVideoPaused, setIsInlineVideoPaused] = React.useState(false);
-  const [needsInlineAudioUnlock, setNeedsInlineAudioUnlock] = React.useState(false);
-  const inlineVideoRef = React.useRef<HTMLVideoElement | null>(null);
-  const landingVisitPayloadRef = React.useRef<ReturnType<
-    typeof landingPageAnalyticsService.buildVisitPayload
-  > | null>(null);
-  const maxTrackedVideoPercentRef = React.useRef(0);
-  const maxTrackedVideoSecondsRef = React.useRef(0);
-  const maxTrackedVideoDurationRef = React.useRef<number | null>(null);
-  const lastPersistedVideoPercentRef = React.useRef(0);
-
-  if (!landingVisitPayloadRef.current) {
-    landingVisitPayloadRef.current = landingPageAnalyticsService.buildVisitPayload(
-      LANDING_PAGE_PATH,
-      LANDING_PAGE_VARIANT
-    );
-  }
-
-  const persistTrackedVideoProgress = React.useCallback((force = false) => {
-    const visitId = landingVisitPayloadRef.current?.visitId;
-    const maxVideoPercent = maxTrackedVideoPercentRef.current;
-
-    if (!visitId || maxVideoPercent <= 0) {
-      return;
-    }
-
-    const steppedAhead =
-      Math.floor(maxVideoPercent / 5) > Math.floor(lastPersistedVideoPercentRef.current / 5);
-    const crossedThruPlay =
-      maxVideoPercent >= 75 && lastPersistedVideoPercentRef.current < 75;
-    const crossedNearCompletion =
-      maxVideoPercent >= 95 && lastPersistedVideoPercentRef.current < 95;
-
-    if (!force && !steppedAhead && !crossedThruPlay && !crossedNearCompletion) {
-      return;
-    }
-
-    if (maxVideoPercent <= lastPersistedVideoPercentRef.current + 0.05) {
-      return;
-    }
-
-    lastPersistedVideoPercentRef.current = maxVideoPercent;
-
-    void landingPageAnalyticsService.recordVideoProgress({
-      visitId,
-      videoPercent: maxVideoPercent,
-      videoSeconds: maxTrackedVideoSecondsRef.current,
-      videoDurationSeconds: maxTrackedVideoDurationRef.current,
-      landingPath: LANDING_PAGE_PATH,
-      pageVariant: LANDING_PAGE_VARIANT,
-    });
-  }, []);
-
-  const captureVideoProgress = React.useCallback(
-    (video: HTMLVideoElement | null, options?: { force?: boolean }) => {
-      if (!video) return;
-
-      const duration = Number.isFinite(video.duration) ? video.duration : 0;
-      const currentTime = Number.isFinite(video.currentTime) ? video.currentTime : 0;
-
-      if (duration > 0) {
-        maxTrackedVideoDurationRef.current = Math.max(maxTrackedVideoDurationRef.current ?? 0, duration);
-      }
-
-      if (currentTime > 0) {
-        maxTrackedVideoSecondsRef.current = Math.max(maxTrackedVideoSecondsRef.current, currentTime);
-      }
-
-      if (duration > 0 && currentTime >= 0) {
-        maxTrackedVideoPercentRef.current = Math.max(
-          maxTrackedVideoPercentRef.current,
-          (currentTime / duration) * 100
-        );
-      }
-
-      persistTrackedVideoProgress(options?.force ?? false);
-    },
-    [persistTrackedVideoProgress]
-  );
-
-  const handleVideoTimeUpdate = React.useCallback(
-    (event: React.SyntheticEvent<HTMLVideoElement>) => {
-      captureVideoProgress(event.currentTarget);
-    },
-    [captureVideoProgress]
-  );
-
-  const handleVideoLoadedMetadata = React.useCallback(
-    (event: React.SyntheticEvent<HTMLVideoElement>) => {
-      captureVideoProgress(event.currentTarget);
-    },
-    [captureVideoProgress]
-  );
-
-  const handleVideoPauseCapture = React.useCallback(
-    (event: React.SyntheticEvent<HTMLVideoElement>) => {
-      captureVideoProgress(event.currentTarget, { force: true });
-    },
-    [captureVideoProgress]
-  );
-
-  const handleVideoEndedCapture = React.useCallback(
-    (event: React.SyntheticEvent<HTMLVideoElement>) => {
-      captureVideoProgress(event.currentTarget, { force: true });
-    },
-    [captureVideoProgress]
-  );
-
-  const handleInlineVideoPause = React.useCallback(
-    (event: React.SyntheticEvent<HTMLVideoElement>) => {
-      setIsInlineVideoPaused(true);
-      captureVideoProgress(event.currentTarget, { force: true });
-    },
-    [captureVideoProgress]
-  );
-
-  const handleInlineVideoPlay = React.useCallback(
-    (event: React.SyntheticEvent<HTMLVideoElement>) => {
-      setIsInlineVideoPaused(false);
-      captureVideoProgress(event.currentTarget);
-    },
-    [captureVideoProgress]
-  );
-
-  const enableInlineVideoSound = React.useCallback(async () => {
-    const video = inlineVideoRef.current;
-
-    if (!video) return false;
-
-    try {
-      video.muted = false;
-      video.volume = 1;
-      await video.play();
-      setIsInlineVideoMuted(false);
-      setNeedsInlineAudioUnlock(false);
-      return true;
-    } catch {
-      video.muted = true;
-      setIsInlineVideoMuted(true);
-      return false;
-    }
-  }, []);
-
-  const toggleInlineVideoSound = React.useCallback(async () => {
-    const video = inlineVideoRef.current;
-
-    if (!video) return;
-
-    if (isInlineVideoMuted) {
-      const soundEnabled = await enableInlineVideoSound();
-
-      if (!soundEnabled) {
-        setNeedsInlineAudioUnlock(true);
-      }
-
-      return;
-    }
-
-    video.muted = true;
-    setIsInlineVideoMuted(true);
-  }, [enableInlineVideoSound, isInlineVideoMuted]);
-
-  const toggleInlineVideoPlayback = React.useCallback(async () => {
-    const video = inlineVideoRef.current;
-
-    if (!video) return;
-
-    if (video.paused) {
-      try {
-        await video.play();
-        setIsInlineVideoPaused(false);
-      } catch {
-        video.muted = true;
-        setIsInlineVideoMuted(true);
-        setNeedsInlineAudioUnlock(true);
-
-        try {
-          await video.play();
-          setIsInlineVideoPaused(false);
-        } catch {
-          setIsInlineVideoPaused(true);
-        }
-      }
-
-      return;
-    }
-
-    video.pause();
-    setIsInlineVideoPaused(true);
-  }, []);
-
-  React.useEffect(() => {
-    const visitPayload = landingVisitPayloadRef.current;
-
-    if (!visitPayload) {
-      return;
-    }
-
-    void landingPageAnalyticsService.recordVisit(visitPayload);
-  }, []);
-
-  React.useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 16);
-    handleScroll();
-    window.addEventListener('scroll', handleScroll);
-
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  React.useEffect(() => {
-    if (!isVideoModalOpen) {
-      return;
-    }
-
-    const originalOverflow = document.body.style.overflow;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsVideoModalOpen(false);
-      }
-    };
-
-    document.body.style.overflow = 'hidden';
-    window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      document.body.style.overflow = originalOverflow;
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isVideoModalOpen]);
-
-  React.useEffect(() => {
-    let isActive = true;
-
-    const attemptInlineAutoplay = async () => {
-      const video = inlineVideoRef.current;
-
-      if (!video) return;
-
-      try {
-        video.muted = false;
-        video.volume = 1;
-        await video.play();
-
-        if (!isActive) return;
-
-        setIsInlineVideoMuted(false);
-        setIsInlineVideoPaused(false);
-        setNeedsInlineAudioUnlock(false);
-      } catch {
-        video.muted = true;
-
-        try {
-          await video.play();
-        } catch {
-          return;
-        }
-
-        if (!isActive) return;
-
-        setIsInlineVideoMuted(true);
-        setIsInlineVideoPaused(false);
-        setNeedsInlineAudioUnlock(true);
-      }
-    };
-
-    void attemptInlineAutoplay();
-
-    return () => {
-      isActive = false;
-    };
-  }, []);
-
-  React.useEffect(() => {
-    if (!needsInlineAudioUnlock) {
-      return;
-    }
-
-    const handleUserInteraction = () => {
-      void enableInlineVideoSound();
-    };
-
-    window.addEventListener('pointerdown', handleUserInteraction, { once: true });
-    window.addEventListener('keydown', handleUserInteraction, { once: true });
-
-    return () => {
-      window.removeEventListener('pointerdown', handleUserInteraction);
-      window.removeEventListener('keydown', handleUserInteraction);
-    };
-  }, [enableInlineVideoSound, needsInlineAudioUnlock]);
-
-  React.useEffect(() => {
-    const handlePageHide = () => {
-      persistTrackedVideoProgress(true);
-    };
-
-    window.addEventListener('pagehide', handlePageHide);
-
-    return () => {
-      persistTrackedVideoProgress(true);
-      window.removeEventListener('pagehide', handlePageHide);
-    };
-  }, [persistTrackedVideoProgress]);
+const cx = (...classes: Array<string | false | null | undefined>) =>
+  classes.filter(Boolean).join(' ');
+
+const SectionHeading = ({
+  eyebrow,
+  title,
+  body,
+  centered = false,
+}: {
+  eyebrow?: string;
+  title: string;
+  body?: string;
+  centered?: boolean;
+}) => (
+  <div className={cx('mx-auto max-w-3xl', centered && 'text-center')}>
+    {eyebrow ? (
+      <p className="text-sm font-bold uppercase tracking-[0.14em] text-[#38B6FF]">{eyebrow}</p>
+    ) : null}
+    <h2 className="mt-3 text-3xl font-extrabold leading-tight text-[#050505] sm:text-4xl lg:text-5xl">
+      {title}
+    </h2>
+    {body ? <p className="mt-5 text-lg leading-8 text-[#64748B]">{body}</p> : null}
+  </div>
+);
+
+const PrimaryButton = ({ children, className }: { children: React.ReactNode; className?: string }) => (
+  <Link
+    to="/signup"
+    className={cx(
+      'inline-flex min-h-[52px] items-center justify-center gap-2 rounded-xl bg-[#38B6FF] px-7 py-3 text-base font-bold text-white shadow-[0_18px_36px_rgba(56,182,255,0.28)] transition-all hover:-translate-y-0.5 hover:bg-[#229ee8] hover:shadow-[0_22px_42px_rgba(56,182,255,0.34)] focus:outline-none focus:ring-2 focus:ring-[#38B6FF]/40 focus:ring-offset-2',
+      className
+    )}
+  >
+    {children}
+    <ArrowRight className="h-4 w-4" />
+  </Link>
+);
+
+const BrowserMockup = ({
+  image,
+  alt,
+  className,
+}: {
+  image: string;
+  alt: string;
+  className?: string;
+}) => (
+  <div
+    className={cx(
+      'overflow-hidden rounded-[18px] border border-[#DCEAF5] bg-white shadow-[0_28px_70px_rgba(15,23,42,0.16)]',
+      className
+    )}
+  >
+    <div className="flex h-10 items-center gap-2 border-b border-[#E7F0F8] bg-[#F8FCFF] px-4">
+      <span className="h-2.5 w-2.5 rounded-full bg-[#EF4444]" />
+      <span className="h-2.5 w-2.5 rounded-full bg-[#F59E0B]" />
+      <span className="h-2.5 w-2.5 rounded-full bg-[#22C55E]" />
+      <div className="ml-3 h-5 flex-1 rounded-full bg-white" />
+    </div>
+    <img src={image} alt={alt} className="block aspect-[16/9] w-full object-cover object-top" />
+  </div>
+);
+
+const PhoneMockup = () => (
+  <div className="w-[132px] rounded-[28px] border-[7px] border-[#0B1220] bg-[#0B1220] shadow-[0_22px_45px_rgba(15,23,42,0.28)] sm:w-[168px]">
+    <div className="overflow-hidden rounded-[20px] bg-white">
+      <div className="bg-[#38B6FF] px-3 py-4 text-white">
+        <div className="mb-3 flex items-center justify-between">
+          <span className="text-[10px] font-bold uppercase tracking-[0.16em]">Dashboard</span>
+          <PanelTop className="h-4 w-4" />
+        </div>
+        <p className="text-lg font-extrabold leading-tight">Sua rotina no controle</p>
+      </div>
+      <div className="grid gap-2 p-3">
+        {['Ideias', 'Aprovação', 'Calendário'].map((item, index) => (
+          <div key={item} className="rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] p-2">
+            <p className="text-[10px] font-semibold text-[#64748B]">{item}</p>
+            <div className="mt-2 h-2 rounded-full bg-[#38B6FF]" style={{ width: `${66 + index * 12}%` }} />
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
+const HeroProduct = () => (
+  <div className="relative mx-auto mt-12 max-w-5xl px-4 sm:px-8">
+    <div className="relative mx-auto max-w-4xl">
+      <BrowserMockup image="/kanban.png" alt="Dashboard e kanban editorial da PostHub" />
+      <div className="absolute -right-1 bottom-7 hidden sm:block lg:-right-10">
+        <PhoneMockup />
+      </div>
+      <div className="mx-auto h-5 w-[86%] rounded-b-[28px] bg-gradient-to-b from-[#CBD5E1] to-[#94A3B8] shadow-[0_18px_28px_rgba(15,23,42,0.20)]" />
+    </div>
+  </div>
+);
+
+const SystemCard = ({ item }: { item: SystemCard }) => {
+  const Icon = item.icon;
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[linear-gradient(180deg,#f7fcff_0%,#eef7fc_34%,#ffffff_100%)] text-slate-900 selection:bg-brand selection:text-white">
-      <div className="pointer-events-none fixed inset-x-0 top-0 z-0 h-[460px] bg-[radial-gradient(circle_at_top,rgba(56,182,255,0.26),transparent_68%)]" />
-      <div className="pointer-events-none fixed left-[-8rem] top-24 z-0 h-72 w-72 rounded-full bg-brand/14 blur-3xl" />
-      <div className="pointer-events-none fixed right-[-6rem] top-40 z-0 h-80 w-80 rounded-full bg-sky-200/60 blur-3xl" />
+    <div className="rounded-[18px] border border-[#BFEAFF] bg-[#EAF8FF] p-5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md">
+      <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-[#38B6FF] text-white">
+        <Icon className="h-5 w-5" />
+      </div>
+      <h3 className="text-lg font-extrabold text-[#050505]">{item.title}</h3>
+      <p className="mt-2 text-sm leading-6 text-[#475569]">{item.description}</p>
+    </div>
+  );
+};
 
-      <header
-        className={`sticky top-0 z-40 transition-all duration-300 ${
-          isScrolled ? 'px-3 pt-3 md:px-6' : 'px-0 pt-0'
-        }`}
-      >
-        <div
-          className={`mx-auto flex max-w-7xl items-center justify-between transition-all duration-300 ${
-            isScrolled
-              ? 'rounded-[24px] border border-white/70 bg-white/82 px-5 py-3 shadow-[0_18px_40px_rgba(15,23,42,0.08)] backdrop-blur-xl md:px-7'
-              : 'border-b border-slate-200/70 bg-white/55 px-5 py-4 backdrop-blur-md md:px-8'
-          }`}
-        >
-          <Link to="/lp" className="flex shrink-0 items-center">
-            <img
-              src="/lp-header-logo.png"
-              alt="PostHub Gestão de Redes Sociais"
-              className="h-11 w-auto object-contain md:h-12"
-            />
-          </Link>
-
-          <nav className="hidden items-center gap-7 md:flex">
-            {navItems.map((item) => (
-              <a
-                key={item.href}
-                href={item.href}
-                className="text-sm font-medium text-slate-600 transition-colors hover:text-slate-900"
-              >
-                {item.label}
-              </a>
-            ))}
-          </nav>
-
-          <div className="hidden items-center gap-3 md:flex">
-            <Link to="/login">
-              <Button
-                variant="ghost"
-                className="rounded-full px-5 text-sm text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-              >
-                Entrar
-              </Button>
-            </Link>
-            <Link to="/signup">
-              <Button className="rounded-full px-5 text-sm font-semibold shadow-[0_18px_30px_rgba(56,182,255,0.22)]">
-                Testar grátis
-              </Button>
-            </Link>
-          </div>
-
-          <button
-            type="button"
-            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm md:hidden"
-            onClick={() => setMobileMenuOpen((current) => !current)}
-            aria-label={mobileMenuOpen ? 'Fechar menu' : 'Abrir menu'}
-          >
-            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
+const PainPanel = () => (
+  <div className="relative mx-auto flex min-h-[390px] max-w-[340px] items-center justify-center rounded-[26px] bg-[#38B6FF] p-5 shadow-[0_24px_60px_rgba(56,182,255,0.26)]">
+    <div className="absolute inset-x-8 top-8 h-20 rounded-full bg-white/20 blur-2xl" />
+    <div className="relative w-full rounded-[24px] bg-white p-5 shadow-[0_20px_45px_rgba(15,23,42,0.18)]">
+      <div className="mb-5 flex items-center gap-3">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-red-500">
+          <MessageCircleWarning className="h-6 w-6" />
         </div>
+        <div>
+          <p className="text-sm font-bold text-[#050505]">Operação travada</p>
+          <p className="text-xs text-[#64748B]">muitos canais, pouco controle</p>
+        </div>
+      </div>
+      <div className="space-y-3">
+        {['WhatsApp', 'Planilhas', 'Aprovações', 'Prazos'].map((item) => (
+          <div key={item} className="flex items-center justify-between rounded-xl border border-[#F1F5F9] bg-[#F8FAFC] p-3">
+            <span className="text-sm font-semibold text-[#334155]">{item}</span>
+            <CircleAlert className="h-4 w-4 text-red-500" />
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+);
 
-        <AnimatePresence>
-          {mobileMenuOpen ? (
-            <motion.div
-              initial={{ opacity: 0, y: -12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -12 }}
-              className="mx-3 mt-3 rounded-[28px] border border-white/70 bg-white/90 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.08)] backdrop-blur-xl md:hidden"
-            >
-              <div className="flex flex-col gap-2">
-                {navItems.map((item) => (
-                  <a
-                    key={item.href}
-                    href={item.href}
-                    className="rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    {item.label}
-                  </a>
-                ))}
-                <div className="my-2 h-px bg-slate-200" />
-                <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
-                  <Button
-                    variant="secondary"
-                    className="w-full rounded-2xl border-slate-200 text-sm"
-                  >
-                    Entrar
-                  </Button>
-                </Link>
-                <Link to="/signup" onClick={() => setMobileMenuOpen(false)}>
-                  <Button className="mt-2 w-full rounded-2xl text-sm font-semibold">
-                    Testar grátis
-                  </Button>
-                </Link>
-              </div>
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
+const FeatureSection = ({ item }: { item: FeatureBlock }) => (
+  <section className="border-t border-[#E5E7EB] bg-white px-5 py-16 sm:px-6 lg:px-8 lg:py-24">
+    <div
+      className={cx(
+        'mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[0.95fr_1.05fr] lg:gap-16',
+        item.reversed && 'lg:grid-cols-[1.05fr_0.95fr]'
+      )}
+    >
+      <div className={cx(item.reversed && 'lg:order-2')}>
+        <p className="text-sm font-bold uppercase tracking-[0.14em] text-[#38B6FF]">{item.eyebrow}</p>
+        <h2 className="mt-3 text-3xl font-extrabold leading-tight text-[#050505] sm:text-4xl">
+          {item.title}
+        </h2>
+        <p className="mt-5 text-lg leading-8 text-[#64748B]">{item.body}</p>
+        <div className="mt-7 space-y-3">
+          {item.checks.map((check) => (
+            <div key={check} className="flex items-start gap-3">
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                <Check className="h-3.5 w-3.5" />
+              </span>
+              <p className="leading-7 text-[#334155]">{check}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className={cx(item.reversed && 'lg:order-1')}>
+        <BrowserMockup image={item.image} alt={item.imageAlt} />
+      </div>
+    </div>
+  </section>
+);
+
+export const FocusedLandingPage = () => {
+  return (
+    <div className="min-h-screen overflow-x-hidden bg-white text-[#050505] selection:bg-[#38B6FF] selection:text-white">
+      <header className="bg-white px-5 pb-3 pt-8 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-6xl items-center justify-center">
+          <Link to="/lp" aria-label="PostHub">
+            <BrandLogo variant="full" imgClassName="h-9 w-auto object-contain" />
+          </Link>
+        </div>
       </header>
 
-      <main className="relative z-10">
-        <section className="px-5 pb-10 pt-12 md:px-8 md:pb-16 md:pt-16 lg:px-10">
-          <div className="mx-auto max-w-7xl">
-            <div className="grid items-center gap-10 lg:grid-cols-[1.02fr_0.98fr] lg:gap-12">
-              <motion.div
-                initial={{ opacity: 0, y: 18 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.55 }}
-                className="max-w-2xl"
-              >
-                <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-brand/15 bg-brand/10 px-3 py-1.5 text-xs font-semibold tracking-[0.14em] text-brand uppercase">
-                  <span className="h-2 w-2 rounded-full bg-brand" />
-                  Gestão de conteúdo para quem precisa escalar com processo
-                </div>
-
-                <h1 className="max-w-[14ch] text-4xl font-bold leading-[1.02] text-slate-950 sm:text-5xl lg:text-[4.25rem]">
-                  Centralize sua operação de conteúdo e entregue mais sem caos.
-                </h1>
-
-                <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600 md:text-xl">
-                  Com a PostHub, sua equipe planeja, produz, revisa e aprova em
-                  um único sistema. Menos mensagens soltas, menos retrabalho e
-                  mais clareza para fazer o conteúdo avançar todos os dias.
-                </p>
-
-                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <Link to="/signup">
-                    <Button
-                      size="lg"
-                      className="flex w-full items-center justify-center gap-2 rounded-full px-7 shadow-[0_18px_35px_rgba(56,182,255,0.26)] sm:w-auto"
-                    >
-                      Começar teste grátis
-                      <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  </Link>
-
-                  <button
-                    type="button"
-                    onClick={() => setIsVideoModalOpen(true)}
-                    className="inline-flex min-h-[52px] items-center justify-center gap-3 rounded-full border border-slate-200 bg-white px-6 text-sm font-semibold text-slate-800 shadow-[0_12px_30px_rgba(15,23,42,0.06)] transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_16px_34px_rgba(15,23,42,0.08)]"
-                  >
-                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand text-white">
-                      <Play className="ml-0.5 h-4 w-4 fill-current" />
-                    </span>
-                    Ver apresentação
-                  </button>
-                </div>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 24, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ duration: 0.7, delay: 0.1 }}
-                className="relative"
-              >
-                <div className="relative mx-auto max-w-[640px] rounded-[40px] border border-white/70 bg-white/70 p-3 shadow-[0_26px_80px_rgba(15,23,42,0.12)] backdrop-blur-xl sm:p-4">
-                  <div className="pointer-events-none absolute inset-0 rounded-[40px] bg-[radial-gradient(circle_at_top,rgba(56,182,255,0.14),transparent_60%)]" />
-
-                  <div className="relative overflow-hidden rounded-[32px] border border-[#D8E8F5] bg-[#F7FBFE]">
-                    <div className="border-b border-[#D8E8F5] bg-white/90 px-4 py-3">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">
-                          Veja a PostHub em ação
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          Como organizar pauta, produção e aprovação
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="relative flex items-center justify-center bg-slate-950">
-                      <video
-                        ref={inlineVideoRef}
-                        src="/lp-video.mp4"
-                        poster="/lp-video-cover.jpg"
-                        autoPlay
-                        muted={isInlineVideoMuted}
-                        loop
-                        playsInline
-                        preload="metadata"
-                        className="block aspect-video w-full h-auto bg-slate-950 object-contain"
-                        onLoadedMetadata={handleVideoLoadedMetadata}
-                        onTimeUpdate={handleVideoTimeUpdate}
-                        onPause={handleInlineVideoPause}
-                        onPlay={handleInlineVideoPlay}
-                        onEnded={handleVideoEndedCapture}
-                      />
-                    </div>
-
-                    <div className="border-t border-[#D8E8F5] bg-white/85 px-4 py-3">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => void toggleInlineVideoPlayback()}
-                            className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/80 bg-white/80 px-3 py-1.5 text-[11px] font-medium text-slate-600 transition-colors hover:border-slate-300 hover:bg-white hover:text-slate-900"
-                          >
-                            {isInlineVideoPaused ? (
-                              <Play className="h-3.5 w-3.5 fill-current" />
-                            ) : (
-                              <Pause className="h-3.5 w-3.5" />
-                            )}
-                            {isInlineVideoPaused ? 'Continuar' : 'Pausar'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void toggleInlineVideoSound()}
-                            className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/80 bg-white/80 px-3 py-1.5 text-[11px] font-medium text-slate-600 transition-colors hover:border-slate-300 hover:bg-white hover:text-slate-900"
-                          >
-                            {isInlineVideoMuted ? (
-                              <VolumeX className="h-3.5 w-3.5" />
-                            ) : (
-                              <Volume2 className="h-3.5 w-3.5" />
-                            )}
-                            {isInlineVideoMuted ? 'Ativar som' : 'Som ligado'}
-                          </button>
-                        </div>
-
-                        {needsInlineAudioUnlock ? (
-                          <span className="text-[11px] font-medium text-amber-700">
-                            O som pode liberar no primeiro toque
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
+      <main>
+        <section className="bg-white px-5 pb-16 pt-8 sm:px-6 lg:px-8 lg:pb-24">
+          <div className="mx-auto max-w-6xl text-center">
+            <h1 className="mx-auto max-w-5xl text-4xl font-extrabold leading-[1.05] text-[#050505] sm:text-6xl lg:text-7xl">
+              A sua gestão de conteúdo
+              <span className="block text-[#38B6FF]">nunca foi tão organizada!</span>
+            </h1>
+            <HeroProduct />
+            <p className="mx-auto mt-12 max-w-3xl text-xl leading-9 text-[#38B6FF] sm:text-2xl">
+              Com a <strong>PostHub</strong>, você <strong>elimina o caos da gestão de conteúdo</strong>{' '}
+              com sistemas inteligentes e <strong>garante organização, clareza e controle</strong> em
+              toda sua operação digital.
+            </p>
+            <div className="mt-8 flex justify-center">
+              <PrimaryButton>Teste grátis</PrimaryButton>
             </div>
           </div>
         </section>
 
-        <section id="fluxo" className="px-5 py-6 md:px-8 md:py-10 lg:px-10">
-          <div className="mx-auto max-w-7xl">
-            <div className="mobile-panel overflow-hidden p-6 md:p-8 lg:p-10">
-              <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-                <div className="max-w-2xl">
-                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand">
-                    Fluxo claro
-                  </p>
-                  <h2 className="mt-3 text-3xl font-bold leading-tight text-slate-950 md:text-4xl">
-                    Organize toda a operação em um fluxo que o time entende.
-                  </h2>
-                </div>
-                <p className="max-w-xl text-sm leading-7 text-slate-600 md:text-base">
-                  A PostHub reduz ruído, centraliza decisões e mostra exatamente
-                  em que etapa cada entrega está, do briefing à aprovação final.
-                </p>
-              </div>
-
-              <div className="mt-8 grid gap-4 lg:grid-cols-4">
-                {highlightItems.map((item) => (
-                  <div
-                    key={item.title}
-                    className="rounded-[28px] border border-[#D8E8F5] bg-[#F9FCFE] p-5 shadow-[0_12px_28px_rgba(15,23,42,0.04)]"
-                  >
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand/10 text-brand">
-                      <item.icon className="h-5 w-5" />
-                    </div>
-                    <h3 className="mt-5 text-lg font-semibold text-slate-950">
-                      {item.title}
-                    </h3>
-                    <p className="mt-3 text-sm leading-7 text-slate-600">
-                      {item.description}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section id="superficies" className="px-5 py-16 md:px-8 md:py-20 lg:px-10">
-          <div className="mx-auto max-w-7xl">
-            <div className="mb-10 max-w-3xl">
-              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand">
-                Produto em duas superfícies
-              </p>
-              <h2 className="mt-3 text-3xl font-bold leading-tight text-slate-950 md:text-5xl">
-                Clareza no mobile. Controle no workspace.
-              </h2>
-              <p className="mt-4 text-lg leading-8 text-slate-600">
-                Acompanhe a rotina no celular e tome decisões no workspace
-                completo, sem perder contexto entre time, peças e aprovações.
-              </p>
-            </div>
-
-            <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
-              <div className="mobile-panel p-6 md:p-8">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand/10 text-brand">
-                    <Smartphone className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">
-                      Mobile first
-                    </p>
-                    <p className="text-sm text-slate-500">
-                      Rápido para acompanhar a rotina em qualquer lugar
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-6 rounded-[30px] border border-[#D8E8F5] bg-[linear-gradient(180deg,#ffffff_0%,#eef7fc_100%)] p-4 shadow-[0_18px_30px_rgba(15,23,42,0.06)]">
-                  <div className="mx-auto max-w-[280px] rounded-[30px] border border-white/80 bg-white/92 p-4 shadow-[0_18px_36px_rgba(15,23,42,0.08)]">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">
-                          Dashboard
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          Visão rápida do dia
-                        </p>
-                      </div>
-                      <div className="h-9 w-9 rounded-2xl bg-brand/10" />
-                    </div>
-
-                    <div className="mt-4 grid gap-3">
-                      <div className="rounded-[22px] bg-[#EEF6FB] p-3">
-                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-                          Hoje
-                        </p>
-                        <p className="mt-2 text-sm font-semibold text-slate-900">
-                          3 aprovações pendentes
-                        </p>
-                      </div>
-                      <div className="rounded-[22px] border border-[#D8E8F5] bg-white p-3">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="font-medium text-slate-900">
-                            Reel de campanha
-                          </span>
-                          <span className="rounded-full bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">
-                            Revisão
-                          </span>
-                        </div>
-                        <div className="mt-3 h-2 rounded-full bg-slate-100">
-                          <div className="h-2 w-2/3 rounded-full bg-brand" />
-                        </div>
-                      </div>
-                      <div className="rounded-[22px] border border-[#D8E8F5] bg-white p-3">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="font-medium text-slate-900">
-                            Calendario da semana
-                          </span>
-                          <CalendarDays className="h-4 w-4 text-slate-400" />
-                        </div>
-                        <div className="mt-3 grid grid-cols-4 gap-2">
-                          {['Seg', 'Ter', 'Qua', 'Qui'].map((day, index) => (
-                            <div
-                              key={day}
-                              className={`rounded-2xl px-2 py-3 text-center text-xs font-semibold ${
-                                index === 1
-                                  ? 'bg-brand text-white'
-                                  : 'bg-[#EEF6FB] text-slate-500'
-                              }`}
-                            >
-                              {day}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mobile-panel p-6 md:p-8">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand/10 text-brand">
-                    <MonitorPlay className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">
-                      Workspace completo
-                    </p>
-                    <p className="text-sm text-slate-500">
-                      Contexto, equipe e aprovações no mesmo painel
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-6 rounded-[30px] border border-[#D8E8F5] bg-[linear-gradient(180deg,#ffffff_0%,#f4faff_100%)] p-5 shadow-[0_18px_30px_rgba(15,23,42,0.06)]">
-                  <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
-                    <div className="rounded-[24px] border border-[#D8E8F5] bg-white p-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-                        Kanban
-                      </p>
-                      <div className="mt-4 space-y-3">
-                        {[
-                          ['Briefing alinhado', 'Pronto para gravar'],
-                          ['Legenda revisada', 'Esperando aprovação'],
-                          ['Pauta do lancamento', 'Em edicao'],
-                        ].map(([title, status], index) => (
-                          <div
-                            key={title}
-                            className="rounded-[20px] border border-slate-100 bg-slate-50 p-3"
-                          >
-                            <div className="flex items-center justify-between gap-3">
-                              <p className="text-sm font-medium text-slate-900">{title}</p>
-                              <span
-                                className={`rounded-full px-2 py-1 text-[11px] font-semibold ${
-                                  index === 0
-                                    ? 'bg-emerald-50 text-emerald-700'
-                                    : index === 1
-                                    ? 'bg-amber-50 text-amber-700'
-                                    : 'bg-sky-50 text-sky-700'
-                                }`}
-                              >
-                                {status}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="rounded-[24px] border border-[#D8E8F5] bg-white p-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-                        Aprovacao
-                      </p>
-                      <div className="mt-4 rounded-[22px] border border-[#D8E8F5] bg-[#FBFDFF] p-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-semibold text-slate-900">
-                              Agendar Post
-                            </p>
-                            <p className="text-xs text-slate-500">
-                              Observações e comentários centralizados
-                            </p>
-                          </div>
-                          <span className="rounded-full bg-brand/10 px-2.5 py-1 text-[11px] font-semibold text-brand">
-                            Instagram
-                          </span>
-                        </div>
-
-                        <div className="mt-5 space-y-3">
-                          <div className="rounded-[18px] border border-[#D8E8F5] bg-white px-3 py-3 text-sm text-slate-700">
-                            Título do post: Anúncio | Tela dividida
-                          </div>
-                          <div className="rounded-[18px] border border-[#D8E8F5] bg-white px-3 py-3 text-sm text-slate-500">
-                            Adicione observações ou uma descrição...
-                          </div>
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            <div className="rounded-[18px] border border-[#D8E8F5] bg-white px-3 py-3 text-sm text-slate-700">
-                              17/04/2026
-                            </div>
-                            <div className="rounded-[18px] border border-[#D8E8F5] bg-white px-3 py-3 text-sm text-slate-700">
-                              Planejado
-                            </div>
-                          </div>
-                          <div className="rounded-[18px] bg-[#EEF6FB] px-3 py-3 text-sm text-slate-700">
-                            Membros vinculados ao conteúdo e comentários do time
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-5 grid gap-5 md:grid-cols-3">
-              {dailyWins.map((item) => (
-                <div key={item.title} className="mobile-panel-muted p-6">
-                  <p className="text-lg font-semibold text-slate-950">{item.title}</p>
-                  <p className="mt-3 text-sm leading-7 text-slate-600">
-                    {item.description}
-                  </p>
-                </div>
+        <section className="bg-white px-5 py-16 sm:px-6 lg:px-8 lg:py-24">
+          <div className="mx-auto max-w-6xl">
+            <SectionHeading
+              centered
+              title="O que é PostHub?"
+              body="A PostHub é uma plataforma de gestão de conteúdo criada para transformar a rotina de social medias, agências e negócios que precisam produzir com consistência, aprovar com clareza e crescer com processo."
+            />
+            <div className="mt-10 grid gap-5 md:grid-cols-3">
+              {systemCards.map((item) => (
+                <SystemCard key={item.title} item={item} />
               ))}
             </div>
           </div>
         </section>
 
-        <section id="cta" className="px-5 pb-20 md:px-8 md:pb-24 lg:px-10">
-          <div className="mx-auto max-w-7xl">
-            <div className="relative overflow-hidden rounded-[36px] border border-slate-900/10 bg-[#07111F] px-6 py-10 text-white shadow-[0_28px_70px_rgba(15,23,42,0.18)] md:px-10 md:py-12">
-              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(56,182,255,0.24),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(125,211,252,0.18),transparent_28%)]" />
+        <section className="bg-[#F8FCFF] px-5 py-16 sm:px-6 lg:px-8 lg:py-24">
+          <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
+            <PainPanel />
+            <div>
+              <p className="text-sm font-bold uppercase tracking-[0.14em] text-[#38B6FF]">O cenário atual</p>
+              <h2 className="mt-3 text-3xl font-extrabold leading-tight text-[#050505] sm:text-4xl lg:text-5xl">
+                Você sente que luta contra o tempo ao invés de manter seu conteúdo no controle?
+              </h2>
+              <p className="mt-5 text-lg leading-8 text-[#64748B]">
+                Quando tudo depende de mensagens, cobranças e arquivos espalhados, a operação fica
+                pesada. A PostHub existe para devolver clareza ao processo.
+              </p>
+              <div className="mt-7 space-y-3">
+                {painItems.map((item) => (
+                  <div key={item.text} className="flex items-start gap-3">
+                    <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
+                      <CircleAlert className="h-3.5 w-3.5" />
+                    </span>
+                    <p className="leading-7 text-[#334155]">{item.text}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-8">
+                <PrimaryButton>Começar agora</PrimaryButton>
+              </div>
+            </div>
+          </div>
+        </section>
 
-              <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
-                <div className="max-w-2xl">
-                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-200">
-                    PostHub
-                  </p>
-                  <h2 className="mt-3 text-3xl font-bold leading-tight md:text-5xl">
-                    Troque retrabalho por um fluxo que acelera suas entregas.
-                  </h2>
-                  <p className="mt-4 text-lg leading-8 text-slate-300">
-                    A PostHub foi criada para marcas, criadores e equipes que
-                    precisam publicar com consistência. Centralize o bastidor,
-                    ganhe velocidade e mantenha o controle de cada etapa da
-                    operação de conteúdo.
-                  </p>
-                </div>
+        <section className="bg-white px-5 py-16 sm:px-6 lg:px-8 lg:py-24">
+          <div className="mx-auto max-w-6xl">
+            <div className="grid items-center gap-10 lg:grid-cols-[0.95fr_1.05fr] lg:gap-16">
+              <div>
+                <SectionHeading
+                  eyebrow="Organização visível"
+                  title="Veja sua operação inteira ganhar forma."
+                  body="A página do Figma destaca a PostHub como uma plataforma visual. Por isso, cada módulo abaixo aparece com screenshots reais do produto, mantendo a sensação de sistema profissional."
+                />
+                <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                  {[
+                    { icon: Layers3, label: 'Fluxo único' },
+                    { icon: CalendarDays, label: 'Calendário claro' },
+                    { icon: ImageIcon, label: 'Referências salvas' },
+                    { icon: Target, label: 'Controle da operação' },
+                  ].map((item) => {
+                    const Icon = item.icon;
 
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <Link to="/signup">
-                    <Button className="w-full rounded-full px-7 text-sm font-semibold shadow-[0_18px_35px_rgba(56,182,255,0.24)] sm:w-auto">
-                      Criar workspace grátis
-                  </Button>
-                  </Link>
-                  <Link to="/login">
-                    <Button
-                      variant="secondary"
-                      className="w-full rounded-full border-white/15 bg-white/10 px-7 text-sm font-semibold text-white hover:bg-white/15 sm:w-auto"
-                    >
-                      Entrar na PostHub
-                    </Button>
-                  </Link>
+                    return (
+                      <div key={item.label} className="flex items-center gap-3 rounded-2xl border border-[#DCEAF5] bg-[#F8FCFF] p-4">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#38B6FF] text-white">
+                          <Icon className="h-5 w-5" />
+                        </div>
+                        <p className="font-bold text-[#050505]">{item.label}</p>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
+              <div className="relative">
+                <div className="absolute -bottom-6 -right-6 h-28 w-28 bg-[#38B6FF]" />
+                <BrowserMockup image="/calendario-editorial.png" alt="Calendário editorial da PostHub" className="relative" />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {featureBlocks.map((item) => (
+          <FeatureSection key={item.title} item={item} />
+        ))}
+
+        <section className="bg-[#F8FCFF] px-5 py-16 sm:px-6 lg:px-8 lg:py-24">
+          <div className="mx-auto max-w-5xl text-center">
+            <BrandLogo variant="full" imgClassName="mx-auto h-10 w-auto object-contain" />
+            <h2 className="mx-auto mt-8 max-w-3xl text-4xl font-extrabold leading-tight text-[#050505] sm:text-5xl">
+              Faça o teste grátis e pare de viver no caos da sua criação.
+            </h2>
+            <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-[#64748B]">
+              Organize seu primeiro fluxo, visualize os próximos conteúdos e entregue uma operação
+              mais profissional para clientes, equipe e negócio.
+            </p>
+            <div className="relative mx-auto mt-10 max-w-3xl">
+              <div className="absolute -bottom-5 left-1/2 h-28 w-[86%] -translate-x-1/2 bg-[#38B6FF]" />
+              <BrowserMockup image="/performance.png" alt="Dashboard de performance da PostHub" className="relative" />
+            </div>
+            <div className="mt-10">
+              <PrimaryButton>Começar teste grátis</PrimaryButton>
             </div>
           </div>
         </section>
       </main>
 
-      <AnimatePresence>
-        {isVideoModalOpen ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/72 p-4 backdrop-blur-md md:p-8"
-            onClick={() => setIsVideoModalOpen(false)}
-          >
-            <motion.div
-              initial={{ opacity: 0, y: 16, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 12, scale: 0.98 }}
-              transition={{ duration: 0.2 }}
-              className="relative w-full max-w-5xl rounded-[32px] border border-white/10 bg-slate-950 p-3 shadow-[0_24px_90px_rgba(15,23,42,0.45)]"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <button
-                type="button"
-                onClick={() => setIsVideoModalOpen(false)}
-                className="absolute right-5 top-5 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white transition-colors hover:bg-white/16"
-                aria-label="Fechar vídeo"
-              >
-                <X className="h-5 w-5" />
-              </button>
+      <footer className="border-t border-[#E5E7EB] bg-white px-5 py-8 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 text-center sm:flex-row sm:text-left">
+          <p className="text-sm text-[#64748B]">PostHub - gestão de conteúdo com organização, clareza e controle.</p>
+          <div className="flex items-center gap-4 text-sm font-semibold text-[#64748B]">
+            <Link to="/login" className="transition-colors hover:text-[#050505]">
+              Entrar
+            </Link>
+            <Link to="/signup" className="text-[#38B6FF] transition-colors hover:text-[#229ee8]">
+              Teste grátis
+            </Link>
+          </div>
+        </div>
+      </footer>
 
-              <div className="overflow-hidden rounded-[24px] bg-black">
-                <video
-                  src="/lp-video.mp4"
-                  poster="/lp-video-cover.jpg"
-                  controls
-                  autoPlay
-                  playsInline
-                  preload="metadata"
-                  className="max-h-[80vh] w-full bg-black object-contain"
-                  onLoadedMetadata={handleVideoLoadedMetadata}
-                  onTimeUpdate={handleVideoTimeUpdate}
-                  onPause={handleVideoPauseCapture}
-                  onEnded={handleVideoEndedCapture}
-                />
-              </div>
-            </motion.div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
+      <Link
+        to="/signup"
+        className="fixed inset-x-4 bottom-4 z-40 inline-flex min-h-[52px] items-center justify-center gap-2 rounded-xl bg-[#38B6FF] px-5 text-base font-bold text-white shadow-[0_18px_36px_rgba(56,182,255,0.34)] md:hidden"
+      >
+        Teste grátis
+        <MousePointerClick className="h-4 w-4" />
+      </Link>
     </div>
   );
 };

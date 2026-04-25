@@ -1,7 +1,13 @@
 import { corsHeaders } from '../_shared/cors.ts';
 import { META_API_VERSION, corsJsonHeaders } from '../_shared/meta.ts';
 
-type MetaEventName = 'PageView' | 'InitiateCheckout' | 'CompleteRegistration' | 'Purchase';
+type MetaEventName =
+  | 'PageView'
+  | 'Lead'
+  | 'StartTrial'
+  | 'InitiateCheckout'
+  | 'CompleteRegistration'
+  | 'Purchase';
 
 interface MetaConversionsPayload {
   eventName?: MetaEventName;
@@ -31,12 +37,14 @@ interface MetaConversionsResponse {
   };
 }
 
-const META_PIXEL_ID = Deno.env.get('META_PIXEL_ID') ?? '989550670301505';
+const META_PIXEL_ID = Deno.env.get('META_PIXEL_ID') ?? '991022887210539';
 const META_CONVERSIONS_ACCESS_TOKEN = Deno.env.get('META_CONVERSIONS_ACCESS_TOKEN') ?? '';
 const META_TEST_EVENT_CODE = Deno.env.get('META_TEST_EVENT_CODE') ?? '';
 
 const allowedEvents: MetaEventName[] = [
   'PageView',
+  'Lead',
+  'StartTrial',
   'InitiateCheckout',
   'CompleteRegistration',
   'Purchase',
