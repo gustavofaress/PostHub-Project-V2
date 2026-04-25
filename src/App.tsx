@@ -13,6 +13,7 @@ import { FocusedLandingPage } from './pages/FocusedLandingPage';
 import { ResponsiveWorkspaceLayout } from './modules/workspace/ResponsiveWorkspaceLayout';
 import { ProtectedRoute } from './shared/components/ProtectedRoute';
 import { trackMetaEvent } from './services/meta-conversions.service';
+import { metaAttributionService } from './services/meta-attribution.service';
 
 export default function App() {
   const location = useLocation();
@@ -24,6 +25,7 @@ export default function App() {
     if (lastTrackedPath.current === path) return;
 
     lastTrackedPath.current = path;
+    metaAttributionService.captureFromCurrentLocation();
     trackMetaEvent({ eventName: 'PageView' });
   }, [location.pathname, location.search]);
 
