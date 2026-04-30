@@ -7,7 +7,9 @@ import {
   mapDbCalendarApprovalFeedback,
   mapDbCalendarApprovalLink,
   mapDbCalendarPostApproval,
+  type CalendarApprovalDashboardItem,
   type CalendarApprovalFeedback,
+  type CalendarApprovalHistoryRound,
   type CalendarApprovalLink,
   type CalendarApprovalListItem,
   type EditorialCalendarApprovalRow,
@@ -511,5 +513,167 @@ export const calendarApprovalService = {
 
       return accumulator;
     }, {});
+  },
+
+  async listInternalApprovalDashboard(
+    profileId: string,
+    options?: {
+      profileName?: string | null;
+      profileAvatarUrl?: string | null;
+    }
+  ): Promise<CalendarApprovalDashboardItem[]> {
+    const client = ensureSupabase();
+
+    const [{ data: calendarRows, error: calendarError }, { data: linkRows, error: linksError }] =
+      await Promise.all([
+        client
+          .from('editorial_calendar')
+          .select(CALENDAR_APPROVAL_ROW_SELECT)
+          .eq('profile_id', profileId)
+          .order('scheduled_date', { ascending: false }),
+        client
+          .from('calendar_approval_links')
+          .select('*')
+          .eq('profile_id', profileId)
+          .order('created_at', { ascending: false }),
+      ]);
+
+    if (calendarError) {
+      throw buildReadableError('Não foi possível carregar os posts do calendário para aprovação', calendarError);
+    }
+
+    if (linksError) {
+      throw buildReadableError('Não foi possível carregar o histórico de links de aprovação', linksError);
+    }
+
+    const mappedCalendarRows = mapCalendarRows(calendarRows);
+    const mappedLinks = ((linkRows ?? []) as Array<Record<string, any>>).map(mapDbCalendarApprovalLink);
+
+    if (mappedLinks.length === 0) {
+      return mappedCalendarRows.map((row) => ({
+        calendarPost: row,
+        previewPost: mapCalendarRowToApprovalPost(row, {
+          profileName: options?.profileName,
+          profileAvatarUrl: options?.profileAvatarUrl,
+        }),
+        latestApproval: null,
+        latestLink: null,
+        latestStatus: null,
+        totalFeedbackCount: 0,
+        totalRounds: 0,
+        rounds: [],
+        lastInteractionAt: row.updated_at,
+      }));
+    }
+
+    const linkIds = mappedLinks.map((link) => link.id);
+    const [{ data: approvalRows, error: approvalsError }, { data: feedbackRows, error: feedbackError }] =
+      await Promise.all([
+        client
+          .from('calendar_post_approvals')
+          .select('*')
+          .in('approval_link_id', linkIds)
+          .order('updated_at', { ascending: false }),
+        client
+          .from('calendar_approval_feedback')
+          .select('*')
+          .in('approval_link_id', linkIds)
+          .order('created_at', { ascending: true }),
+      ]);
+
+    if (approvalsError) {
+      throw buildReadableError('Não foi possível carregar o histórico das aprovações do calendário', approvalsError);
+    }
+
+    if (feedbackError) {
+      throw buildReadableError('Não foi possível carregar os comentários do histórico de aprovação', feedbackError);
+    }
+
+    const mappedApprovals = ((approvalRows ?? []) as Array<Record<string, any>>).map(
+      mapDbCalendarPostApproval
+    );
+    const mappedFeedback = ((feedbackRows ?? []) as Array<Record<string, any>>).map(
+      mapDbCalendarApprovalFeedback
+    );
+
+    const linkById = new Map(mappedLinks.map((link) => [link.id, link]));
+    const approvalsByPostId = mappedApprovals.reduce<Record<string, typeof mappedApprovals>>(
+      (accumulator, approval) => {
+        accumulator[approval.calendarPostId] = [
+          ...(accumulator[approval.calendarPostId] || []),
+          approval,
+        ];
+        return accumulator;
+      },
+      {}
+    );
+    const feedbackByApprovalId = mappedFeedback.reduce<Record<string, CalendarApprovalFeedback[]>>(
+      (accumulator, entry) => {
+        accumulator[entry.approvalId] = [...(accumulator[entry.approvalId] || []), entry];
+        return accumulator;
+      },
+      {}
+    );
+
+    return mappedCalendarRows
+      .map((row) => {
+        const approvalsForPost = [...(approvalsByPostId[row.id] || [])].sort(
+          (first, second) =>
+            new Date(second.updatedAt).getTime() - new Date(first.updatedAt).getTime()
+        );
+
+        const rounds = approvalsForPost.reduce<CalendarApprovalHistoryRound[]>(
+          (accumulator, approval) => {
+            const link = linkById.get(approval.approvalLinkId);
+            if (!link) return accumulator;
+
+            accumulator.push({
+              link,
+              approval,
+              feedback: feedbackByApprovalId[approval.id] || [],
+            });
+            return accumulator;
+          },
+          []
+        );
+
+        const latestRound = rounds[0] || null;
+        const totalFeedbackCount = rounds.reduce(
+          (count, round) => count + round.feedback.length,
+          0
+        );
+        const previewPost = mapCalendarRowToApprovalPost(row, {
+          status: latestRound?.approval.status || 'pending',
+          feedbackCount: totalFeedbackCount,
+          profileName: latestRound?.link.profileName || options?.profileName,
+          profileAvatarUrl: latestRound?.link.profileAvatarUrl || options?.profileAvatarUrl,
+          updatedAt: latestRound?.approval.updatedAt || row.updated_at,
+        });
+
+        return {
+          calendarPost: row,
+          previewPost,
+          latestApproval: latestRound?.approval || null,
+          latestLink: latestRound?.link || null,
+          latestStatus: latestRound?.approval.status || null,
+          totalFeedbackCount,
+          totalRounds: rounds.length,
+          rounds,
+          lastInteractionAt: latestRound?.approval.updatedAt || row.updated_at,
+        } satisfies CalendarApprovalDashboardItem;
+      })
+      .sort((first, second) => {
+        const firstHasRounds = first.totalRounds > 0 ? 1 : 0;
+        const secondHasRounds = second.totalRounds > 0 ? 1 : 0;
+
+        if (firstHasRounds !== secondHasRounds) {
+          return secondHasRounds - firstHasRounds;
+        }
+
+        return (
+          new Date(second.lastInteractionAt).getTime() -
+          new Date(first.lastInteractionAt).getTime()
+        );
+      });
   },
 };

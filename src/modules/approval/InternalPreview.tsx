@@ -1,5 +1,13 @@
 import * as React from 'react';
-import { CheckCircle, XCircle, MessageSquare, Send, History, ArrowLeft } from 'lucide-react';
+import {
+  CheckCircle,
+  XCircle,
+  MessageSquare,
+  Send,
+  History,
+  ArrowLeft,
+  ExternalLink,
+} from 'lucide-react';
 import { Card } from '../../shared/components/Card';
 import { Button } from '../../shared/components/Button';
 import { Badge } from '../../shared/components/Badge';
@@ -25,6 +33,13 @@ interface InternalPreviewProps {
   profileAvatarUrlOverride?: string | null;
   emptyHistoryMessage?: string;
   enableMentions?: boolean;
+  readOnly?: boolean;
+  readOnlyTitle?: string;
+  readOnlyDescription?: string;
+  primaryActionLabel?: string;
+  onPrimaryAction?: () => void;
+  secondaryActionLabel?: string;
+  onSecondaryAction?: () => void;
 }
 
 export const InternalPreview: React.FC<InternalPreviewProps> = ({
@@ -40,6 +55,13 @@ export const InternalPreview: React.FC<InternalPreviewProps> = ({
   profileAvatarUrlOverride,
   emptyHistoryMessage = 'Ainda não há feedbacks ou comentários.',
   enableMentions = true,
+  readOnly = false,
+  readOnlyTitle = 'Histórico consolidado',
+  readOnlyDescription = 'Use esta visualização para revisar o mockup, o status atual e o histórico do post.',
+  primaryActionLabel,
+  onPrimaryAction,
+  secondaryActionLabel,
+  onSecondaryAction,
 }) => {
   const { activeProfile } = useProfile();
   const { activeMembers } = useWorkspaceMembers();
@@ -147,77 +169,142 @@ export const InternalPreview: React.FC<InternalPreviewProps> = ({
         {/* Right Side: Actions & Feedback */}
         <div className="lg:col-span-5 space-y-6">
           <Card className="p-8">
-            <h2 className="text-xl font-bold text-text-primary mb-2">Revisar Conteúdo</h2>
-            <p className="text-sm text-text-secondary mb-8">Revise a prévia e deixe seu feedback abaixo.</p>
-
-            <div className="space-y-4 mb-8">
-              <Button 
-                className={cn("w-full gap-3 h-14 text-lg", post.status === 'approved' ? "bg-green-600" : "")}
-                onClick={() => handleStatusChange('approved')}
-              >
-                <CheckCircle className="h-6 w-6" />
-                Aprovar Conteúdo
-              </Button>
-              <div className="grid grid-cols-3 gap-3">
-                <Button 
-                  variant="secondary" 
-                  className={cn("gap-2 h-12", post.status === 'changes_requested' ? "border-yellow-500 text-yellow-600 bg-yellow-50" : "")}
-                  onClick={() => handleStatusChange('changes_requested')}
-                >
-                  <MessageSquare className="h-5 w-5" />
-                  Solicitar Ajustes
-                </Button>
-                <Button 
-                  variant="secondary" 
-                  className={cn("gap-2 h-12", post.status === 'rejected' ? "border-red-500 text-red-600 bg-red-50" : "")}
-                  onClick={() => handleStatusChange('rejected')}
-                >
-                  <XCircle className="h-5 w-5" />
-                  Rejeitar
-                </Button>
-                <Button variant="outline" className="gap-2 h-12" onClick={() => document.getElementById('internal-feedback-input')?.focus()}>
-                  <MessageSquare className="h-5 w-5" />
-                  Deixar Comentário
-                </Button>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-text-primary">Feedback / Comentários</label>
-                <textarea 
-                  id="internal-feedback-input"
-                  className="w-full min-h-[120px] rounded-xl border border-gray-200 p-4 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
-                  placeholder="Escreva seu feedback aqui..."
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSubmitFeedback();
-                    }
-                  }}
-                />
-              </div>
-              {mentionSuggestions.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {mentionSuggestions.map((member) => (
-                    <button
-                      key={member.id}
-                      type="button"
-                      onClick={() => insertMention(member)}
-                      className="rounded-full border border-brand/20 bg-white px-3 py-1 text-xs font-medium text-brand transition-colors hover:bg-brand/5"
-                    >
-                      Mencionar {member.name}
-                    </button>
-                  ))}
+            {readOnly ? (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="mb-2 text-xl font-bold text-text-primary">{readOnlyTitle}</h2>
+                  <p className="text-sm text-text-secondary">{readOnlyDescription}</p>
                 </div>
-              ) : null}
-              <Button variant="secondary" className="w-full gap-2" disabled={!comment.trim()} onClick={handleSubmitFeedback}>
-                <Send className="h-4 w-4" />
-                Enviar Feedback
-              </Button>
-            </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <span className="text-sm font-medium text-text-primary">Status mais recente</span>
+                    <Badge
+                      variant={
+                        post.status === 'approved'
+                          ? 'success'
+                          : post.status === 'changes_requested'
+                            ? 'warning'
+                            : post.status === 'rejected'
+                              ? 'error'
+                              : 'default'
+                      }
+                    >
+                      {post.status === 'approved'
+                        ? 'APROVADO'
+                        : post.status === 'changes_requested'
+                          ? 'AJUSTES SOLICITADOS'
+                          : post.status === 'rejected'
+                            ? 'REJEITADO'
+                            : 'PENDENTE'}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-text-secondary">
+                    Este painel reaproveita o mesmo mockup do módulo de aprovação, mas com foco em consulta e histórico.
+                  </p>
+                </div>
+
+                {primaryActionLabel || secondaryActionLabel ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {primaryActionLabel ? (
+                      <Button
+                        className="w-full gap-2"
+                        onClick={onPrimaryAction}
+                        disabled={!onPrimaryAction}
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                        {primaryActionLabel}
+                      </Button>
+                    ) : null}
+                    {secondaryActionLabel ? (
+                      <Button
+                        variant="secondary"
+                        className="w-full gap-2"
+                        onClick={onSecondaryAction}
+                        disabled={!onSecondaryAction}
+                      >
+                        <History className="h-4 w-4" />
+                        {secondaryActionLabel}
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <>
+                <h2 className="text-xl font-bold text-text-primary mb-2">Revisar Conteúdo</h2>
+                <p className="text-sm text-text-secondary mb-8">Revise a prévia e deixe seu feedback abaixo.</p>
+
+                <div className="space-y-4 mb-8">
+                  <Button 
+                    className={cn("w-full gap-3 h-14 text-lg", post.status === 'approved' ? "bg-green-600" : "")}
+                    onClick={() => handleStatusChange('approved')}
+                  >
+                    <CheckCircle className="h-6 w-6" />
+                    Aprovar Conteúdo
+                  </Button>
+                  <div className="grid grid-cols-3 gap-3">
+                    <Button 
+                      variant="secondary" 
+                      className={cn("gap-2 h-12", post.status === 'changes_requested' ? "border-yellow-500 text-yellow-600 bg-yellow-50" : "")}
+                      onClick={() => handleStatusChange('changes_requested')}
+                    >
+                      <MessageSquare className="h-5 w-5" />
+                      Solicitar Ajustes
+                    </Button>
+                    <Button 
+                      variant="secondary" 
+                      className={cn("gap-2 h-12", post.status === 'rejected' ? "border-red-500 text-red-600 bg-red-50" : "")}
+                      onClick={() => handleStatusChange('rejected')}
+                    >
+                      <XCircle className="h-5 w-5" />
+                      Rejeitar
+                    </Button>
+                    <Button variant="outline" className="gap-2 h-12" onClick={() => document.getElementById('internal-feedback-input')?.focus()}>
+                      <MessageSquare className="h-5 w-5" />
+                      Deixar Comentário
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-text-primary">Feedback / Comentários</label>
+                    <textarea 
+                      id="internal-feedback-input"
+                      className="w-full min-h-[120px] rounded-xl border border-gray-200 p-4 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                      placeholder="Escreva seu feedback aqui..."
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSubmitFeedback();
+                        }
+                      }}
+                    />
+                  </div>
+                  {mentionSuggestions.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {mentionSuggestions.map((member) => (
+                        <button
+                          key={member.id}
+                          type="button"
+                          onClick={() => insertMention(member)}
+                          className="rounded-full border border-brand/20 bg-white px-3 py-1 text-xs font-medium text-brand transition-colors hover:bg-brand/5"
+                        >
+                          Mencionar {member.name}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                  <Button variant="secondary" className="w-full gap-2" disabled={!comment.trim()} onClick={handleSubmitFeedback}>
+                    <Send className="h-4 w-4" />
+                    Enviar Feedback
+                  </Button>
+                </div>
+              </>
+            )}
           </Card>
 
           <Card>

@@ -365,7 +365,12 @@ export const PublicCalendarApprovalPage = () => {
                 <div className="h-px flex-1 bg-slate-200" />
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <div
+                className="grid gap-4"
+                style={{
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                }}
+              >
                 {group.items.map((item) => {
                   const ContentTypeIcon = getContentTypeIcon(item.previewPost.contentType);
 
@@ -380,65 +385,67 @@ export const PublicCalendarApprovalPage = () => {
                       )}
                     >
                       <Card className="h-full overflow-hidden border-slate-200/90 bg-white/95 p-0 shadow-[0_18px_50px_-35px_rgba(15,23,42,0.45)]">
-                        <div className="relative aspect-[16/10] overflow-hidden bg-slate-100">
-                          {item.previewPost.thumbnail ? (
-                            <img
-                              src={item.previewPost.thumbnail}
-                              alt={item.previewPost.title}
-                              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                              referrerPolicy="no-referrer"
-                            />
-                          ) : (
-                            <div className="flex h-full items-center justify-center bg-slate-200 text-slate-500">
-                              <ContentTypeIcon className="h-10 w-10" />
-                            </div>
-                          )}
-
-                          <div className="absolute left-3 top-3 flex flex-wrap items-center gap-2">
-                            <Badge variant={getApprovalStatusBadgeVariant(item.approval.status)}>
-                              {getApprovalStatusLabel(item.approval.status)}
-                            </Badge>
-                            <Badge variant="default" className="bg-white/85 text-slate-700 backdrop-blur">
-                              {item.previewPost.platform}
-                            </Badge>
-                          </div>
-                        </div>
-
-                        <div className="space-y-4 p-5">
-                          <div className="space-y-2">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <h3 className="line-clamp-2 text-lg font-bold text-slate-900">
-                                  {item.previewPost.title}
-                                </h3>
-                                <p className="mt-1 text-sm text-slate-500">
-                                  {formatTimeLabel(item.calendarPost.scheduled_date)} • {getContentTypeLabel(item.previewPost.contentType)}
-                                </p>
+                        <div className="flex h-full flex-col lg:flex-row">
+                          <div className="relative aspect-[16/10] overflow-hidden bg-slate-100 lg:min-h-full lg:w-[46%] lg:shrink-0 lg:aspect-auto">
+                            {item.previewPost.thumbnail ? (
+                              <img
+                                src={item.previewPost.thumbnail}
+                                alt={item.previewPost.title}
+                                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                                referrerPolicy="no-referrer"
+                              />
+                            ) : (
+                              <div className="flex h-full items-center justify-center bg-slate-200 text-slate-500">
+                                <ContentTypeIcon className="h-10 w-10" />
                               </div>
-                              <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-slate-300 transition-colors group-hover:text-brand" />
-                            </div>
+                            )}
 
-                            <p className="line-clamp-3 text-sm leading-6 text-slate-600">
-                              {item.previewPost.caption || 'Sem legenda cadastrada ainda para este post.'}
-                            </p>
+                            <div className="absolute left-3 top-3 flex flex-wrap items-center gap-2">
+                              <Badge variant={getApprovalStatusBadgeVariant(item.approval.status)}>
+                                {getApprovalStatusLabel(item.approval.status)}
+                              </Badge>
+                              <Badge variant="default" className="bg-white/85 text-slate-700 backdrop-blur">
+                                {item.previewPost.platform}
+                              </Badge>
+                            </div>
                           </div>
 
-                          <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
-                            <div className="flex items-center gap-3 text-xs text-slate-500">
-                              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1">
-                                <ContentTypeIcon className="h-3.5 w-3.5" />
-                                {getContentTypeLabel(item.previewPost.contentType)}
-                              </span>
-                              <span className="inline-flex items-center gap-1.5">
-                                <MessageSquare className="h-3.5 w-3.5" />
-                                {item.feedbackCount} comentário(s)
-                              </span>
+                          <div className="flex flex-1 flex-col justify-between space-y-4 p-5">
+                            <div className="space-y-2">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <h3 className="line-clamp-2 text-lg font-bold text-slate-900">
+                                    {item.previewPost.title}
+                                  </h3>
+                                  <p className="mt-1 text-sm text-slate-500">
+                                    {formatTimeLabel(item.calendarPost.scheduled_date)} • {getContentTypeLabel(item.previewPost.contentType)}
+                                  </p>
+                                </div>
+                                <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-slate-300 transition-colors group-hover:text-brand" />
+                              </div>
+
+                              <p className="line-clamp-4 text-sm leading-6 text-slate-600">
+                                {item.previewPost.caption || 'Sem legenda cadastrada ainda para este post.'}
+                              </p>
                             </div>
 
-                            <Button size="sm" className="gap-2">
-                              <CheckCircle2 className="h-4 w-4" />
-                              Abrir preview
-                            </Button>
+                            <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
+                              <div className="flex items-center gap-3 text-xs text-slate-500">
+                                <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1">
+                                  <ContentTypeIcon className="h-3.5 w-3.5" />
+                                  {getContentTypeLabel(item.previewPost.contentType)}
+                                </span>
+                                <span className="inline-flex items-center gap-1.5">
+                                  <MessageSquare className="h-3.5 w-3.5" />
+                                  {item.feedbackCount} comentário(s)
+                                </span>
+                              </div>
+
+                              <Button size="sm" className="gap-2">
+                                <CheckCircle2 className="h-4 w-4" />
+                                Abrir preview
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       </Card>
