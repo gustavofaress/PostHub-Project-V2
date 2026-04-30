@@ -4,6 +4,7 @@ import {
   Lightbulb,
   Calendar,
   Trello,
+  Building2,
   Settings,
   User,
   CheckCircle,
@@ -28,6 +29,7 @@ export type WorkspaceModule =
   | 'approval'
   | 'calendar'
   | 'kanban'
+  | 'clients'
   | 'scheduler'
   | 'performance'
   | 'reports'
@@ -182,6 +184,19 @@ export const NAV_GROUPS: NavGroup[] = [
           { label: 'Etapa de Revisão', path: '/workspace/kanban?tab=review' },
           { label: 'Pronto para Publicar', path: '/workspace/kanban?tab=ready' },
           { label: 'Tarefas Arquivadas', path: '/workspace/kanban?tab=archived' },
+        ],
+      },
+      {
+        id: 'clients',
+        label: 'Central de Clientes',
+        description:
+          'Centralize agenda, aprovações, histórico, tarefas e notas internas de cada cliente em um único painel.',
+        icon: Building2,
+        path: '/workspace/clients',
+        subItems: [
+          { label: 'Visão por Cliente', path: '/workspace/clients' },
+          { label: 'Atividade Recente', path: '/workspace/clients?view=activity' },
+          { label: 'Notas Internas', path: '/workspace/clients?view=notes' },
         ],
       },
     ],

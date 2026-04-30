@@ -10,7 +10,7 @@ import { useProfile } from '../../app/context/ProfileContext';
 import { useWorkspaceMembers } from '../../hooks/useWorkspaceMembers';
 import { buildMemberMentionHandle } from '../../shared/constants/workspaceCollaboration';
 import { ApprovalContentMockup, getApprovalMockupProfile } from './ApprovalContentMockup';
-import type { ApprovalPost, ApprovalComment } from './ApprovalModule';
+import type { ApprovalPost, ApprovalComment } from './approval.types';
 
 interface InternalPreviewProps {
   post: ApprovalPost;
@@ -18,6 +18,13 @@ interface InternalPreviewProps {
   onBack: () => void;
   onStatusChange: (status: 'approved' | 'changes_requested' | 'rejected', comment: string) => void;
   onCommentSubmit: (comment: string) => void;
+  backLabel?: string;
+  heading?: string;
+  previewHint?: string;
+  profileNameOverride?: string | null;
+  profileAvatarUrlOverride?: string | null;
+  emptyHistoryMessage?: string;
+  enableMentions?: boolean;
 }
 
 export const InternalPreview: React.FC<InternalPreviewProps> = ({
@@ -25,15 +32,22 @@ export const InternalPreview: React.FC<InternalPreviewProps> = ({
   comments,
   onBack,
   onStatusChange,
-  onCommentSubmit
+  onCommentSubmit,
+  backLabel = 'Voltar para Aprovações',
+  heading = 'Visualização Interna',
+  previewHint = 'Esta é uma prévia de alta fidelidade de como seu post ficará.',
+  profileNameOverride,
+  profileAvatarUrlOverride,
+  emptyHistoryMessage = 'Ainda não há feedbacks ou comentários.',
+  enableMentions = true,
 }) => {
   const { activeProfile } = useProfile();
   const { activeMembers } = useWorkspaceMembers();
   const [comment, setComment] = React.useState('');
   const [alertMessage, setAlertMessage] = React.useState<string | null>(null);
   const displayProfile = getApprovalMockupProfile(post, {
-    profileName: activeProfile?.name,
-    profileAvatarUrl: activeProfile?.avatar_url
+    profileName: profileNameOverride ?? activeProfile?.name,
+    profileAvatarUrl: profileAvatarUrlOverride ?? activeProfile?.avatar_url
   });
 
   const handleStatusChange = (newStatus: 'approved' | 'changes_requested' | 'rejected') => {
@@ -55,14 +69,14 @@ export const InternalPreview: React.FC<InternalPreviewProps> = ({
   const mentionMatch = comment.match(/(^|\s)@([a-z0-9.]*)$/i);
   const mentionQuery = mentionMatch?.[2]?.toLowerCase() ?? '';
   const mentionSuggestions = React.useMemo(() => {
-    if (!mentionMatch) return [];
+    if (!enableMentions || !mentionMatch) return [];
 
     return activeMembers.filter((member) => {
       const handle = buildMemberMentionHandle(member);
       const haystack = `${member.name} ${member.email} ${handle}`.toLowerCase();
       return haystack.includes(mentionQuery);
     });
-  }, [activeMembers, mentionMatch, mentionQuery]);
+  }, [activeMembers, enableMentions, mentionMatch, mentionQuery]);
 
   const insertMention = (member: (typeof activeMembers)[number]) => {
     const handle = `@${buildMemberMentionHandle(member)}`;
@@ -92,9 +106,9 @@ export const InternalPreview: React.FC<InternalPreviewProps> = ({
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="sm" onClick={onBack} className="gap-2">
           <ArrowLeft className="h-4 w-4" />
-          Voltar para Aprovações
+          {backLabel}
         </Button>
-        <h2 className="text-xl font-bold text-text-primary">Visualização Interna</h2>
+        <h2 className="text-xl font-bold text-text-primary">{heading}</h2>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -123,11 +137,11 @@ export const InternalPreview: React.FC<InternalPreviewProps> = ({
 
           <ApprovalContentMockup
             post={post}
-            profileName={activeProfile?.name}
-            profileAvatarUrl={activeProfile?.avatar_url}
+            profileName={profileNameOverride ?? activeProfile?.name}
+            profileAvatarUrl={profileAvatarUrlOverride ?? activeProfile?.avatar_url}
           />
           
-          <p className="mt-6 text-xs text-text-secondary text-center">Esta é uma prévia de alta fidelidade de como seu post ficará.</p>
+          <p className="mt-6 text-xs text-text-secondary text-center">{previewHint}</p>
         </div>
 
         {/* Right Side: Actions & Feedback */}
@@ -250,7 +264,7 @@ export const InternalPreview: React.FC<InternalPreviewProps> = ({
                   ))
               ) : (
                 <div className="text-center py-8 text-text-secondary text-sm">
-                  Ainda não há feedbacks ou comentários.
+                  {emptyHistoryMessage}
                 </div>
               )}
             </div>

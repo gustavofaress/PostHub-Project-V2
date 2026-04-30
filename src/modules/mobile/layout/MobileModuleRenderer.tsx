@@ -23,6 +23,14 @@ export const MobileModuleRenderer = () => {
       return <DashboardMobile />;
     case 'ideas':
       return <IdeasMobile />;
+    case 'calendar':
+      return (
+        <MobilePage className="max-w-none gap-4 px-2 pb-40 pt-5">
+          <div className="posthub-mobile-fallback">
+            <ModuleRenderer />
+          </div>
+        </MobilePage>
+      );
     default:
       return (
         <MobilePage className="gap-4">

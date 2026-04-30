@@ -68,12 +68,13 @@ const ALWAYS_OPEN_FEATURES: PlanFeature[] = [
 ];
 
 export const PLAN_FEATURES: Record<PlanId, PlanFeature[]> = {
-  start: ['calendar', 'kanban', 'ideas'],
-  growth: ['calendar', 'kanban', 'ideas', 'references', 'reports'],
+  start: ['calendar', 'kanban', 'ideas', 'clients'],
+  growth: ['calendar', 'kanban', 'ideas', 'clients', 'references', 'reports'],
   pro: [
     'calendar',
     'kanban',
     'ideas',
+    'clients',
     'references',
     'reports',
     'scripts',

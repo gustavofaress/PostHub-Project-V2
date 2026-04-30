@@ -8,6 +8,7 @@ import { MemberLoginPage } from './pages/auth/MemberLoginPage';
 import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
 import { SupportPasswordResetPage } from './pages/auth/SupportPasswordResetPage';
 import { PublicApprovalPage } from './pages/PublicApprovalPage';
+import { PublicCalendarApprovalPage } from './pages/PublicCalendarApprovalPage';
 import { PricingPage } from './pages/PricingPage';
 import { FocusedLandingPage } from './pages/FocusedLandingPage';
 import { ResponsiveWorkspaceLayout } from './modules/workspace/ResponsiveWorkspaceLayout';
@@ -42,6 +43,7 @@ export default function App() {
       <Route path="/pricing" element={<PricingPage />} />
       <Route path="/invite/:token" element={<AcceptInvitePage />} />
       <Route path="/aprovacao/:token" element={<PublicApprovalPage />} />
+      <Route path="/calendario/aprovacao/:token" element={<PublicCalendarApprovalPage />} />
 
       {/* Protected Workspace Routes */}
       <Route path="/workspace/*" element={<ProtectedRoute />}>
