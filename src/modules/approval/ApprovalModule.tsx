@@ -45,55 +45,11 @@ import { approvalService } from './services/approvalService';
 import { InternalPreview } from './InternalPreview';
 import { useTrialGuidedFlow } from '../onboarding/hooks/useTrialGuidedFlow';
 import { useIsMobile } from '../mobile/hooks/useIsMobile';
-
-export interface MediaState {
-  id?: string;
-  type: 'image' | 'video';
-  fileName: string;
-  fileSize: number;
-  mimeType: string;
-  previewUrl: string;
-  persistedPreview?: string;
-  uploadStatus:
-    | 'selected'
-    | 'validating'
-    | 'queued_for_processing'
-    | 'processing'
-    | 'ready'
-    | 'failed';
-  processingStatus?: string;
-  originalFileReference?: string;
-  optimizedUrlIfAny?: string;
-  order?: number;
-}
-
-export interface ApprovalPost {
-  id: string;
-  title: string;
-  caption: string;
-  platform: 'Instagram' | 'TikTok' | 'YouTube';
-  contentType: 'static' | 'carousel' | 'vertical_video' | 'horizontal_video';
-  status: 'pending' | 'approved' | 'changes_requested' | 'rejected';
-  thumbnail: string;
-  media?: string | MediaState;
-  mediaItems?: MediaState[];
-  profileId?: string;
-  profileName?: string;
-  profileAvatarUrl?: string;
-  publicToken?: string;
-  createdAt: string;
-  updatedAt: string;
-  feedbackCount: number;
-}
-
-export interface ApprovalComment {
-  id: string;
-  approvalItemId: string;
-  authorType: 'internal' | 'external';
-  authorName: string;
-  content: string;
-  createdAt: string;
-}
+import type {
+  ApprovalComment,
+  ApprovalPost,
+  MediaState,
+} from './approval.types';
 
 const MAX_SOURCE_MEDIA_SIZE = 1.5 * 1024 * 1024 * 1024;
 const TARGET_VIDEO_UPLOAD_SIZE = 45 * 1024 * 1024;

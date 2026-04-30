@@ -12,7 +12,7 @@ import {
   loadComments
 } from '../modules/approval/ApprovalModule';
 import { ApprovalContentMockup, getApprovalMockupProfile } from '../modules/approval/ApprovalContentMockup';
-import type { ApprovalPost, ApprovalComment } from '../modules/approval/ApprovalModule';
+import type { ApprovalPost, ApprovalComment } from '../modules/approval/approval.types';
 import { approvalService } from '../modules/approval/services/approvalService';
 
 export const PublicApprovalPage = () => {

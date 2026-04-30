@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { Avatar } from '../../shared/components/Avatar';
 import { cn } from '../../shared/utils/cn';
-import type { ApprovalPost } from './ApprovalModule';
+import type { ApprovalPost } from './approval.types';
 
 interface ApprovalContentMockupProps {
   post: ApprovalPost;
