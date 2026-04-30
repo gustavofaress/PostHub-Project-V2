@@ -69,6 +69,24 @@ export interface CalendarApprovalListItem {
   feedbackCount: number;
 }
 
+export interface CalendarApprovalHistoryRound {
+  link: CalendarApprovalLink;
+  approval: CalendarPostApproval;
+  feedback: CalendarApprovalFeedback[];
+}
+
+export interface CalendarApprovalDashboardItem {
+  calendarPost: EditorialCalendarApprovalRow;
+  previewPost: ApprovalPost;
+  latestApproval: CalendarPostApproval | null;
+  latestLink: CalendarApprovalLink | null;
+  latestStatus: ApprovalStatus | null;
+  totalFeedbackCount: number;
+  totalRounds: number;
+  rounds: CalendarApprovalHistoryRound[];
+  lastInteractionAt: string;
+}
+
 export interface LatestCalendarApprovalStatus {
   calendarPostId: string;
   approvalLinkId: string;

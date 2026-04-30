@@ -145,13 +145,13 @@ export const NAV_GROUPS: NavGroup[] = [
       {
         id: 'approval',
         label: 'Revisão e Aprovação',
-        description: 'Organize aprovações de clientes e equipe antes da publicação.',
+        description: 'Acompanhe status, mockups e histórico das aprovações vindas do calendário.',
         icon: CheckCircle,
         path: '/workspace/approval',
         subItems: [
-          { label: 'Enviar para Revisão', path: '/workspace/approval' },
-          { label: 'Link Público de Aprovação', path: '/workspace/approval?tab=links' },
-          { label: 'Feedback dos Revisores', path: '/workspace/approval?tab=feedback' },
+          { label: 'Central de Aprovações', path: '/workspace/approval' },
+          { label: 'Status dos Posts', path: '/workspace/approval?tab=status' },
+          { label: 'Mockups e Preview', path: '/workspace/approval?tab=preview' },
           { label: 'Histórico de Aprovação', path: '/workspace/approval?tab=history' },
         ],
       },
