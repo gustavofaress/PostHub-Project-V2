@@ -29,6 +29,15 @@ export interface ReferenceItem {
   updated_at: string;
 }
 
+export interface ReferenceLinkPreview {
+  requestedUrl: string;
+  resolvedUrl: string;
+  title: string;
+  description: string;
+  imageUrl: string | null;
+  siteName: string;
+}
+
 export interface CreateReferenceInput {
   profile_id: string;
   title: string;

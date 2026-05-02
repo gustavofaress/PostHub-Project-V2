@@ -31,9 +31,9 @@ import { Button } from '../../shared/components/Button';
 import { Input } from '../../shared/components/Input';
 import { Badge } from '../../shared/components/Badge';
 import { Tabs } from '../../shared/components/Tabs';
+import { Modal } from '../../shared/components/Modal';
 import { cn } from '../../shared/utils/cn';
 import { useTrialGuidedFlow } from '../onboarding/hooks/useTrialGuidedFlow';
-import { useIsMobile } from '../mobile/hooks/useIsMobile';
 import {
   renderCompressedVideo,
   TARGET_VIDEO_UPLOAD_SIZE,
@@ -41,7 +41,7 @@ import {
 import { useProfile } from '../../app/context/ProfileContext';
 import { useAuth } from '../../app/context/AuthContext';
 import { referencesService } from '../../services/references.service';
-import type { ReferenceItem, ReferenceType } from '../../types/reference.types';
+import type { ReferenceItem, ReferenceLinkPreview, ReferenceType } from '../../types/reference.types';
 import { useWorkspaceMembers } from '../../hooks/useWorkspaceMembers';
 import { MemberAssignmentField } from '../../shared/components/MemberAssignmentField';
 import { TaskCommentsPanel } from '../../shared/components/TaskCommentsPanel';
@@ -229,7 +229,6 @@ export const References = () => {
   const { activeMembers } = useWorkspaceMembers();
   const profileId = activeProfile?.id;
   useTrialGuidedFlow();
-  const isMobile = useIsMobile();
 
   const [references, setReferences] = React.useState<ReferenceItem[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -256,6 +255,7 @@ export const References = () => {
   const [filePreviewLabel, setFilePreviewLabel] = React.useState<string>('');
   const [linkPreviewUrl, setLinkPreviewUrl] = React.useState<string>('');
   const [linkPreviewPlatform, setLinkPreviewPlatform] = React.useState<string>('');
+  const [isGeneratingLinkPreview, setIsGeneratingLinkPreview] = React.useState(false);
   const [notice, setNotice] = React.useState<ReferenceNotice | null>(null);
   const [isRenderingMaterial, setIsRenderingMaterial] = React.useState(false);
   const [materialRenderProgress, setMaterialRenderProgress] = React.useState(0);
@@ -375,6 +375,25 @@ export const References = () => {
     setFilePreviewLabel('');
   };
 
+  const applyLinkPreview = React.useCallback(
+    (preview: ReferenceLinkPreview) => {
+      const fallbackPlatform = preview.siteName.trim() || inferPlatformFromUrl(preview.resolvedUrl);
+      const normalizedDescription = preview.description.trim();
+
+      setLinkPreviewPlatform(fallbackPlatform);
+      setLinkPreviewUrl(preview.imageUrl || '');
+
+      setForm((prev) => ({
+        ...prev,
+        source: prev.source.trim() || fallbackPlatform,
+        platform: prev.platform.trim() || fallbackPlatform,
+        title: prev.title.trim() || preview.title.trim() || `Referência de ${fallbackPlatform}`,
+        description: prev.description.trim() || normalizedDescription,
+      }));
+    },
+    []
+  );
+
   const handleTabChange = (tab: CreateTab) => {
     if (tab === activeTab) return;
 
@@ -449,11 +468,12 @@ export const References = () => {
     );
   }, [openReferenceDetails, references, searchParams, setSearchParams]);
 
-  const handleGenerateLinkPreview = () => {
+  const handleGenerateLinkPreview = async () => {
     const url = form.sourceUrl.trim();
-    if (!url) return;
+    if (!url || isGeneratingLinkPreview) return;
 
     const platform = inferPlatformFromUrl(url);
+    setIsGeneratingLinkPreview(true);
     setLinkPreviewPlatform(platform);
     setLinkPreviewUrl('');
 
@@ -463,6 +483,22 @@ export const References = () => {
       platform: prev.platform.trim() || platform,
       title: prev.title.trim() || `Referência de ${platform}`,
     }));
+
+    try {
+      const preview = await referencesService.fetchLinkPreview(url);
+      applyLinkPreview(preview);
+    } catch (error) {
+      console.error('Erro ao gerar prévia do link:', error);
+      setNotice({
+        title: 'Prévia parcial do link',
+        message:
+          error instanceof Error
+            ? `${error.message}\n\nMantivemos uma prévia simples para você seguir salvando a referência.`
+            : 'Não foi possível carregar os metadados reais do link. Mantivemos uma prévia simples para você seguir salvando a referência.',
+      });
+    } finally {
+      setIsGeneratingLinkPreview(false);
+    }
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -877,7 +913,12 @@ export const References = () => {
             <p className="line-clamp-2 text-base font-bold text-slate-800">
               {form.title.trim() || 'Título da referência'}
             </p>
-            <p className="mt-2 line-clamp-3 text-sm text-slate-500">{form.sourceUrl}</p>
+            <p className="mt-2 line-clamp-3 text-sm text-slate-500">
+              {form.description.trim() || form.sourceUrl}
+            </p>
+            {form.description.trim() ? (
+              <p className="mt-2 line-clamp-1 text-xs text-slate-400">{form.sourceUrl}</p>
+            ) : null}
           </div>
         </div>
       );
@@ -906,59 +947,43 @@ export const References = () => {
     );
   };
 
-  const renderCreateModalActions = (mode: 'desktop' | 'mobile') => {
-    const isMobileSheet = mode === 'mobile';
-
+  const renderCreateModalActions = () => {
     return (
-      <div
-        className={cn(
-          'flex items-center gap-3 border-t border-gray-100 bg-white/95 backdrop-blur-xl',
-          isMobileSheet
-            ? 'shrink-0 px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4'
-            : 'justify-end px-6 py-4'
-        )}
-      >
-        <Button
-          variant="outline"
-          onClick={closeCreateModal}
-          disabled={isSaving}
-          className={cn(isMobileSheet && 'flex-1')}
-        >
-          Cancelar
-        </Button>
-        <Button
-          onClick={handleSaveReference}
-          disabled={isSaving}
-          data-tour-id="references-save-button"
-          className={cn(isMobileSheet && 'flex-[1.15]')}
-        >
-          {isSaving ? (
-            <span className="flex items-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Salvando...
-            </span>
-          ) : editingReference ? (
-            'Salvar alterações'
-          ) : (
-            'Adicionar referência'
-          )}
-        </Button>
+      <div className="flex justify-end pt-4">
+        <div className="flex gap-3">
+          <Button
+            variant="outline"
+            onClick={closeCreateModal}
+            disabled={isSaving}
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleSaveReference}
+            disabled={isSaving}
+            data-tour-id="references-save-button"
+          >
+            {isSaving ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Salvando...
+              </span>
+            ) : editingReference ? (
+              'Salvar alterações'
+            ) : (
+              'Adicionar referência'
+            )}
+          </Button>
+        </div>
       </div>
     );
   };
 
-  const renderCreateModalContent = (mode: 'desktop' | 'mobile') => {
-    const isMobileSheet = mode === 'mobile';
-
+  const renderCreateModalContent = () => {
     return (
       <>
-        <div
-          className={cn(
-            'border-b border-gray-100',
-            isMobileSheet && 'sticky top-0 z-10 -mx-5 bg-white/95 px-5 pb-4 pt-1 backdrop-blur-xl'
-          )}
-        >
-          <div className={cn('flex flex-wrap gap-2', !isMobileSheet && 'px-6 pt-5')}>
+        <div className="border-b border-gray-100 pb-5">
+          <div className="flex flex-wrap gap-2">
             {[
               { key: 'link', label: 'Colar link', icon: LinkIcon },
               { key: 'image', label: 'Subir print/imagem', icon: FileImage },
@@ -987,12 +1012,7 @@ export const References = () => {
           </div>
         </div>
 
-        <div
-          className={cn(
-            'grid grid-cols-1 gap-6 overflow-x-hidden lg:grid-cols-[1fr_1fr]',
-            isMobileSheet ? 'py-5' : 'px-6 py-6'
-          )}
-        >
+        <div className="grid grid-cols-1 gap-6 overflow-x-hidden py-6 lg:grid-cols-[1fr_1fr]">
           <div className="min-w-0 space-y-5">
             {activeTab === 'link' ? (
               <>
@@ -1011,8 +1031,20 @@ export const References = () => {
                         }
                       />
                     </div>
-                    <Button type="button" variant="outline" onClick={handleGenerateLinkPreview}>
-                      Gerar prévia
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => void handleGenerateLinkPreview()}
+                      disabled={isGeneratingLinkPreview}
+                    >
+                      {isGeneratingLinkPreview ? (
+                        <span className="flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Buscando...
+                        </span>
+                      ) : (
+                        'Gerar prévia'
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -1025,7 +1057,7 @@ export const References = () => {
                     <div>
                       <h4 className="font-semibold text-text-primary">Prévia por link</h4>
                       <p className="text-sm text-text-secondary">
-                        Neste MVP, a prévia é simulada visualmente. Depois você pode trocar isso por uma Edge Function que resolve metadados do link.
+                        Buscamos os metadados públicos do link para preencher imagem, título e descrição quando a página permitir.
                       </p>
                     </div>
                   </div>
@@ -1578,72 +1610,20 @@ export const References = () => {
         </div>
       </div>
 
-      {showCreateModal && isMobile && (
-        <div className="fixed inset-0 z-[100] md:hidden">
-          <button
-            type="button"
-            aria-label="Fechar"
-            onClick={closeCreateModal}
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-          />
-
-          <div className="absolute inset-0 flex flex-col bg-white">
-            <div className="shrink-0 border-b border-gray-100 px-5 pb-4 pt-[calc(0.85rem+env(safe-area-inset-top))]">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h3 className="text-lg font-bold text-text-primary">
-                    {editingReference ? 'Editar referência' : 'Adicionar referência'}
-                  </h3>
-                  <p className="mt-1 text-sm text-text-secondary">
-                    A prévia visual será gerada a partir do link, do print enviado ou do arquivo de vídeo.
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={closeCreateModal}
-                  className="shrink-0 rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-text-primary"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-
-            <div className="min-h-0 flex-1 overflow-y-auto px-5">
-              {renderCreateModalContent('mobile')}
-            </div>
-
-            {renderCreateModalActions('mobile')}
-          </div>
+      <Modal
+        isOpen={showCreateModal}
+        onClose={closeCreateModal}
+        title={editingReference ? 'Editar referência' : 'Adicionar referência'}
+        className="max-w-5xl"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-text-secondary">
+            A prévia visual será gerada a partir do link, do print enviado ou do arquivo de vídeo.
+          </p>
+          {renderCreateModalContent()}
+          {renderCreateModalActions()}
         </div>
-      )}
-
-      {showCreateModal && !isMobile && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
-          <div className="max-h-[92vh] w-full max-w-5xl overflow-x-hidden overflow-y-auto rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-5">
-              <div>
-                <h3 className="text-lg font-bold text-text-primary">
-                  {editingReference ? 'Editar referência' : 'Adicionar referência'}
-                </h3>
-                <p className="text-sm text-text-secondary">
-                  A prévia visual será gerada a partir do link, do print enviado ou do arquivo de vídeo.
-                </p>
-              </div>
-
-              <button
-                onClick={closeCreateModal}
-                className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-text-primary"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {renderCreateModalContent('desktop')}
-            {renderCreateModalActions('desktop')}
-          </div>
-        </div>
-      )}
+      </Modal>
 
       {selectedReference && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 p-4">
