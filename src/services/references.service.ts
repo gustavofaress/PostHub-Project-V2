@@ -3,6 +3,7 @@ import type {
   ReferenceItem,
   CreateReferenceInput,
   UpdateReferenceInput,
+  ReferenceLinkPreview,
 } from '../types/reference.types';
 
 const BUCKET_NAME = 'reference-files';
@@ -42,6 +43,35 @@ const getCurrentUserId = async (): Promise<string> => {
   }
 
   return user.id;
+};
+
+const resolveFunctionErrorMessage = async (error: unknown, fallback: string) => {
+  if (!error || typeof error !== 'object' || !('context' in error)) {
+    const message =
+      error instanceof Error && error.message.trim() ? error.message : fallback;
+    return message;
+  }
+
+  const response = (error as { context?: unknown }).context;
+  if (!(response instanceof Response)) {
+    return fallback;
+  }
+
+  const contentType = response.headers.get('content-type') || '';
+
+  if (contentType.includes('application/json')) {
+    const payload = await response
+      .clone()
+      .json()
+      .catch(() => null as { error?: string } | null);
+
+    if (payload?.error) {
+      return payload.error;
+    }
+  }
+
+  const text = await response.clone().text().catch(() => '');
+  return text.trim() || fallback;
 };
 
 const sanitizeFileName = (fileName: string): string => {
@@ -186,5 +216,35 @@ export const referencesService = {
       fileName: file.name,
       fileSizeMb: Number((file.size / (1024 * 1024)).toFixed(1)),
     };
+  },
+
+  async fetchLinkPreview(url: string): Promise<ReferenceLinkPreview> {
+    const client = getSupabaseClient();
+    const normalizedUrl = url.trim();
+
+    if (!normalizedUrl) {
+      throw new Error('Informe um link para gerar a prévia.');
+    }
+
+    const { data, error } = await client.functions.invoke('fetch-link-preview', {
+      body: {
+        url: normalizedUrl,
+      },
+    });
+
+    if (error) {
+      throw new Error(
+        await resolveFunctionErrorMessage(
+          error,
+          'Não foi possível gerar a prévia real deste link.'
+        )
+      );
+    }
+
+    if (!data?.preview) {
+      throw new Error('A Edge Function de prévia não retornou um resultado válido.');
+    }
+
+    return data.preview as ReferenceLinkPreview;
   },
 };
