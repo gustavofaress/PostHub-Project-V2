@@ -43,6 +43,7 @@ export const MobileBottomNav = ({ onOpenMore }: MobileBottomNavProps) => {
               <button
                 key={item.id}
                 type="button"
+                data-tour-id={item.id === 'more' ? 'mobile-more-nav-trigger' : `sidebar-${item.id}`}
                 onClick={() => {
                   if (item.id === 'more') {
                     onOpenMore();

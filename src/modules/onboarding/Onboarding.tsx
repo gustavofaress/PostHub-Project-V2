@@ -19,6 +19,7 @@ import { cn } from '../../shared/utils/cn';
 import { useApp } from '../../app/context/AppContext';
 import { useAuth } from '../../app/context/AuthContext';
 import { onboardingService } from '../../services/onboarding.service';
+import { useIsMobile } from '../mobile/hooks/useIsMobile';
 import { GUIDED_FLOW_STEPS, type GuidedFlowStepId } from './guidedFlow';
 import {
   TOUR_COMPLETION_CELEBRATION_KEY,
@@ -94,6 +95,7 @@ const STEP_ACTION_LABELS: Record<GuidedFlowStepId, string> = {
 };
 
 export const Onboarding = () => {
+  const isMobile = useIsMobile();
   const navigate = useNavigate();
   const { setActiveModule } = useApp();
   const { user, refreshUser } = useAuth();
@@ -282,13 +284,21 @@ export const Onboarding = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm"
+            className={cn(
+              'fixed inset-0 z-[130] flex bg-slate-950/45 backdrop-blur-sm',
+              isMobile ? 'items-end justify-stretch px-0 pb-0 pt-8' : 'items-center justify-center p-4'
+            )}
           >
             <motion.div
               initial={{ scale: 0.96, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.96, opacity: 0 }}
-              className="max-h-[calc(100vh-2rem)] w-full max-w-[560px] overflow-y-auto rounded-[32px] border border-[#D7E7F6] bg-[linear-gradient(180deg,#ffffff_0%,#f7fbff_100%)] shadow-[0_24px_80px_rgba(15,23,42,0.18)]"
+              className={cn(
+                'w-full overflow-y-auto border border-[#D7E7F6] bg-[linear-gradient(180deg,#ffffff_0%,#f7fbff_100%)] shadow-[0_24px_80px_rgba(15,23,42,0.18)]',
+                isMobile
+                  ? 'max-h-[88vh] min-h-[76vh] rounded-t-[32px] border-b-0 px-0 pb-[calc(1rem+env(safe-area-inset-bottom))]'
+                  : 'max-h-[calc(100vh-2rem)] max-w-[560px] rounded-[32px]'
+              )}
             >
               <div className="h-1.5 w-full bg-[#E8F3FC]">
                 <div
@@ -302,30 +312,35 @@ export const Onboarding = () => {
                 />
               </div>
 
-              <div className="p-6 sm:p-8">
+              <div className={cn(isMobile ? 'px-5 pb-5 pt-5' : 'p-6 sm:p-8')}>
                 {quizStep === -1 ? (
                   <motion.div
                     key="intro"
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
-                    className="space-y-6 py-2 text-center sm:py-4"
+                    className={cn(
+                      'space-y-6 text-center',
+                      isMobile ? 'flex min-h-[calc(76vh-3rem)] flex-col justify-between py-1' : 'py-2 sm:py-4'
+                    )}
                   >
-                    <div className="mx-auto mb-2 inline-flex h-20 w-20 items-center justify-center rounded-[28px] bg-[linear-gradient(180deg,rgba(56,182,255,0.16)_0%,rgba(56,182,255,0.06)_100%)] text-[#38B6FF] shadow-[0_18px_45px_rgba(56,182,255,0.16)]">
-                      <Rocket className="h-10 w-10" />
-                    </div>
+                    <div>
+                      <div className="mx-auto mb-2 inline-flex h-20 w-20 items-center justify-center rounded-[28px] bg-[linear-gradient(180deg,rgba(56,182,255,0.16)_0%,rgba(56,182,255,0.06)_100%)] text-[#38B6FF] shadow-[0_18px_45px_rgba(56,182,255,0.16)]">
+                        <Rocket className="h-10 w-10" />
+                      </div>
 
-                    <div className="space-y-3">
-                      <span className="text-xs font-bold uppercase tracking-[0.24em] text-[#38B6FF]">
-                        Guia de configuração
-                      </span>
-                      <h2 className="text-2xl font-bold leading-tight text-[#111827] sm:text-[2rem]">
-                        Vamos preparar o seu workspace para o fluxo da PostHub
-                      </h2>
-                      <p className="mx-auto max-w-sm text-[#6B7280]">
-                        Responda algumas perguntas rápidas para deixar o checklist inicial mais
-                        alinhado ao seu cenário.
-                      </p>
+                      <div className="space-y-3">
+                        <span className="text-xs font-bold uppercase tracking-[0.24em] text-[#38B6FF]">
+                          Guia de configuração
+                        </span>
+                        <h2 className="text-2xl font-bold leading-tight text-[#111827] sm:text-[2rem]">
+                          Vamos preparar o seu workspace para o fluxo da PostHub
+                        </h2>
+                        <p className="mx-auto max-w-sm text-[#6B7280]">
+                          Responda algumas perguntas rápidas para deixar o checklist inicial mais
+                          alinhado ao seu cenário.
+                        </p>
+                      </div>
                     </div>
 
                     <Button
@@ -358,7 +373,10 @@ export const Onboarding = () => {
                           animate={{ opacity: 1, x: 0 }}
                           exit={{ opacity: 0, x: -10 }}
                           transition={{ duration: 0.2 }}
-                          className="min-h-[280px] space-y-3"
+                          className={cn(
+                            'space-y-3',
+                            isMobile ? 'min-h-[22rem]' : 'min-h-[280px]'
+                          )}
                         >
                           {currentQuestion?.options.map((option) => {
                             const isSelected = selectedOption === option;
@@ -401,7 +419,10 @@ export const Onboarding = () => {
                       <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="mt-8 border-t border-gray-100 pt-6"
+                        className={cn(
+                          'mt-8 border-t border-gray-100 pt-6',
+                          isMobile && 'sticky bottom-0 mx-[-1.25rem] bg-[linear-gradient(180deg,rgba(247,251,255,0.2)_0%,rgba(247,251,255,0.96)_18%,rgba(247,251,255,1)_100%)] px-5 pb-1 backdrop-blur-xl'
+                        )}
                       >
                         <Button
                           className="w-full rounded-2xl bg-[#38B6FF] py-6 text-lg text-white shadow-[0_18px_40px_rgba(56,182,255,0.24)] hover:bg-[#38B6FF]/90"
@@ -427,7 +448,7 @@ export const Onboarding = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/40 px-4 backdrop-blur-sm"
+            className="fixed inset-0 z-[135] flex items-center justify-center bg-slate-950/40 px-4 backdrop-blur-sm"
           >
             <motion.div
               initial={{ scale: 0.96, opacity: 0, y: 10 }}

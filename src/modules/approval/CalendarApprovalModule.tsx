@@ -305,6 +305,7 @@ export const CalendarApprovalModule = () => {
             navigate('/workspace/calendar');
           }}
           secondaryActionLabel="Ver rodadas"
+          secondaryActionDataTourId="approval-internal-preview-button"
           onSecondaryAction={() => setSelectedHistoryPostId(selectedPreviewItem.calendarPost.id)}
         />
 
@@ -628,7 +629,7 @@ export const CalendarApprovalModule = () => {
             className="grid gap-6"
             style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))' }}
           >
-            {items.map((item) => {
+            {items.map((item, index) => {
               const ContentTypeIcon = getContentTypeIcon(item.previewPost.contentType);
               const hasHistory = item.totalRounds > 0;
               const latestLink = item.latestLink;
@@ -760,6 +761,7 @@ export const CalendarApprovalModule = () => {
                       <Button
                         variant="outline"
                         className="gap-2"
+                        data-tour-id={index === 0 ? 'approval-open-create-button' : undefined}
                         onClick={() => setSelectedPreviewPostId(item.calendarPost.id)}
                       >
                         <Eye className="h-4 w-4" />

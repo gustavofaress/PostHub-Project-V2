@@ -374,6 +374,7 @@ export const IdeasMobile = () => {
         <button
           type="button"
           onClick={openCreateSheet}
+          data-tour-id="ideas-add-button"
           className="fixed bottom-28 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-brand text-white shadow-[0_16px_36px_rgba(56,182,255,0.38)] active:scale-[0.98] md:hidden"
           aria-label="Nova ideia"
         >

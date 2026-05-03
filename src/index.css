@@ -30,6 +30,7 @@
   html {
     overscroll-behavior: none;
     -webkit-tap-highlight-color: transparent;
+    overflow-x: hidden;
   }
 
   * {
@@ -74,6 +75,7 @@
   body {
     @apply bg-bg-main text-text-primary font-sans antialiased;
     overscroll-behavior: none;
+    overflow-x: hidden;
   }
 
   button,
