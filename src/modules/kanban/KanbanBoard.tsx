@@ -23,6 +23,7 @@ import { useAuth } from '../../app/context/AuthContext';
 import { supabase } from '../../shared/utils/supabase';
 import { useTrialGuidedFlow } from '../onboarding/hooks/useTrialGuidedFlow';
 import { useWorkspaceMembers } from '../../hooks/useWorkspaceMembers';
+import { useIsMobile } from '../mobile/hooks/useIsMobile';
 import { MemberAssignmentField } from '../../shared/components/MemberAssignmentField';
 import { TaskCommentsPanel } from '../../shared/components/TaskCommentsPanel';
 import { workspaceCollaborationService } from '../../services/workspace-collaboration.service';
@@ -104,6 +105,7 @@ function mapCardRow(row: EditorialCalendarRow): KanbanCard {
 }
 
 export const KanbanBoard = () => {
+  const isMobile = useIsMobile();
   const [searchParams, setSearchParams] = useSearchParams();
   const { activeProfile } = useProfile();
   const { user } = useAuth();
@@ -649,8 +651,13 @@ export const KanbanBoard = () => {
   };
 
   return (
-    <div className="space-y-8 h-[calc(100vh-160px)] flex flex-col">
-      <div className="flex items-center justify-between">
+    <div
+      className={cn(
+        'flex flex-col space-y-8',
+        isMobile ? 'h-auto min-h-0' : 'h-[calc(100vh-160px)]'
+      )}
+    >
+      <div className={cn('flex gap-4', isMobile ? 'flex-col' : 'items-center justify-between')}>
         <div>
           <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
             <Trello className="h-6 w-6 text-brand" />
@@ -663,7 +670,7 @@ export const KanbanBoard = () => {
             </p>
           )}
         </div>
-        <div className="flex gap-3">
+        <div className={cn('flex gap-3', isMobile && 'grid grid-cols-2')}>
           <Button
             variant="secondary"
             className="gap-2"
@@ -696,11 +703,19 @@ export const KanbanBoard = () => {
           <p className="text-text-secondary">Carregando Kanban...</p>
         </Card>
       ) : (
-        <div className="posthub-scrollbar posthub-scrollbar-thin flex-1 flex gap-6 overflow-x-auto pb-4 pr-2">
+        <div
+          className={cn(
+            'posthub-scrollbar posthub-scrollbar-thin flex gap-6 pb-4 pr-2',
+            isMobile ? 'min-h-0 overflow-x-auto overflow-y-visible' : 'flex-1 overflow-x-auto'
+          )}
+        >
           {columns.map((column, colIdx) => (
             <div
               key={column.id}
-              className="flex flex-col w-80 shrink-0"
+              className={cn(
+                'flex w-80 shrink-0 flex-col',
+                isMobile && 'min-h-[22rem]'
+              )}
               onDragOver={handleDragOver}
               onDrop={(e) => void handleDrop(e, column.id)}
             >
@@ -769,7 +784,12 @@ export const KanbanBoard = () => {
                 </Dropdown>
               </div>
 
-              <div className="posthub-scrollbar posthub-scrollbar-thin flex-1 space-y-4 overflow-y-auto rounded-xl bg-gray-100/50 p-3 pr-2">
+              <div
+                className={cn(
+                  'posthub-scrollbar posthub-scrollbar-thin space-y-4 rounded-xl bg-gray-100/50 p-3 pr-2',
+                  isMobile ? 'overflow-y-visible' : 'flex-1 overflow-y-auto'
+                )}
+              >
                 {cards
                   .filter((t) => t.columnId === column.id)
                   .map((task) => (

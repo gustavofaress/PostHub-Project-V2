@@ -57,6 +57,7 @@ export const MobileMoreSheet = ({
                   <Link
                     key={item.id}
                     to={item.path}
+                    data-tour-id={`sidebar-${item.id}`}
                     onClick={onClose}
                     className={cn(
                       'mobile-panel-muted flex min-h-[72px] items-center gap-4 px-4 py-4 active:scale-[0.99]',

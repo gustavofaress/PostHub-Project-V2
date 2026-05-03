@@ -38,8 +38,10 @@ interface InternalPreviewProps {
   readOnlyDescription?: string;
   primaryActionLabel?: string;
   onPrimaryAction?: () => void;
+  primaryActionDataTourId?: string;
   secondaryActionLabel?: string;
   onSecondaryAction?: () => void;
+  secondaryActionDataTourId?: string;
 }
 
 export const InternalPreview: React.FC<InternalPreviewProps> = ({
@@ -60,8 +62,10 @@ export const InternalPreview: React.FC<InternalPreviewProps> = ({
   readOnlyDescription = 'Use esta visualização para revisar o mockup, o status atual e o histórico do post.',
   primaryActionLabel,
   onPrimaryAction,
+  primaryActionDataTourId,
   secondaryActionLabel,
   onSecondaryAction,
+  secondaryActionDataTourId,
 }) => {
   const { activeProfile } = useProfile();
   const { activeMembers } = useWorkspaceMembers();
@@ -209,6 +213,7 @@ export const InternalPreview: React.FC<InternalPreviewProps> = ({
                     {primaryActionLabel ? (
                       <Button
                         className="w-full gap-2"
+                        data-tour-id={primaryActionDataTourId}
                         onClick={onPrimaryAction}
                         disabled={!onPrimaryAction}
                       >
@@ -220,6 +225,7 @@ export const InternalPreview: React.FC<InternalPreviewProps> = ({
                       <Button
                         variant="secondary"
                         className="w-full gap-2"
+                        data-tour-id={secondaryActionDataTourId}
                         onClick={onSecondaryAction}
                         disabled={!onSecondaryAction}
                       >

@@ -20,7 +20,7 @@ export const MobileTopBar = ({
   const previewProfiles = profiles.slice(0, 3);
 
   return (
-    <header className="sticky top-0 z-30 overflow-hidden md:hidden">
+    <header className="relative z-30 overflow-hidden md:hidden">
       <div className="absolute inset-x-0 top-0 h-full bg-[linear-gradient(135deg,#38B6FF_0%,#2496EB_52%,#1F7AE0_100%)]" />
       <div className="absolute left-[-15%] top-8 h-32 w-32 rounded-full bg-white/18 blur-3xl" />
       <div className="absolute right-[-18%] top-2 h-36 w-36 rounded-full bg-sky-200/30 blur-3xl" />
@@ -43,7 +43,7 @@ export const MobileTopBar = ({
             <button
               type="button"
               onClick={onOpenProfiles}
-              className="mt-3 flex w-full max-w-[17rem] items-center gap-3 rounded-[22px] border border-white/18 bg-[linear-gradient(180deg,rgba(255,255,255,0.18)_0%,rgba(255,255,255,0.10)_100%)] px-3 py-3 text-left text-white/92 shadow-[0_16px_34px_rgba(15,23,42,0.16)] active:scale-[0.98]"
+              className="mt-3 flex w-full items-center gap-3 rounded-[22px] border border-white/18 bg-[linear-gradient(180deg,rgba(255,255,255,0.18)_0%,rgba(255,255,255,0.10)_100%)] px-3 py-3 text-left text-white/92 shadow-[0_16px_34px_rgba(15,23,42,0.16)] active:scale-[0.98]"
               aria-label="Trocar perfil"
             >
               <div className="flex shrink-0 items-center">

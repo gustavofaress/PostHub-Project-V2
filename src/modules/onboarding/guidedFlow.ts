@@ -39,6 +39,8 @@ export interface GuidedTourStep {
   targetId: string;
   title: string;
   description: string;
+  mobileDescription?: string;
+  mobileHint?: string;
   buttonLabel: string;
   placement: GuidedPopoverPlacement;
   nextAction: GuidedTourNextAction;
@@ -89,6 +91,9 @@ export const GUIDED_TOUR_STEPS: GuidedTourStep[] = [
     targetId: 'setup-guide-start-button',
     title: 'Passo #1',
     description: 'Comece pelo setup guide para iniciar o tour guiado do seu processo criativo.',
+    mobileDescription:
+      'Role a tela e toque no botao azul destacado para iniciar o tour guiado no celular.',
+    mobileHint: 'Como chegar: use o botao azul desta tela',
     buttonLabel: 'Próximo',
     placement: 'bottom',
     nextAction: 'click_target',
@@ -99,6 +104,9 @@ export const GUIDED_TOUR_STEPS: GuidedTourStep[] = [
     targetId: 'sidebar-references',
     title: 'Passo #2',
     description: 'Abra o módulo de referências pela barra lateral.',
+    mobileDescription:
+      'O menu Mais vai abrir para voce. Toque em Referencias para acessar este modulo no celular.',
+    mobileHint: 'Como chegar: menu Mais',
     buttonLabel: 'Próximo',
     placement: 'right',
     nextAction: 'click_target',
@@ -109,6 +117,9 @@ export const GUIDED_TOUR_STEPS: GuidedTourStep[] = [
     targetId: 'references-add-button',
     title: 'Passo #3',
     description: 'Agora clique para adicionar uma nova referência.',
+    mobileDescription:
+      'Use o botao destacado para adicionar uma nova referencia e continuar o fluxo.',
+    mobileHint: 'Como chegar: toque no destaque azul',
     buttonLabel: 'Próximo',
     placement: 'bottom',
     nextAction: 'click_target',
@@ -119,6 +130,9 @@ export const GUIDED_TOUR_STEPS: GuidedTourStep[] = [
     targetId: 'sidebar-ideas',
     title: 'Passo #4',
     description: 'Siga para o banco de ideias pelo menu lateral.',
+    mobileDescription:
+      'Use a barra inferior e toque em Ideias para seguir para o proximo modulo.',
+    mobileHint: 'Como chegar: barra inferior',
     buttonLabel: 'Próximo',
     placement: 'right',
     nextAction: 'click_target',
@@ -129,6 +143,9 @@ export const GUIDED_TOUR_STEPS: GuidedTourStep[] = [
     targetId: 'ideas-add-button',
     title: 'Passo #5',
     description: 'Clique em adicionar ideia para abrir o próximo passo do processo.',
+    mobileDescription:
+      'Toque no botao flutuante destacado para criar uma nova ideia no celular.',
+    mobileHint: 'Como chegar: botao flutuante',
     buttonLabel: 'Próximo',
     placement: 'bottom',
     nextAction: 'click_target',
@@ -139,6 +156,9 @@ export const GUIDED_TOUR_STEPS: GuidedTourStep[] = [
     targetId: 'sidebar-calendar',
     title: 'Passo #6',
     description: 'Agora vá para o calendário editorial na sidebar.',
+    mobileDescription:
+      'Use a barra inferior e toque em Calendario para abrir o planejamento editorial.',
+    mobileHint: 'Como chegar: barra inferior',
     buttonLabel: 'Próximo',
     placement: 'right',
     nextAction: 'click_target',
@@ -149,6 +169,9 @@ export const GUIDED_TOUR_STEPS: GuidedTourStep[] = [
     targetId: 'calendar-add-button',
     title: 'Passo #7',
     description: 'Clique em agendar post para abrir o cadastro da tarefa no calendário.',
+    mobileDescription:
+      'Toque no botao destacado para abrir o cadastro do post dentro do calendario.',
+    mobileHint: 'Como chegar: toque no destaque azul',
     buttonLabel: 'Próximo',
     placement: 'bottom',
     nextAction: 'click_target',
@@ -159,6 +182,9 @@ export const GUIDED_TOUR_STEPS: GuidedTourStep[] = [
     targetId: 'calendar-save-button',
     title: 'Passo #8',
     description: 'Preencha o título da tarefa e salve. Depois disso, vamos abrir o Kanban com esse card.',
+    mobileDescription:
+      'Preencha ao menos o titulo da tarefa e salve. Assim que concluir, o tour segue sozinho.',
+    mobileHint: 'Como concluir: preencher e salvar',
     buttonLabel: 'Aguardando cadastro',
     placement: 'top',
     nextAction: 'wait_for_action',
@@ -169,6 +195,9 @@ export const GUIDED_TOUR_STEPS: GuidedTourStep[] = [
     targetId: 'kanban-tour-card',
     title: 'Passo #9',
     description: 'Arraste a tarefa criada para a próxima coluna para testar a mudança de fase.',
+    mobileDescription:
+      'No celular, toque no card destacado e use o menu de acoes para mover a tarefa para a proxima coluna.',
+    mobileHint: 'Como concluir: mover o card',
     buttonLabel: 'Aguardando movimento',
     placement: 'bottom',
     nextAction: 'wait_for_action',
@@ -179,6 +208,9 @@ export const GUIDED_TOUR_STEPS: GuidedTourStep[] = [
     targetId: 'sidebar-approval',
     title: 'Passo #10',
     description: 'Siga para o módulo de aprovação pela sidebar.',
+    mobileDescription:
+      'Volte para a barra inferior e toque em Aprovacao para abrir a central deste fluxo.',
+    mobileHint: 'Como chegar: barra inferior',
     buttonLabel: 'Próximo',
     placement: 'right',
     nextAction: 'click_target',
@@ -188,7 +220,10 @@ export const GUIDED_TOUR_STEPS: GuidedTourStep[] = [
     parentStepId: 'approval',
     targetId: 'approval-open-create-button',
     title: 'Passo #11',
-    description: 'Clique em criar aprovação para abrir a área de revisão.',
+    description: 'Abra a preview interna do post destacado para revisar o conteúdo.',
+    mobileDescription:
+      'Toque no botao Abrir preview do post destacado para ver a experiencia de aprovacao.',
+    mobileHint: 'Como chegar: abrir preview',
     buttonLabel: 'Próximo',
     placement: 'bottom',
     nextAction: 'click_target',
@@ -198,7 +233,10 @@ export const GUIDED_TOUR_STEPS: GuidedTourStep[] = [
     parentStepId: 'approval',
     targetId: 'approval-internal-preview-button',
     title: 'Passo #12',
-    description: 'Agora verifique a preview interna para finalizar a configuração guiada.',
+    description: 'Dentro da preview, abra as rodadas para consultar o histórico e finalizar o tour.',
+    mobileDescription:
+      'Dentro da preview aberta, toque em Ver rodadas para concluir a configuracao guiada.',
+    mobileHint: 'Como concluir: abrir as rodadas',
     buttonLabel: 'Próximo',
     placement: 'top',
     nextAction: 'click_target',
