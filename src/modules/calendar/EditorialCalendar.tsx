@@ -28,6 +28,7 @@ import {
   addMonths,
   subMonths,
 } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { Card } from '../../shared/components/Card';
 import { Badge } from '../../shared/components/Badge';
 import { Button } from '../../shared/components/Button';
@@ -127,9 +128,9 @@ function getStatusDotClass(status: string) {
 }
 
 function getMobilePostPillClass(status: string) {
-  if (status === 'Published') return 'bg-green-500 text-white';
-  if (status === 'Review') return 'bg-yellow-400 text-slate-900';
-  return 'bg-brand text-white';
+  if (status === 'Published') return 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200/90';
+  if (status === 'Review') return 'bg-amber-100 text-amber-700 ring-1 ring-amber-200/90';
+  return 'bg-sky-100 text-sky-700 ring-1 ring-sky-200/90';
 }
 
 function getContentTypeLabel(contentType: ApprovalContentType) {
@@ -157,6 +158,16 @@ function getContentTypeIcon(contentType: ApprovalContentType) {
     default:
       return ImageIcon;
   }
+}
+
+function formatCalendarMonth(date: Date) {
+  const label = format(date, 'MMMM', { locale: ptBR });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+function formatCalendarMonthYear(date: Date) {
+  const label = format(date, 'MMMM yyyy', { locale: ptBR });
+  return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
 export const EditorialCalendar = () => {
@@ -217,6 +228,7 @@ export const EditorialCalendar = () => {
     start: startDate,
     end: endDate,
   });
+  const calendarWeekCount = calendarDays.length / 7;
   const assignmentCountByPostId = taskAssignments.reduce<Record<string, number>>((accumulator, assignment) => {
     if (assignment.entityType !== 'editorial_calendar') {
       return accumulator;
@@ -234,6 +246,18 @@ export const EditorialCalendar = () => {
       return postDateKey >= approvalStartDate && postDateKey <= approvalEndDate;
     });
   }, [approvalEndDate, approvalStartDate, posts]);
+  const postsByDateKey = React.useMemo(
+    () =>
+      posts.reduce<Record<string, CalendarPost[]>>((accumulator, post) => {
+        const dateKey = format(post.scheduledDate, 'yyyy-MM-dd');
+        accumulator[dateKey] = [...(accumulator[dateKey] ?? []), post];
+        return accumulator;
+      }, {}),
+    [posts]
+  );
+  const monthLabel = React.useMemo(() => formatCalendarMonth(currentDate), [currentDate]);
+  const monthYearLabel = React.useMemo(() => formatCalendarMonthYear(currentDate), [currentDate]);
+  const currentYearLabel = React.useMemo(() => format(currentDate, 'yyyy', { locale: ptBR }), [currentDate]);
 
   const nextMonth = () => setCurrentDate(addMonths(currentDate, 1));
   const prevMonth = () => setCurrentDate(subMonths(currentDate, 1));
@@ -818,206 +842,255 @@ export const EditorialCalendar = () => {
   };
 
   return (
-    <div className={cn('space-y-8', isMobile && 'space-y-4')}>
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
-            <CalendarIcon className="h-6 w-6 text-brand" />
-            Calendário Editorial
-          </h1>
-          <p className="text-text-secondary">Planeje e visualize sua agenda de conteúdo.</p>
-          {activeProfile && (
-            <p className="text-sm text-text-secondary mt-1">
-              Perfil ativo: <span className="font-medium">{activeProfile.name}</span>
-            </p>
-          )}
-        </div>
+    <div className={cn('space-y-8', isMobile ? 'space-y-4 px-4' : '')}>
+      {!isMobile ? (
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
+              <CalendarIcon className="h-6 w-6 text-brand" />
+              Calendário Editorial
+            </h1>
+            <p className="text-text-secondary">Planeje e visualize sua agenda de conteúdo.</p>
+            {activeProfile && (
+              <p className="text-sm text-text-secondary mt-1">
+                Perfil ativo: <span className="font-medium">{activeProfile.name}</span>
+              </p>
+            )}
+          </div>
 
-        <div className="flex gap-3 md:flex-none">
-          <Button variant="secondary" className="hidden gap-2 md:inline-flex">
-            <Filter className="h-4 w-4" />
-            Filtrar
-          </Button>
-          <Button
-            variant="secondary"
-            className="gap-2"
-            onClick={openApprovalRequestModal}
-          >
-            <Link2 className="h-4 w-4" />
-            <span className="hidden md:inline">Solicitar Aprovação</span>
-            <span className="md:hidden">Aprovar</span>
-          </Button>
-          <Button
-            className="gap-2"
-            onClick={() => openAddModal()}
-            data-tour-id="calendar-add-button"
-          >
-            <Plus className="h-4 w-4" />
-            <span className="hidden md:inline">Agendar Post</span>
-            <span className="md:hidden">Agendar</span>
-          </Button>
+          <div className="flex gap-3 md:flex-none">
+            <Button variant="secondary" className="hidden gap-2 md:inline-flex">
+              <Filter className="h-4 w-4" />
+              Filtrar
+            </Button>
+            <Button
+              variant="secondary"
+              className="gap-2"
+              onClick={openApprovalRequestModal}
+            >
+              <Link2 className="h-4 w-4" />
+              <span className="hidden md:inline">Solicitar Aprovação</span>
+              <span className="md:hidden">Aprovar</span>
+            </Button>
+            <Button
+              className="gap-2"
+              onClick={() => openAddModal()}
+              data-tour-id="calendar-add-button"
+            >
+              <Plus className="h-4 w-4" />
+              <span className="hidden md:inline">Agendar Post</span>
+              <span className="md:hidden">Agendar</span>
+            </Button>
+          </div>
         </div>
-      </div>
+      ) : null}
 
       {errorMessage && (
-        <Card className="border-red-200 bg-red-50 text-red-700 p-4">
-          {errorMessage}
-        </Card>
+        isMobile ? (
+          <div className="rounded-[24px] border border-red-200 bg-red-50/95 px-4 py-3 text-sm font-medium text-red-700 shadow-[0_16px_28px_rgba(239,68,68,0.08)]">
+            {errorMessage}
+          </div>
+        ) : (
+          <Card className="border-red-200 bg-red-50 text-red-700 p-4">
+            {errorMessage}
+          </Card>
+        )
       )}
 
       {isMobile ? (
-        <div className="-mx-1 overflow-hidden bg-white">
-          <div className="flex items-center justify-between border-b border-gray-200 px-2 py-3">
-            <h2 className="text-lg font-bold text-text-primary">
-              {format(currentDate, 'MMMM yyyy')}
-            </h2>
-            <div className="flex items-center gap-1">
-              <button onClick={prevMonth} className="rounded-lg p-2 hover:bg-gray-100 transition-colors">
+        <section className="relative pb-8">
+          <div className="pointer-events-none absolute inset-x-10 top-6 h-24 rounded-full bg-[rgba(56,182,255,0.18)] blur-3xl" />
+          <div className="relative flex min-h-[calc(100dvh-15.5rem)] flex-col overflow-hidden rounded-[34px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(241,247,255,0.96)_100%)] shadow-[0_30px_70px_rgba(56,182,255,0.18)]">
+            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(56,182,255,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(56,182,255,0.06)_1px,transparent_1px)] bg-[size:24px_24px] opacity-60 [mask-image:linear-gradient(to_bottom,white,transparent_78%)]" />
+
+            <div className="relative flex items-center justify-between px-4 pt-4">
+              <button
+                type="button"
+                onClick={() => setCurrentDate(new Date())}
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-white/90 bg-white/88 text-brand shadow-[0_16px_30px_rgba(15,23,42,0.08)] transition-colors active:scale-[0.97]"
+                aria-label="Voltar para o mês atual"
+              >
+                <CalendarIcon className="h-4 w-4" />
+              </button>
+
+              <div className="text-center">
+                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-slate-400">
+                  {currentYearLabel}
+                </p>
+                <h2 className="mt-1 text-[1.15rem] font-semibold tracking-[-0.03em] text-slate-900">
+                  {monthLabel}
+                </h2>
+              </div>
+
+              <button
+                type="button"
+                onClick={openApprovalRequestModal}
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-white/90 bg-white/88 text-slate-600 shadow-[0_16px_30px_rgba(15,23,42,0.08)] transition-colors active:scale-[0.97]"
+                aria-label="Solicitar aprovação"
+              >
+                <Link2 className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="relative mt-4 flex items-center justify-between px-4 pb-4">
+              <button
+                type="button"
+                onClick={prevMonth}
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-white/75 text-slate-700 shadow-[0_14px_26px_rgba(15,23,42,0.06)] transition-colors active:scale-[0.97]"
+                aria-label="Mês anterior"
+              >
                 <ChevronLeft className="h-5 w-5" />
               </button>
               <button
+                type="button"
                 onClick={() => setCurrentDate(new Date())}
-                className="px-2.5 py-1 text-sm font-medium hover:bg-gray-100 rounded-lg transition-colors"
+                className="rounded-full border border-sky-100 bg-white/80 px-4 py-2 text-[0.78rem] font-semibold uppercase tracking-[0.18em] text-slate-500 shadow-[0_14px_24px_rgba(15,23,42,0.05)] transition-colors active:scale-[0.98]"
               >
                 Hoje
               </button>
-              <button onClick={nextMonth} className="rounded-lg p-2 hover:bg-gray-100 transition-colors">
+              <button
+                type="button"
+                onClick={nextMonth}
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-white/75 text-slate-700 shadow-[0_14px_26px_rgba(15,23,42,0.06)] transition-colors active:scale-[0.97]"
+                aria-label="Próximo mês"
+              >
                 <ChevronRight className="h-5 w-5" />
               </button>
             </div>
-          </div>
 
-          {isLoadingPosts ? (
-            <div className="p-10 text-center text-text-secondary">
-              Carregando calendário...
-            </div>
-          ) : (
-            <>
-              <div
-                className="border-b border-gray-200 bg-gray-50"
-                style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' }}
-              >
+            <div className="relative flex flex-1 flex-col border-t border-white/70 px-2 pb-2 pt-2">
+              <div className="grid grid-cols-7 gap-1 px-1 pb-2">
                 {CALENDAR_WEEKDAYS.map((day) => (
                   <div
                     key={day}
-                    className="py-2 text-center text-[10px] font-bold uppercase tracking-wider text-gray-400"
+                    className="py-1 text-center text-[0.58rem] font-semibold uppercase tracking-[0.18em] text-slate-400"
                   >
                     {day}
                   </div>
                 ))}
               </div>
 
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
-                  gridAutoRows: '112px',
-                }}
-              >
-                {calendarDays.map((day, idx) => {
-                  const dayPosts = posts.filter((post) => isSameDay(post.scheduledDate, day));
-                  const visiblePosts = dayPosts.slice(0, MOBILE_POSTS_PREVIEW_LIMIT);
-                  const remainingPostsCount = dayPosts.length - visiblePosts.length;
-                  const isCurrentMonth = isSameMonth(day, monthStart);
+              {isLoadingPosts ? (
+                <div className="flex flex-1 items-center justify-center px-6 text-center text-sm text-text-secondary">
+                  Carregando calendário...
+                </div>
+              ) : (
+                <div
+                  className="grid flex-1 gap-px overflow-hidden rounded-[28px] bg-[#DDEAF6]/90"
+                  style={{
+                    gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
+                    gridTemplateRows: `repeat(${calendarWeekCount}, minmax(0, 1fr))`,
+                    minHeight: calendarWeekCount === 6 ? '32rem' : '28rem',
+                  }}
+                >
+                  {calendarDays.map((day, idx) => {
+                    const dayPosts = postsByDateKey[format(day, 'yyyy-MM-dd')] ?? [];
+                    const visiblePosts = dayPosts.slice(0, MOBILE_POSTS_PREVIEW_LIMIT);
+                    const remainingPostsCount = dayPosts.length - visiblePosts.length;
+                    const isCurrentMonth = isSameMonth(day, monthStart);
 
-                  return (
-                    <div
-                      key={idx}
-                      onClick={() => openAddModal(day)}
-                      onDragOver={handleDragOver}
-                      onDrop={(event) => void handleDrop(event, day)}
-                      className={cn(
-                        'h-[112px] border-b border-r border-gray-100 px-1 py-1.5 transition-colors group cursor-pointer hover:bg-gray-50/50',
-                        !isCurrentMonth && 'bg-gray-50/30'
-                      )}
-                    >
-                      <div className="mb-1 flex items-start justify-between gap-1">
-                        <div
-                          className={cn(
-                            'flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-medium',
-                            isSameDay(day, new Date())
-                              ? 'bg-brand text-white'
-                              : isCurrentMonth
-                              ? 'text-text-primary'
-                              : 'text-gray-300'
-                          )}
-                        >
-                          {format(day, 'd')}
+                    return (
+                      <div
+                        key={idx}
+                        onClick={() => openAddModal(day)}
+                        onDragOver={handleDragOver}
+                        onDrop={(event) => void handleDrop(event, day)}
+                        className={cn(
+                          'group flex min-h-0 cursor-pointer flex-col gap-1 bg-white/90 px-1.5 py-2 transition-colors active:scale-[0.995]',
+                          !isCurrentMonth && 'bg-slate-50/82',
+                          isSameDay(day, new Date()) && 'bg-[#F7FBFF]'
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-1">
+                          <div
+                            className={cn(
+                              'flex h-6 min-w-[1.5rem] items-center justify-center rounded-full px-1 text-[0.72rem] font-semibold',
+                              isSameDay(day, new Date())
+                                ? 'bg-brand text-white shadow-[0_10px_22px_rgba(56,182,255,0.32)]'
+                                : isCurrentMonth
+                                ? 'text-text-primary'
+                                : 'text-slate-300'
+                            )}
+                          >
+                            {format(day, 'd')}
+                          </div>
+
+                          {dayPosts.length > 0 ? (
+                            <span className="h-1.5 w-1.5 rounded-full bg-brand/55" />
+                          ) : null}
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            openAddModal(day);
-                          }}
-                          className="p-0.5 text-gray-300 transition-colors hover:text-brand"
-                          aria-label={`Adicionar post em ${format(day, 'dd/MM')}`}
-                        >
-                          <Plus className="h-2 w-2" />
-                        </button>
-                      </div>
+                        <div className="min-h-0 space-y-1 overflow-hidden">
+                          {visiblePosts.map((post) => (
+                            <button
+                              key={post.id}
+                              type="button"
+                              draggable
+                              onDragStart={(event) => handleDragStart(event, post.id)}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                openEditModal(post);
+                              }}
+                              className={cn(
+                                'flex w-full items-center gap-1 overflow-hidden rounded-md px-1.5 py-1 text-left text-[0.56rem] font-medium leading-[1.15] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.58)] active:cursor-grabbing',
+                                getMobilePostPillClass(post.status)
+                              )}
+                              aria-label={`Editar post ${post.title}`}
+                            >
+                              <span
+                                className={cn('h-1.5 w-1.5 shrink-0 rounded-full', getStatusDotClass(post.status))}
+                              />
+                              <span className="min-w-0 flex-1 truncate">{post.title}</span>
+                              {post.latestApprovalStatus ? (
+                                <span className="shrink-0 text-[0.48rem] font-semibold uppercase tracking-[0.16em] text-current/70">
+                                  {post.latestApprovalStatus === 'approved'
+                                    ? 'OK'
+                                    : post.latestApprovalStatus === 'changes_requested'
+                                    ? 'AJ'
+                                    : post.latestApprovalStatus === 'rejected'
+                                    ? 'NO'
+                                    : 'PD'}
+                                </span>
+                              ) : null}
+                            </button>
+                          ))}
 
-                      <div className="space-y-[3px]">
-                        {visiblePosts.map((post) => (
-                          <button
-                            key={post.id}
-                            type="button"
-                            draggable
-                            onDragStart={(event) => handleDragStart(event, post.id)}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              openEditModal(post);
-                            }}
-                            className={cn(
-                              'flex h-5 w-full items-center gap-1 overflow-hidden rounded-full px-1.5 text-left text-[10px] leading-none active:cursor-grabbing',
-                              getMobilePostPillClass(post.status)
-                            )}
-                            aria-label={`Editar post ${post.title}`}
-                          >
-                            <CalendarIcon className="h-2.5 w-2.5 shrink-0 opacity-90" />
-                            <span className="min-w-0 truncate whitespace-nowrap font-medium">
-                              {post.title}
-                            </span>
-                            {post.latestApprovalStatus ? (
-                              <span className="shrink-0 rounded-full bg-white/20 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide">
-                                {post.latestApprovalStatus === 'approved'
-                                  ? 'OK'
-                                  : post.latestApprovalStatus === 'changes_requested'
-                                  ? 'Aj'
-                                  : post.latestApprovalStatus === 'rejected'
-                                  ? 'No'
-                                  : 'Pd'}
-                              </span>
-                            ) : null}
-                          </button>
-                        ))}
-
-                        {remainingPostsCount > 0 ? (
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              openAddModal(day);
-                            }}
-                            className="block w-full truncate px-1 text-left text-[8px] leading-none font-medium text-text-secondary"
-                          >
-                            +{remainingPostsCount}
-                          </button>
-                        ) : null}
+                          {remainingPostsCount > 0 ? (
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                openAddModal(day);
+                              }}
+                              className="block w-full rounded-md bg-slate-100/90 px-1.5 py-1 text-left text-[0.56rem] font-semibold text-slate-500"
+                            >
+                              +{remainingPostsCount} itens
+                            </button>
+                          ) : null}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          )}
-        </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => openAddModal()}
+            className="absolute bottom-0 right-2 flex h-14 w-14 items-center justify-center rounded-full bg-[linear-gradient(135deg,#38B6FF_0%,#2DA1E6_100%)] text-white shadow-[0_22px_35px_rgba(56,182,255,0.34)] transition-transform active:scale-[0.96]"
+            aria-label="Agendar post"
+            data-tour-id="calendar-add-button"
+          >
+            <Plus className="h-6 w-6" />
+          </button>
+        </section>
       ) : (
         <Card padding="none">
           <div className="flex items-center justify-between border-b border-gray-200 p-4">
             <h2 className="text-lg font-bold text-text-primary">
-              {format(currentDate, 'MMMM yyyy')}
+              {monthYearLabel}
             </h2>
             <div className="flex items-center gap-2">
               <button onClick={prevMonth} className="rounded-lg p-2 hover:bg-gray-100 transition-colors">
@@ -1054,7 +1127,7 @@ export const EditorialCalendar = () => {
 
               <div className="grid grid-cols-7">
                 {calendarDays.map((day, idx) => {
-                  const dayPosts = posts.filter((post) => isSameDay(post.scheduledDate, day));
+                  const dayPosts = postsByDateKey[format(day, 'yyyy-MM-dd')] ?? [];
                   const isCurrentMonth = isSameMonth(day, monthStart);
 
                   return (
