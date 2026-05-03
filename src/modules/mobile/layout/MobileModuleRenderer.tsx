@@ -33,11 +33,9 @@ export const MobileModuleRenderer = () => {
       return <IdeasMobile />;
     case 'calendar':
       return (
-        <MobilePage className="max-w-none gap-4 px-2 pb-40 pt-5">
-          <div className="posthub-mobile-fallback">
-            <ModuleRenderer />
-          </div>
-        </MobilePage>
+        <div className="pb-40 pt-1">
+          <ModuleRenderer />
+        </div>
       );
     default:
       return (

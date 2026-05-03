@@ -33,6 +33,7 @@ export const MobileWorkspaceLayout = () => {
   const moduleId = location.pathname.split('/')[2] || 'dashboard';
   const copy = TITLES[moduleId] || { title: 'PostHub', subtitle: 'Workspace mobile' };
   const shouldSuggestDesktop = !guidedFlow.isActive && !MOBILE_READY_MODULES.has(moduleId);
+  const isCalendarFocus = moduleId === 'calendar';
 
   React.useEffect(() => {
     if (!guidedFlow.isActive) {
@@ -82,6 +83,7 @@ export const MobileWorkspaceLayout = () => {
         subtitle={copy.subtitle}
         onOpenMenu={() => setIsMoreOpen(true)}
         onOpenProfiles={() => setIsProfileSheetOpen(true)}
+        variant={isCalendarFocus ? 'compact' : 'default'}
       />
       <main className="relative z-10 pb-[calc(6.5rem+env(safe-area-inset-bottom))]">
         <MobileModuleRenderer />
