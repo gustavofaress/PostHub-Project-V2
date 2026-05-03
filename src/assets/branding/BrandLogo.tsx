@@ -1,5 +1,4 @@
 import * as React from 'react';
-import logoIcon from '../../assets/branding/logo-icon.png';
 import logoFull from '../../assets/branding/logo-full-preto.png';
 
 type BrandLogoVariant = 'icon' | 'full';
@@ -19,7 +18,7 @@ export const BrandLogo = ({
     return (
       <div className={className}>
         <img
-          src={logoIcon}
+          src="/logo-icon.png"
           alt="PostHub"
           className={imgClassName || 'h-10 w-10 object-contain'}
         />

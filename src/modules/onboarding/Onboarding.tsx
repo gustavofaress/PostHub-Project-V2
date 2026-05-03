@@ -2,7 +2,6 @@ import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Rocket,
-  LayoutDashboard,
   Calendar,
   Zap,
   Lightbulb,
@@ -10,9 +9,11 @@ import {
   BookOpen,
   Trello,
   CheckCircle,
+  ArrowRight,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Card } from '../../shared/components/Card';
 import { Button } from '../../shared/components/Button';
 import { cn } from '../../shared/utils/cn';
 import { useApp } from '../../app/context/AppContext';
@@ -76,6 +77,22 @@ const CELEBRATION_CONFETTI = [
   { left: '90%', color: '#FBBF24', delay: 0.4, rotate: 22 },
 ] as const;
 
+const STEP_SHORT_LABELS: Record<GuidedFlowStepId, string> = {
+  references: 'Referências',
+  ideas: 'Ideias',
+  calendar: 'Calendário',
+  kanban: 'Produção',
+  approval: 'Aprovação',
+};
+
+const STEP_ACTION_LABELS: Record<GuidedFlowStepId, string> = {
+  references: 'Organizar referências',
+  ideas: 'Criar primeiras ideias',
+  calendar: 'Planejar no calendário',
+  kanban: 'Acompanhar produção',
+  approval: 'Revisar aprovações',
+};
+
 export const Onboarding = () => {
   const navigate = useNavigate();
   const { setActiveModule } = useApp();
@@ -99,6 +116,9 @@ export const Onboarding = () => {
   const [quizError, setQuizError] = React.useState('');
   const [quizStep, setQuizStep] = React.useState(-1);
   const [showCelebration, setShowCelebration] = React.useState(false);
+  const [expandedStepId, setExpandedStepId] = React.useState<GuidedFlowStepId | null>(
+    currentStep?.id ?? GUIDED_FLOW_STEPS[0].id
+  );
   const quizAutoAdvanceTimeoutRef = React.useRef<number | null>(null);
   const [quizAnswers, setQuizAnswers] = React.useState<QuizAnswers>({
     work_model: user?.onboarding?.work_model ?? '',
@@ -152,31 +172,33 @@ export const Onboarding = () => {
     };
   }, []);
 
+  React.useEffect(() => {
+    if (currentStep?.id) {
+      setExpandedStepId(currentStep.id);
+    }
+  }, [currentStep?.id]);
+
   const shouldRenderQuiz = showQuiz && !quizDismissedLocally && !hasQuizCompleted;
 
   const currentQuestion = quizStep >= 0 ? QUIZ_QUESTIONS[quizStep] : null;
   const selectedOption = currentQuestion
     ? quizAnswers[currentQuestion.id as QuizAnswerKey]
     : null;
-
-  const getPersonalizedMessage = React.useCallback(() => {
-    if (
-      quizAnswers.operation_size === '11 a 20 clientes' ||
-      quizAnswers.operation_size === '20+ clientes'
-    ) {
-      return 'Montamos um fluxo pensado para quem gerencia múltiplos clientes.';
-    }
-
-    if (quizAnswers.work_model === 'Criador de Conteúdo Profissional') {
-      return 'Montamos um fluxo focado em acelerar sua produção de conteúdo.';
-    }
-
-    if (quizAnswers.work_model === 'Agência de Marketing') {
-      return 'Montamos um fluxo para dar mais clareza e escala à sua operação com clientes.';
-    }
-
-    return 'Montamos um fluxo passo a passo para estruturar sua operação.';
-  }, [quizAnswers.operation_size, quizAnswers.work_model]);
+  const firstName = user?.name?.trim().split(/\s+/)[0] || 'Usuário';
+  const remainingSteps = Math.max(steps.length - completedCount, 0);
+  const summaryMessage = currentStep
+    ? `Faltam ${remainingSteps} ${remainingSteps === 1 ? 'etapa' : 'etapas'} para concluir a configuração principal do seu workspace.`
+    : 'Todos os passos principais do setup já foram concluídos.';
+  const journeyCards = [
+    {
+      id: 'dashboard' as const,
+      label: 'Meu PostHub',
+    },
+    ...GUIDED_FLOW_STEPS.map((step) => ({
+      id: step.id,
+      label: STEP_SHORT_LABELS[step.id],
+    })),
+  ];
 
   const handleOptionSelect = (option: string) => {
     if (!currentQuestion || isSavingQuiz || isTransitioningQuizStep) return;
@@ -228,23 +250,47 @@ export const Onboarding = () => {
     }
   };
 
+  const handlePrimaryAction = () => {
+    if (currentStep) {
+      continueJourney();
+      return;
+    }
+
+    setActiveModule('dashboard');
+    navigate('/workspace/dashboard');
+  };
+
+  const handleJourneyCardClick = (cardId: 'dashboard' | GuidedFlowStepId) => {
+    if (cardId === 'dashboard') {
+      setActiveModule('dashboard');
+      navigate('/workspace/dashboard');
+      return;
+    }
+
+    setExpandedStepId(cardId);
+
+    if (isCurrentStep(cardId) || isStepCompleted(cardId)) {
+      goToStep(cardId);
+    }
+  };
+
   return (
-    <div className="min-h-full bg-[#F9FAFB]">
+    <div className="min-h-full bg-[#F7FAFC]">
       <AnimatePresence>
         {shouldRenderQuiz && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm"
           >
             <motion.div
               initial={{ scale: 0.96, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.96, opacity: 0 }}
-              className="max-h-[calc(100vh-2rem)] w-full max-w-[480px] overflow-y-auto rounded-xl bg-white shadow-2xl"
+              className="max-h-[calc(100vh-2rem)] w-full max-w-[560px] overflow-y-auto rounded-[32px] border border-[#D7E7F6] bg-[linear-gradient(180deg,#ffffff_0%,#f7fbff_100%)] shadow-[0_24px_80px_rgba(15,23,42,0.18)]"
             >
-              <div className="h-1.5 w-full bg-gray-100">
+              <div className="h-1.5 w-full bg-[#E8F3FC]">
                 <div
                   className="h-full bg-[#38B6FF] transition-all duration-500 ease-out"
                   style={{
@@ -256,31 +302,34 @@ export const Onboarding = () => {
                 />
               </div>
 
-              <div className="p-8">
+              <div className="p-6 sm:p-8">
                 {quizStep === -1 ? (
                   <motion.div
                     key="intro"
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
-                    className="space-y-6 py-4 text-center"
+                    className="space-y-6 py-2 text-center sm:py-4"
                   >
-                    <div className="mx-auto mb-2 inline-flex h-20 w-20 items-center justify-center rounded-full bg-[#38B6FF]/10 text-[#38B6FF]">
+                    <div className="mx-auto mb-2 inline-flex h-20 w-20 items-center justify-center rounded-[28px] bg-[linear-gradient(180deg,rgba(56,182,255,0.16)_0%,rgba(56,182,255,0.06)_100%)] text-[#38B6FF] shadow-[0_18px_45px_rgba(56,182,255,0.16)]">
                       <Rocket className="h-10 w-10" />
                     </div>
 
                     <div className="space-y-3">
-                      <span className="text-xs font-bold uppercase tracking-wider text-[#38B6FF]">
-                        Configuração inicial
+                      <span className="text-xs font-bold uppercase tracking-[0.24em] text-[#38B6FF]">
+                        Guia de configuração
                       </span>
-                      <h2 className="text-2xl font-bold leading-tight text-[#111827]">
-                        Queremos preparar a melhor experiência para o seu PostHub
+                      <h2 className="text-2xl font-bold leading-tight text-[#111827] sm:text-[2rem]">
+                        Vamos preparar o seu workspace para o fluxo da PostHub
                       </h2>
-                      <p className="text-[#6B7280]">Leva menos de 2 minutos</p>
+                      <p className="mx-auto max-w-sm text-[#6B7280]">
+                        Responda algumas perguntas rápidas para deixar o checklist inicial mais
+                        alinhado ao seu cenário.
+                      </p>
                     </div>
 
                     <Button
-                      className="mt-8 w-full rounded-xl bg-[#38B6FF] py-6 text-lg text-white hover:bg-[#38B6FF]/90"
+                      className="mt-4 w-full rounded-2xl bg-[#38B6FF] py-6 text-lg text-white shadow-[0_18px_40px_rgba(56,182,255,0.24)] hover:bg-[#38B6FF]/90"
                       onClick={() => setQuizStep(0)}
                     >
                       Começar
@@ -296,7 +345,7 @@ export const Onboarding = () => {
                       <p className="mb-2 text-sm font-medium text-gray-500">
                         Etapa {quizStep + 1} de {QUIZ_QUESTIONS.length}
                       </p>
-                      <h2 className="text-2xl font-bold text-[#111827]">
+                      <h2 className="text-2xl font-bold text-[#111827] sm:text-[2rem]">
                         {currentQuestion?.title}
                       </h2>
                     </div>
@@ -321,10 +370,10 @@ export const Onboarding = () => {
                                 onClick={() => handleOptionSelect(option)}
                                 disabled={isSavingQuiz || isTransitioningQuizStep}
                                 className={cn(
-                                  'w-full rounded-lg border px-5 py-4 text-left transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-70',
+                                  'w-full rounded-2xl border px-5 py-4 text-left transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-70',
                                   isSelected
-                                    ? 'border-[#38B6FF] bg-[#38B6FF]/5'
-                                    : 'border-gray-200 bg-white hover:border-[#38B6FF]'
+                                    ? 'border-[#38B6FF] bg-[#38B6FF]/6 shadow-[0_12px_30px_rgba(56,182,255,0.1)]'
+                                    : 'border-[#D8E8F5] bg-white/90 hover:border-[#38B6FF]'
                                 )}
                               >
                                 <span
@@ -343,7 +392,7 @@ export const Onboarding = () => {
                     </div>
 
                     {quizError && (
-                      <div className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                      <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
                         {quizError}
                       </div>
                     )}
@@ -355,7 +404,7 @@ export const Onboarding = () => {
                         className="mt-8 border-t border-gray-100 pt-6"
                       >
                         <Button
-                          className="w-full rounded-xl bg-[#38B6FF] py-6 text-lg text-white hover:bg-[#38B6FF]/90"
+                          className="w-full rounded-2xl bg-[#38B6FF] py-6 text-lg text-white shadow-[0_18px_40px_rgba(56,182,255,0.24)] hover:bg-[#38B6FF]/90"
                           disabled={!selectedOption || isSavingQuiz}
                           isLoading={isSavingQuiz}
                           onClick={handleFinishQuiz}
@@ -449,146 +498,212 @@ export const Onboarding = () => {
         )}
       </AnimatePresence>
 
-      <div className="mx-auto max-w-4xl space-y-8 px-4 py-12">
-        <div className="space-y-4 text-center">
-          <div className="mb-2 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-[#38B6FF]/10 text-[#38B6FF]">
-            <Rocket className="h-8 w-8" />
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">
-            Vamos montar sua operação de conteúdo
+      <div className="mx-auto max-w-[1120px] space-y-5 px-3 py-4 sm:px-5 sm:py-6">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-[24px] bg-[#EEF2F6] px-4 py-5 sm:px-5 sm:py-6"
+        >
+          <h1 className="text-[1.9rem] font-semibold tracking-[-0.03em] text-[#1E293B] sm:text-[2.2rem]">
+            Bem-vindo, {firstName}!
           </h1>
-          <p className="mx-auto max-w-2xl text-lg text-gray-500">
-            Siga estes passos para configurar seu workspace e aprender a usar o PostHub
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 sm:text-[0.98rem]">
+            {summaryMessage}
           </p>
-          <div className="flex justify-center">
-            <Button
-              data-tour-id="setup-guide-start-button"
-              className="rounded-xl bg-[#38B6FF] px-6 py-3 text-white hover:bg-[#38B6FF]/90"
-              onClick={() => {
-                if (currentStep) {
-                  continueJourney();
-                  return;
-                }
+        </motion.div>
 
-                setActiveModule('dashboard');
-                navigate('/workspace/dashboard');
-              }}
-            >
-              {currentStep ? `Continuar em ${currentStep.title}` : 'Ir para dashboard'}
-            </Button>
-          </div>
-        </div>
-
-        {!shouldRenderQuiz && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-start gap-4 rounded-xl border border-[#38B6FF]/20 bg-[#38B6FF]/5 p-4"
-          >
-            <div className="mt-0.5 shrink-0 rounded-lg bg-[#38B6FF]/10 p-2 text-[#38B6FF]">
-              <Zap className="h-5 w-5" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900">Personalizado para você</h3>
-              <p className="mt-1 text-sm text-gray-600">{getPersonalizedMessage()}</p>
-            </div>
-          </motion.div>
-        )}
-
-        <Card className="p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-gray-900">Seu progresso</h2>
-            <span className="text-sm font-medium text-[#38B6FF]">
-              {completedCount}/{steps.length} etapas concluídas
-            </span>
-          </div>
-
-          <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
-            <div
-              className="h-full rounded-full bg-[#38B6FF] transition-all duration-500 ease-out"
-              style={{ width: `${(completedCount / steps.length) * 100}%` }}
-            />
-          </div>
-        </Card>
-
-        <div className="space-y-4">
-          {GUIDED_FLOW_STEPS.map((step) => {
-            const isCompleted = isStepCompleted(step.id);
-            const isNext = isCurrentStep(step.id);
-            const StepIcon = STEP_ICONS[step.id];
-
-            return (
-              <Card
-                key={step.id}
-                className={cn(
-                  'p-6 transition-all duration-300',
-                  isCompleted
-                    ? 'border-gray-200 bg-gray-50/50'
-                    : isNext
-                      ? 'border-[#38B6FF] shadow-md shadow-[#38B6FF]/5'
-                      : 'opacity-75'
-                )}
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="overflow-hidden rounded-[24px] border border-[#E6ECF2] bg-white shadow-[0_10px_30px_rgba(15,23,42,0.04)]"
+        >
+          <div className="px-4 py-5 sm:px-5">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-[1.15rem] font-semibold text-[#1E293B] sm:text-[1.2rem]">
+                Minha Jornada
+              </h2>
+              <Button
+                data-tour-id="setup-guide-start-button"
+                className="rounded-xl bg-[#38B6FF] px-4 text-white hover:bg-[#38B6FF]/90"
+                onClick={handlePrimaryAction}
               >
-                <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
-                  <div className="flex flex-1 items-center gap-4">
+                {currentStep ? 'Continuar' : 'Dashboard'}
+              </Button>
+            </div>
+
+            <div className="mt-4 flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-3 sm:overflow-visible xl:grid-cols-6">
+              {journeyCards.map((card) => {
+                const isDashboardCard = card.id === 'dashboard';
+                const isActiveCard = isDashboardCard ? !currentStep : currentStep?.id === card.id;
+
+                return (
+                  <button
+                    key={card.id}
+                    type="button"
+                    onClick={() => handleJourneyCardClick(card.id)}
+                    className={cn(
+                      'min-w-[168px] rounded-[18px] border bg-white px-4 py-4 text-left transition-colors sm:min-w-0',
+                      isActiveCard
+                        ? 'border-[#CBE8FB] bg-[#FBFDFF]'
+                        : 'border-[#E8EDF3] hover:border-[#D9EAF8]'
+                    )}
+                  >
                     <div
                       className={cn(
-                        'flex h-12 w-12 shrink-0 items-center justify-center rounded-full transition-colors',
-                        isCompleted
-                          ? 'bg-green-100 text-green-600'
-                          : isNext
-                            ? 'bg-[#38B6FF]/10 text-[#38B6FF]'
-                            : 'bg-gray-100 text-gray-400'
+                        'flex h-11 w-11 items-center justify-center rounded-full border',
+                        isActiveCard
+                          ? 'border-[#D6EEFD] bg-[#EAF6FE] text-[#38B6FF]'
+                          : 'border-[#E5EAF0] bg-[#FAFBFC] text-slate-400'
                       )}
                     >
-                      {isCompleted ? (
-                        <Check className="h-6 w-6" />
+                      {isDashboardCard ? (
+                        <img
+                          src="/logo-icon.png"
+                          alt="PostHub"
+                          className="h-5 w-5 object-contain"
+                        />
                       ) : (
-                        <StepIcon className="h-6 w-6" />
+                        React.createElement(STEP_ICONS[card.id], { className: 'h-5 w-5' })
                       )}
                     </div>
 
-                    <div>
-                      <h3
-                        className={cn(
-                          'text-lg font-bold',
-                          isCompleted ? 'text-gray-500 line-through' : 'text-gray-900'
-                        )}
-                      >
-                        {step.title}
-                      </h3>
-                      <p className="mt-1 text-gray-500">{step.description}</p>
-                    </div>
-                  </div>
+                    <p
+                      className={cn(
+                        'mt-5 text-sm font-medium',
+                        isActiveCard ? 'text-[#2C89C8]' : 'text-slate-500'
+                      )}
+                    >
+                      {card.label}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </motion.section>
 
-                  <div className="sm:shrink-0">
-                    {isCompleted ? (
-                      <Button
-                        variant="outline"
-                        className="w-full border-green-200 text-green-600 hover:bg-green-50 sm:w-auto"
+        <motion.section
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="overflow-hidden rounded-[24px] border border-[#E6ECF2] bg-white shadow-[0_10px_30px_rgba(15,23,42,0.04)]"
+        >
+          <div className="border-b border-[#E9EEF4] px-4 py-5 sm:px-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-[1.25rem] font-semibold text-[#1E293B]">Fluxo do Workspace</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Abra os módulos na ordem recomendada para concluir sua configuração.
+                </p>
+              </div>
+
+              <div className="inline-flex items-center justify-center rounded-full border border-[#D7E7F6] bg-[#F7FBFE] px-4 py-2 text-sm font-medium text-[#2C89C8]">
+                <Zap className="mr-2 h-4 w-4" />
+                {completedCount}/{steps.length} passos completos
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3 bg-white px-3 py-3 sm:px-4 sm:py-4">
+            {GUIDED_FLOW_STEPS.map((step) => {
+              const isCompleted = isStepCompleted(step.id);
+              const isNext = isCurrentStep(step.id);
+              const isExpanded = expandedStepId === step.id;
+              const canOpenModule = isCompleted || isNext;
+              const completedStepsLabel = `${isCompleted ? 1 : 0}/1 passo completo`;
+              const StepIcon = STEP_ICONS[step.id];
+
+              return (
+                <div
+                  key={step.id}
+                  className="overflow-hidden rounded-[18px] border border-[#E8EDF3] bg-white"
+                >
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setExpandedStepId((prev) => (prev === step.id ? null : step.id))
+                    }
+                    className="flex w-full items-center justify-between gap-4 px-4 py-4 text-left sm:px-5"
+                  >
+                    <span className="text-[1rem] font-semibold text-[#2C89C8] sm:text-[1.05rem]">
+                      {step.title}
+                    </span>
+
+                    <span className="flex items-center gap-3">
+                      <span className="hidden rounded-full border border-[#E6EBF1] bg-[#F8FAFC] px-3 py-1 text-xs font-medium text-slate-500 sm:inline-flex">
+                        {completedStepsLabel}
+                      </span>
+                      {isExpanded ? (
+                        <ChevronUp className="h-4 w-4 text-slate-400" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-slate-400" />
+                      )}
+                    </span>
+                  </button>
+
+                  {isExpanded ? (
+                    <div className="border-t border-[#EDF2F7] bg-white px-4 py-4 sm:px-5">
+                      <button
+                        type="button"
+                        disabled={!canOpenModule}
                         onClick={() => goToStep(step.id)}
-                      >
-                        Revisar etapa
-                      </Button>
-                    ) : (
-                      <Button
                         className={cn(
-                          'w-full sm:w-auto',
-                          isNext ? 'bg-[#38B6FF] text-white hover:bg-[#38B6FF]/90' : ''
+                          'flex w-full items-center justify-between gap-4 rounded-[16px] border px-4 py-4 text-left transition-colors',
+                          canOpenModule
+                            ? 'border-[#EDF2F7] bg-[#FBFCFD] hover:border-[#D9EAF8]'
+                            : 'border-[#EDF2F7] bg-[#FBFCFD] text-slate-400'
                         )}
-                        variant={isNext ? 'primary' : 'outline'}
-                        disabled={!isNext}
-                        onClick={() => goToStep(step.id)}
                       >
-                        {isNext ? 'Abrir etapa' : 'Aguardando etapa anterior'}
-                      </Button>
-                    )}
-                  </div>
+                        <div className="flex min-w-0 items-start gap-3">
+                          <div
+                            className={cn(
+                              'mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full',
+                              isCompleted
+                                ? 'bg-[#EAF7EF] text-[#2E9B5F]'
+                                : isNext
+                                  ? 'bg-[#EAF6FE] text-[#38B6FF]'
+                                  : 'bg-[#F1F5F9] text-slate-400'
+                            )}
+                          >
+                            {isCompleted ? (
+                              <Check className="h-4 w-4" />
+                            ) : (
+                              <StepIcon className="h-4 w-4" />
+                            )}
+                          </div>
+
+                          <div className="min-w-0">
+                            <p
+                              className={cn(
+                                'text-[0.98rem] font-semibold',
+                                canOpenModule ? 'text-[#2C89C8]' : 'text-slate-400'
+                              )}
+                            >
+                              {STEP_ACTION_LABELS[step.id]}
+                            </p>
+                            <p className="mt-1 text-sm leading-6 text-slate-600">
+                              {step.description}
+                            </p>
+                          </div>
+                        </div>
+
+                        <span
+                          className={cn(
+                            'flex h-10 w-10 shrink-0 items-center justify-center rounded-full border',
+                            canOpenModule
+                              ? 'border-[#D9EAF8] bg-white text-[#38B6FF]'
+                              : 'border-[#E8EDF3] bg-[#F8FAFC] text-slate-300'
+                          )}
+                        >
+                          <ArrowRight className="h-4 w-4" />
+                        </span>
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
-              </Card>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        </motion.section>
       </div>
     </div>
   );
