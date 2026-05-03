@@ -8,9 +8,10 @@ import { MobileProfileSheet } from '../components/MobileProfileSheet';
 import { MobileModuleRenderer } from './MobileModuleRenderer';
 
 const DESKTOP_RECOMMENDATION_KEY = 'posthub_mobile_desktop_recommendation_seen';
-const MOBILE_READY_MODULES = new Set(['dashboard', 'ideas', 'calendar']);
+const MOBILE_READY_MODULES = new Set(['dashboard', 'ideas', 'calendar', 'onboarding']);
 
 const TITLES: Record<string, { title: string; subtitle?: string }> = {
+  onboarding: { title: 'Guia de Configuração', subtitle: 'Checklist inicial do workspace' },
   dashboard: { title: 'Dashboard', subtitle: 'Visão rápida do dia' },
   ideas: { title: 'Ideias', subtitle: 'Capture e priorize' },
   approval: { title: 'Aprovação', subtitle: 'Decisões rápidas' },

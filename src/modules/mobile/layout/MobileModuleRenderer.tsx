@@ -19,6 +19,14 @@ export const MobileModuleRenderer = () => {
   );
 
   switch (activeModule) {
+    case 'onboarding':
+      return (
+        <MobilePage className="max-w-none gap-4 px-2 pb-40 pt-5">
+          <div className="posthub-mobile-fallback">
+            <ModuleRenderer />
+          </div>
+        </MobilePage>
+      );
     case 'dashboard':
       return <DashboardMobile />;
     case 'ideas':
