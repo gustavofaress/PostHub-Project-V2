@@ -19,8 +19,9 @@ import {
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Button } from '../shared/components/Button';
-import { STRIPE_PAYMENT_LINKS, type PlanId } from '../shared/constants/plans';
+import { buildPlanPaymentLink, type PlanId } from '../shared/constants/plans';
 import { trackMetaEvent } from '../services/meta-conversions.service';
+import { affiliateAttributionService } from '../services/affiliate-attribution.service';
 
 type LandingModule = {
   id: string;
@@ -374,6 +375,9 @@ export const LandingPage = () => {
   const [activeModuleId, setActiveModuleId] = React.useState(modules[0].id);
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [isScrolled, setIsScrolled] = React.useState(false);
+  const affiliateCode = affiliateAttributionService.getSnapshot().affiliateCode;
+  const signupPath = affiliateAttributionService.buildPath('/signup', affiliateCode);
+  const loginPath = affiliateAttributionService.buildPath('/login', affiliateCode);
 
   React.useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -440,7 +444,7 @@ export const LandingPage = () => {
           </nav>
 
           <div className="hidden items-center gap-3 md:flex">
-            <Link to="/login">
+            <Link to={loginPath}>
               <Button
                 variant="ghost"
                 className="rounded-full px-5 text-sm text-white/70 hover:bg-white/6 hover:text-white"
@@ -448,7 +452,7 @@ export const LandingPage = () => {
                 Login
               </Button>
             </Link>
-            <Link to="/signup">
+            <Link to={signupPath}>
               <Button className="rounded-full px-6 text-sm font-semibold shadow-[0_18px_34px_rgba(56,182,255,0.28)]">
                 Testar gratis
               </Button>
@@ -487,7 +491,7 @@ export const LandingPage = () => {
 
                 <div className="my-2 h-px bg-white/10" />
 
-                <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
+                <Link to={loginPath} onClick={() => setMobileMenuOpen(false)}>
                   <Button
                     variant="secondary"
                     className="w-full rounded-2xl border-white/10 bg-white/5 text-sm text-white hover:bg-white/10"
@@ -495,7 +499,7 @@ export const LandingPage = () => {
                     Login
                   </Button>
                 </Link>
-                <Link to="/signup" onClick={() => setMobileMenuOpen(false)}>
+                <Link to={signupPath} onClick={() => setMobileMenuOpen(false)}>
                   <Button className="mt-2 w-full rounded-2xl text-sm font-semibold">
                     Testar gratis
                   </Button>
@@ -544,7 +548,7 @@ export const LandingPage = () => {
               </div>
 
               <div className="mt-10 flex flex-col justify-center gap-3 sm:flex-row sm:items-center">
-                <Link to="/signup">
+                <Link to={signupPath}>
                   <Button
                     size="lg"
                     className="flex w-full items-center justify-center gap-2 rounded-full px-8 shadow-[0_20px_40px_rgba(56,182,255,0.3)] sm:w-auto"
@@ -693,7 +697,7 @@ export const LandingPage = () => {
                     </div>
 
                     <div className="mt-10 flex flex-col gap-3 sm:flex-row">
-                      <Link to="/signup">
+                      <Link to={signupPath}>
                         <Button className="w-full rounded-full px-7 text-sm font-semibold sm:w-auto">
                           Testar o fluxo completo
                         </Button>
@@ -766,7 +770,7 @@ export const LandingPage = () => {
               <p className="max-w-2xl text-sm leading-7 text-white/66 md:text-base">
                 O resultado e um fluxo que fica mais facil de operar, revisar e escalar ao longo das semanas.
               </p>
-              <Link to="/signup" className="mt-4 inline-flex md:mt-0">
+              <Link to={signupPath} className="mt-4 inline-flex md:mt-0">
                 <Button className="rounded-full px-6 text-sm font-semibold">
                   Criar workspace gratis
                 </Button>
@@ -837,7 +841,7 @@ export const LandingPage = () => {
                   </div>
 
                   <a
-                    href={STRIPE_PAYMENT_LINKS[plan.id]}
+                    href={buildPlanPaymentLink(plan.id, { affiliateCode })}
                     rel="noreferrer"
                     onClick={() => handleCheckoutClick(plan)}
                     className={`inline-flex w-full items-center justify-center gap-2 rounded-full px-5 py-3.5 text-sm font-semibold transition-all ${
@@ -893,12 +897,12 @@ export const LandingPage = () => {
                 </div>
 
                 <div className="flex flex-col gap-3 sm:flex-row">
-                  <Link to="/signup">
+                  <Link to={signupPath}>
                     <Button className="w-full rounded-full px-7 text-sm font-semibold shadow-[0_18px_35px_rgba(56,182,255,0.24)] sm:w-auto">
                       Comecar teste gratis
                     </Button>
                   </Link>
-                  <Link to="/login">
+                  <Link to={loginPath}>
                     <Button
                       variant="secondary"
                       className="w-full rounded-full border-white/12 bg-white/8 px-7 text-sm text-white hover:bg-white/14 sm:w-auto"

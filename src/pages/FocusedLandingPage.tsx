@@ -17,6 +17,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { BrandLogo } from '../assets/branding/BrandLogo';
+import { affiliateAttributionService } from '../services/affiliate-attribution.service';
 
 type SystemCard = {
   title: string;
@@ -158,9 +159,17 @@ const SectionHeading = ({
   </div>
 );
 
-const PrimaryButton = ({ children, className }: { children: React.ReactNode; className?: string }) => (
+const PrimaryButton = ({
+  children,
+  className,
+  to,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  to: string;
+}) => (
   <Link
-    to="/signup"
+    to={to}
     className={cx(
       'inline-flex min-h-[52px] items-center justify-center gap-2 rounded-xl bg-[#38B6FF] px-7 py-3 text-base font-bold text-white shadow-[0_18px_36px_rgba(56,182,255,0.28)] transition-all hover:-translate-y-0.5 hover:bg-[#229ee8] hover:shadow-[0_22px_42px_rgba(56,182,255,0.34)] focus:outline-none focus:ring-2 focus:ring-[#38B6FF]/40 focus:ring-offset-2',
       className
@@ -303,6 +312,10 @@ const FeatureSection = ({ item }: { item: FeatureBlock }) => (
 );
 
 export const FocusedLandingPage = () => {
+  const affiliateCode = affiliateAttributionService.getSnapshot().affiliateCode;
+  const signupPath = affiliateAttributionService.buildPath('/signup', affiliateCode);
+  const loginPath = affiliateAttributionService.buildPath('/login', affiliateCode);
+
   return (
     <div className="min-h-screen overflow-x-hidden bg-white text-[#050505] selection:bg-[#38B6FF] selection:text-white">
       <header className="bg-white px-5 pb-3 pt-8 sm:px-6 lg:px-8">
@@ -327,7 +340,7 @@ export const FocusedLandingPage = () => {
               toda sua operação digital.
             </p>
             <div className="mt-8 flex justify-center">
-              <PrimaryButton>Teste grátis</PrimaryButton>
+              <PrimaryButton to={signupPath}>Teste grátis</PrimaryButton>
             </div>
           </div>
         </section>
@@ -370,7 +383,7 @@ export const FocusedLandingPage = () => {
                 ))}
               </div>
               <div className="mt-8">
-                <PrimaryButton>Começar agora</PrimaryButton>
+                <PrimaryButton to={signupPath}>Começar agora</PrimaryButton>
               </div>
             </div>
           </div>
@@ -432,7 +445,7 @@ export const FocusedLandingPage = () => {
               <BrowserMockup image="/performance.png" alt="Dashboard de performance da PostHub" className="relative" />
             </div>
             <div className="mt-10">
-              <PrimaryButton>Começar teste grátis</PrimaryButton>
+              <PrimaryButton to={signupPath}>Começar teste grátis</PrimaryButton>
             </div>
           </div>
         </section>
@@ -442,10 +455,10 @@ export const FocusedLandingPage = () => {
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 text-center sm:flex-row sm:text-left">
           <p className="text-sm text-[#64748B]">PostHub - gestão de conteúdo com organização, clareza e controle.</p>
           <div className="flex items-center gap-4 text-sm font-semibold text-[#64748B]">
-            <Link to="/login" className="transition-colors hover:text-[#050505]">
+            <Link to={loginPath} className="transition-colors hover:text-[#050505]">
               Entrar
             </Link>
-            <Link to="/signup" className="text-[#38B6FF] transition-colors hover:text-[#229ee8]">
+            <Link to={signupPath} className="text-[#38B6FF] transition-colors hover:text-[#229ee8]">
               Teste grátis
             </Link>
           </div>
@@ -453,7 +466,7 @@ export const FocusedLandingPage = () => {
       </footer>
 
       <Link
-        to="/signup"
+        to={signupPath}
         className="fixed inset-x-4 bottom-4 z-40 inline-flex min-h-[52px] items-center justify-center gap-2 rounded-xl bg-[#38B6FF] px-5 text-base font-bold text-white shadow-[0_18px_36px_rgba(56,182,255,0.34)] md:hidden"
       >
         Teste grátis

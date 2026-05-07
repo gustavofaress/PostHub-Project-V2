@@ -1,4 +1,5 @@
 import { supabase } from '../shared/utils/supabase';
+import { buildAppUrl } from '../shared/utils/appUrl';
 
 export interface AdminDashboardUserRow {
   id: string;
@@ -9,6 +10,14 @@ export interface AdminDashboardUserRow {
   trial_expires_at: string | null;
   is_admin: boolean | null;
   created_at: string | null;
+  is_affiliate_partner: boolean | null;
+  affiliate_code: string | null;
+  affiliate_commission_percent: number | null;
+  affiliate_access_granted_at: string | null;
+  referred_by_affiliate_user_id: string | null;
+  referred_by_affiliate_code: string | null;
+  affiliate_attributed_at: string | null;
+  affiliate_locked_at: string | null;
 }
 
 export interface AdminDashboardOnboardingRow {
@@ -56,6 +65,77 @@ export interface AdminDashboardUser {
   createdAt: string | null;
 }
 
+export interface AdminDashboardAffiliateCommissionRow {
+  id: string;
+  affiliate_user_id: string;
+  referred_user_id: string | null;
+  referred_user_email: string | null;
+  affiliate_code: string;
+  stripe_subscription_id: string;
+  stripe_invoice_id: string;
+  stripe_checkout_session_id: string | null;
+  plan_id: string | null;
+  currency: string | null;
+  gross_amount: number | null;
+  commission_percent: number | null;
+  commission_amount: number | null;
+  status: 'pending' | 'paid' | 'canceled';
+  first_paid_at: string | null;
+  paid_at: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface AdminDashboardAffiliatePartner {
+  id: string;
+  name: string;
+  email: string;
+  affiliateCode: string;
+  commissionPercent: number;
+  accessGrantedAt: string | null;
+  shareUrl: string;
+  attributedTrials: number;
+  paidCustomers: number;
+  grossRevenue: number;
+  pendingCommission: number;
+  paidCommission: number;
+}
+
+export interface AdminDashboardAffiliateCommission {
+  id: string;
+  affiliateUserId: string;
+  affiliateName: string;
+  affiliateEmail: string;
+  affiliateCode: string;
+  referredUserId: string | null;
+  referredUserName: string;
+  referredUserEmail: string;
+  planId: string | null;
+  currency: string;
+  grossAmount: number;
+  commissionPercent: number;
+  commissionAmount: number;
+  status: 'pending' | 'paid' | 'canceled';
+  firstPaidAt: string | null;
+  paidAt: string | null;
+  createdAt: string | null;
+}
+
+export interface AdminDashboardAffiliateMetrics {
+  activeAffiliates: number;
+  attributedTrials: number;
+  firstSalesPaid: number;
+  grossRevenue: number;
+  pendingCommission: number;
+  paidCommission: number;
+}
+
+export interface AdminDashboardAffiliateProgramData {
+  metrics: AdminDashboardAffiliateMetrics;
+  partners: AdminDashboardAffiliatePartner[];
+  commissions: AdminDashboardAffiliateCommission[];
+}
+
 export interface AdminDashboardLandingPageVisitRow {
   visit_id: string;
   landing_path: string | null;
@@ -86,6 +166,22 @@ export interface AdminPasswordResetLinkResult {
   maskedEmail: string;
   expiresAt: string;
   supportResetUrl: string;
+}
+
+export interface AdminUpsertAffiliatePartnerInput {
+  email: string;
+  affiliateCode: string;
+  commissionPercent?: number;
+  grantProductAccess?: boolean;
+}
+
+export interface AdminUpsertAffiliatePartnerResult {
+  userId: string;
+  email: string;
+  affiliateCode: string;
+  isAffiliatePartner: boolean;
+  affiliateCommissionPercent: number;
+  affiliateAccessGrantedAt: string | null;
 }
 
 export class AdminDashboardAccessError extends Error {
@@ -166,6 +262,7 @@ export const adminDashboardService = {
         const email = usuario.email?.trim().toLowerCase() ?? '';
         return (
           !usuario.is_admin &&
+          !usuario.is_affiliate_partner &&
           !workspaceMemberUserIds.has(usuario.id) &&
           (!email || !workspaceMemberEmails.has(email))
         );
@@ -208,6 +305,130 @@ export const adminDashboardService = {
 
         return bTime - aTime;
       });
+  },
+
+  async getAffiliateProgramData(): Promise<AdminDashboardAffiliateProgramData> {
+    if (!supabase) {
+      throw new AdminDashboardAccessError('Supabase não está configurado.');
+    }
+
+    const [
+      { data: usuariosData, error: usuariosError },
+      { data: commissionsData, error: commissionsError },
+    ] = await Promise.all([fetchAdminDashboardUsers(), fetchAffiliateCommissions()]);
+
+    if (usuariosError) {
+      throw mapAdminDashboardError(usuariosError);
+    }
+
+    if (commissionsError) {
+      throw mapAdminDashboardError(commissionsError);
+    }
+
+    const userRows = ((usuariosData as AdminDashboardUserRow[] | null) ?? []).filter(
+      (row) => !row.is_admin
+    );
+    const commissionsRows = (commissionsData as AdminDashboardAffiliateCommissionRow[] | null) ?? [];
+    const usersById = new Map(userRows.map((row) => [row.id, row]));
+
+    const commissions = commissionsRows
+      .map<AdminDashboardAffiliateCommission>((commission) => {
+        const affiliateUser = usersById.get(commission.affiliate_user_id);
+        const referredUser = commission.referred_user_id
+          ? usersById.get(commission.referred_user_id)
+          : null;
+
+        return {
+          id: commission.id,
+          affiliateUserId: commission.affiliate_user_id,
+          affiliateName: affiliateUser?.nome?.trim() || 'Afiliado sem nome',
+          affiliateEmail: affiliateUser?.email?.trim() || '-',
+          affiliateCode: commission.affiliate_code,
+          referredUserId: commission.referred_user_id,
+          referredUserName: referredUser?.nome?.trim() || 'Cliente sem nome',
+          referredUserEmail:
+            referredUser?.email?.trim() || commission.referred_user_email?.trim() || '-',
+          planId: commission.plan_id,
+          currency: commission.currency?.trim().toLowerCase() || 'brl',
+          grossAmount: safeNumber(commission.gross_amount),
+          commissionPercent: safeNumber(commission.commission_percent),
+          commissionAmount: safeNumber(commission.commission_amount),
+          status: commission.status,
+          firstPaidAt: commission.first_paid_at,
+          paidAt: commission.paid_at,
+          createdAt: commission.created_at,
+        };
+      })
+      .sort((firstCommission, secondCommission) => {
+        const firstTime = firstCommission.firstPaidAt
+          ? new Date(firstCommission.firstPaidAt).getTime()
+          : 0;
+        const secondTime = secondCommission.firstPaidAt
+          ? new Date(secondCommission.firstPaidAt).getTime()
+          : 0;
+
+        return secondTime - firstTime;
+      });
+
+    const partners = userRows
+      .filter((row) => row.is_affiliate_partner && row.affiliate_code)
+      .map<AdminDashboardAffiliatePartner>((partner) => {
+        const partnerCommissions = commissions.filter(
+          (commission) => commission.affiliateUserId === partner.id
+        );
+        const referredUsers = userRows.filter(
+          (row) => row.referred_by_affiliate_user_id === partner.id
+        );
+        const pendingCommission = partnerCommissions
+          .filter((commission) => commission.status === 'pending')
+          .reduce((total, commission) => total + commission.commissionAmount, 0);
+        const paidCommission = partnerCommissions
+          .filter((commission) => commission.status === 'paid')
+          .reduce((total, commission) => total + commission.commissionAmount, 0);
+        const grossRevenue = partnerCommissions.reduce(
+          (total, commission) => total + commission.grossAmount,
+          0
+        );
+
+        return {
+          id: partner.id,
+          name: partner.nome?.trim() || 'Afiliado sem nome',
+          email: partner.email?.trim() || '-',
+          affiliateCode: partner.affiliate_code?.trim() || '',
+          commissionPercent: safeNumber(partner.affiliate_commission_percent || 30),
+          accessGrantedAt: partner.affiliate_access_granted_at,
+          shareUrl: buildAppUrl(`/r/${partner.affiliate_code}`),
+          attributedTrials: referredUsers.length,
+          paidCustomers: partnerCommissions.length,
+          grossRevenue,
+          pendingCommission,
+          paidCommission,
+        };
+      })
+      .sort((firstPartner, secondPartner) => {
+        if (firstPartner.grossRevenue !== secondPartner.grossRevenue) {
+          return secondPartner.grossRevenue - firstPartner.grossRevenue;
+        }
+
+        return firstPartner.name.localeCompare(secondPartner.name, 'pt-BR');
+      });
+
+    return {
+      metrics: {
+        activeAffiliates: partners.length,
+        attributedTrials: partners.reduce((total, partner) => total + partner.attributedTrials, 0),
+        firstSalesPaid: commissions.length,
+        grossRevenue: commissions.reduce((total, commission) => total + commission.grossAmount, 0),
+        pendingCommission: commissions
+          .filter((commission) => commission.status === 'pending')
+          .reduce((total, commission) => total + commission.commissionAmount, 0),
+        paidCommission: commissions
+          .filter((commission) => commission.status === 'paid')
+          .reduce((total, commission) => total + commission.commissionAmount, 0),
+      },
+      partners,
+      commissions,
+    };
   },
 
   async getLandingPageMetrics(): Promise<AdminDashboardLandingPageMetrics> {
@@ -298,6 +519,70 @@ export const adminDashboardService = {
       supportResetUrl: data.supportResetUrl,
     };
   },
+
+  async upsertAffiliatePartner(
+    input: AdminUpsertAffiliatePartnerInput
+  ): Promise<AdminUpsertAffiliatePartnerResult> {
+    if (!supabase) {
+      throw new AdminDashboardAccessError('Supabase não está configurado.');
+    }
+
+    const { data, error } = await supabase.rpc('admin_upsert_affiliate_partner', {
+      p_email: input.email,
+      p_affiliate_code: input.affiliateCode,
+      p_commission_percent: input.commissionPercent ?? 30,
+      p_grant_product_access: input.grantProductAccess ?? true,
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    const row = Array.isArray(data) ? data[0] : data;
+
+    if (!row?.user_id || !row?.affiliate_code) {
+      throw new Error('O Supabase não retornou os dados do afiliado atualizado.');
+    }
+
+    return {
+      userId: row.user_id,
+      email: row.email,
+      affiliateCode: row.affiliate_code,
+      isAffiliatePartner: !!row.is_affiliate_partner,
+      affiliateCommissionPercent: safeNumber(row.affiliate_commission_percent || 30),
+      affiliateAccessGrantedAt: row.affiliate_access_granted_at ?? null,
+    };
+  },
+
+  async updateAffiliateCommissionStatus(
+    commissionId: string,
+    status: 'pending' | 'paid' | 'canceled'
+  ) {
+    if (!supabase) {
+      throw new AdminDashboardAccessError('Supabase não está configurado.');
+    }
+
+    const { data, error } = await supabase.rpc('admin_update_affiliate_commission_status', {
+      p_commission_id: commissionId,
+      p_status: status,
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    const row = Array.isArray(data) ? data[0] : data;
+
+    if (!row?.id) {
+      throw new Error('O Supabase não retornou a comissão atualizada.');
+    }
+
+    return {
+      id: row.id as string,
+      status: row.status as 'pending' | 'paid' | 'canceled',
+      paidAt: (row.paid_at as string | null) ?? null,
+    };
+  },
 };
 
 const THRU_PLAY_PERCENTAGE = 75;
@@ -315,9 +600,9 @@ const LANDING_PAGE_WINDOWS: Array<{
 
 async function fetchAdminDashboardUsers() {
   const queries = [
-    'id, nome, email, current_plan, trial_started_at, trial_expires_at, is_admin, created_at',
-    'id, nome, email, current_plan, trial_started_at, trial_expires_at, is_admin',
-    'id, nome, email, current_plan, trial_expires_at, is_admin',
+    'id, nome, email, current_plan, trial_started_at, trial_expires_at, is_admin, created_at, is_affiliate_partner, affiliate_code, affiliate_commission_percent, affiliate_access_granted_at, referred_by_affiliate_user_id, referred_by_affiliate_code, affiliate_attributed_at, affiliate_locked_at',
+    'id, nome, email, current_plan, trial_started_at, trial_expires_at, is_admin, is_affiliate_partner, affiliate_code, affiliate_commission_percent, affiliate_access_granted_at, referred_by_affiliate_user_id, referred_by_affiliate_code, affiliate_attributed_at, affiliate_locked_at',
+    'id, nome, email, current_plan, trial_expires_at, is_admin, is_affiliate_partner, affiliate_code, affiliate_commission_percent, affiliate_access_granted_at, referred_by_affiliate_user_id, referred_by_affiliate_code, affiliate_attributed_at, affiliate_locked_at',
   ];
 
   let lastResult: AdminDashboardQueryResult<AdminDashboardUserRow> | null = null;
@@ -393,6 +678,15 @@ async function fetchAdminDashboardOnboarding() {
       error: new Error('Não foi possível consultar o onboarding do Admin Dashboard.'),
     }
   );
+}
+
+async function fetchAffiliateCommissions() {
+  return (await supabase!
+    .from('affiliate_commissions')
+    .select(
+      'id, affiliate_user_id, referred_user_id, referred_user_email, affiliate_code, stripe_subscription_id, stripe_invoice_id, stripe_checkout_session_id, plan_id, currency, gross_amount, commission_percent, commission_amount, status, first_paid_at, paid_at, created_at, updated_at'
+    )
+    .order('first_paid_at', { ascending: false })) as AdminDashboardQueryResult<AdminDashboardAffiliateCommissionRow>;
 }
 
 async function fetchAdminDashboardWorkspaceMembers() {

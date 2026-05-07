@@ -8,6 +8,14 @@ export interface UsuarioRecord {
   trial_started_at: string | null;
   trial_expires_at: string | null;
   is_admin: boolean | null;
+  is_affiliate_partner: boolean | null;
+  affiliate_code: string | null;
+  affiliate_commission_percent: number | null;
+  affiliate_access_granted_at: string | null;
+  referred_by_affiliate_user_id: string | null;
+  referred_by_affiliate_code: string | null;
+  affiliate_attributed_at: string | null;
+  affiliate_locked_at: string | null;
 }
 
 export const userService = {
@@ -30,7 +38,15 @@ export const userService = {
           current_plan,
           trial_started_at,
           trial_expires_at,
-          is_admin
+          is_admin,
+          is_affiliate_partner,
+          affiliate_code,
+          affiliate_commission_percent,
+          affiliate_access_granted_at,
+          referred_by_affiliate_user_id,
+          referred_by_affiliate_code,
+          affiliate_attributed_at,
+          affiliate_locked_at
         `)
         .eq('id', userId)
         .maybeSingle();
@@ -52,7 +68,15 @@ export const userService = {
             current_plan,
             trial_started_at,
             trial_expires_at,
-            is_admin
+            is_admin,
+            is_affiliate_partner,
+            affiliate_code,
+            affiliate_commission_percent,
+            affiliate_access_granted_at,
+            referred_by_affiliate_user_id,
+            referred_by_affiliate_code,
+            affiliate_attributed_at,
+            affiliate_locked_at
           `)
           .eq('email', email)
           .maybeSingle();

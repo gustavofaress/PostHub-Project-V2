@@ -16,13 +16,14 @@ import { Button } from '../../shared/components/Button';
 import { Badge } from '../../shared/components/Badge';
 import { useAuth } from '../../app/context/AuthContext';
 import {
+  buildPlanPaymentLink,
   normalizePlan,
-  STRIPE_PAYMENT_LINKS,
   STRIPE_PRICE_IDS,
   type PlanId,
 } from '../../shared/constants/plans';
 import { trackMetaEvent } from '../../services/meta-conversions.service';
 import { cn } from '../../shared/utils/cn';
+import { affiliateAttributionService } from '../../services/affiliate-attribution.service';
 
 interface BillingPlan {
   id: PlanId;
@@ -139,6 +140,7 @@ export const Credits = () => {
   const { user } = useAuth();
   const currentPlan = normalizePlan(user?.currentPlan);
   const currentPlanLabel = formatCurrentPlan(user?.currentPlan);
+  const affiliateCode = affiliateAttributionService.getSnapshot().affiliateCode;
   const activePlan = currentPlan
     ? BILLING_PLANS.find((plan) => plan.id === currentPlan) ?? BILLING_PLANS[0]
     : null;
@@ -354,7 +356,11 @@ export const Credits = () => {
                 </div>
 
                 <a
-                  href={STRIPE_PAYMENT_LINKS[plan.id]}
+                  href={buildPlanPaymentLink(plan.id, {
+                    userId: user?.id,
+                    email: user?.email,
+                    affiliateCode,
+                  })}
                   rel="noreferrer"
                   onClick={() => handleCheckoutClick(plan)}
                   className={cn(
