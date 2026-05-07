@@ -43,6 +43,7 @@ interface User {
   notificationPreferences: UserNotificationPreferences;
   currentPlan?: string | null;
   isAdmin?: boolean;
+  isAffiliatePartner?: boolean;
   isWorkspaceMember?: boolean;
   isMemberOnlyAccount?: boolean;
   trialExpiresAt?: string | null;
@@ -182,6 +183,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ),
         currentPlan: mergedUser.currentPlan ?? 'start_7',
         isAdmin: !!mergedUser.isAdmin,
+        isAffiliatePartner: !!mergedUser.isAffiliatePartner,
         isWorkspaceMember: !!mergedUser.isWorkspaceMember,
         isMemberOnlyAccount: !!mergedUser.isMemberOnlyAccount,
         trialExpiresAt: mergedUser.trialExpiresAt ?? null,
@@ -208,6 +210,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ),
       currentPlan: null,
       isAdmin: false,
+      isAffiliatePartner: false,
       isWorkspaceMember: false,
       isMemberOnlyAccount: false,
       trialExpiresAt: null,
@@ -324,12 +327,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const hasWorkspaceMembership = !!workspaceMembership;
         const isMemberOnlyAccount = hasMemberAccountFlag && hasWorkspaceMembership;
         const isWorkspaceMember = !usuarioRecord?.is_admin && hasWorkspaceMembership;
+        const hasAffiliateProductAccess = !!usuarioRecord?.affiliate_access_granted_at;
+        const isAffiliatePartner = !!usuarioRecord?.is_affiliate_partner;
         const currentPlan = isMemberOnlyAccount
+          ? 'pro'
+          : hasAffiliateProductAccess
           ? 'pro'
           : usuarioRecord?.current_plan ?? (isWorkspaceMember ? 'pro' : null);
         const isAdmin = isMemberOnlyAccount ? false : !!usuarioRecord?.is_admin;
         const trialExpiresAt = isMemberOnlyAccount ? null : usuarioRecord?.trial_expires_at ?? null;
-        const accessStatus = isWorkspaceMember
+        const accessStatus = isWorkspaceMember || hasAffiliateProductAccess
           ? 'paid'
           : getAccessStatus({
               currentPlan,
@@ -357,6 +364,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             baseUser.email,
           currentPlan,
           isAdmin,
+          isAffiliatePartner,
           isWorkspaceMember,
           isMemberOnlyAccount,
           trialExpiresAt,
@@ -383,6 +391,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           ...baseUser,
           currentPlan: null,
           isAdmin: false,
+          isAffiliatePartner: false,
           isWorkspaceMember: false,
           isMemberOnlyAccount: false,
           trialExpiresAt: null,
@@ -548,6 +557,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           notificationPreferences: normalizeNotificationPreferences(),
           currentPlan: 'pro',
           isAdmin: false,
+          isAffiliatePartner: false,
           isWorkspaceMember: true,
           isMemberOnlyAccount: true,
           trialExpiresAt: null,
@@ -568,6 +578,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         notificationPreferences: normalizeNotificationPreferences(),
         currentPlan: 'start_7',
         isAdmin: false,
+        isAffiliatePartner: false,
         isWorkspaceMember: false,
         isMemberOnlyAccount: false,
         trialExpiresAt: null,
@@ -676,6 +687,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         notificationPreferences: normalizeNotificationPreferences(),
         currentPlan: 'start_7',
         isAdmin: false,
+        isAffiliatePartner: false,
         isWorkspaceMember: false,
         isMemberOnlyAccount: false,
         trialExpiresAt: null,

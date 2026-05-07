@@ -22,11 +22,13 @@ import { useAuth } from '../../app/context/AuthContext';
 import {
   adminDashboardService,
   AdminDashboardAccessError,
+  type AdminDashboardAffiliateProgramData,
   type AdminDashboardLandingPageMetrics,
   type AdminDashboardUser as UserData,
 } from '../../services/admin-dashboard.service';
 import { Button } from '../../shared/components/Button';
 import { Modal } from '../../shared/components/Modal';
+import { normalizeAffiliateCode } from '../../services/affiliate-attribution.service';
 
 const WORK_MODEL_OPTIONS = [
   'Social Media Autônomo',
@@ -320,11 +322,15 @@ export const AdminDashboard = () => {
   const { user } = useAuth();
 
   const [users, setUsers] = React.useState<UserData[]>([]);
+  const [affiliateProgramData, setAffiliateProgramData] =
+    React.useState<AdminDashboardAffiliateProgramData | null>(null);
   const [landingPageMetrics, setLandingPageMetrics] =
     React.useState<AdminDashboardLandingPageMetrics | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [isAffiliateProgramLoading, setIsAffiliateProgramLoading] = React.useState(true);
   const [isLandingAnalyticsLoading, setIsLandingAnalyticsLoading] = React.useState(true);
   const [error, setError] = React.useState('');
+  const [affiliateProgramError, setAffiliateProgramError] = React.useState('');
   const [landingAnalyticsError, setLandingAnalyticsError] = React.useState('');
   const [passwordResetUser, setPasswordResetUser] = React.useState<UserData | null>(null);
   const [selectedTrialLead, setSelectedTrialLead] = React.useState<UserData | null>(null);
@@ -338,6 +344,15 @@ export const AdminDashboard = () => {
   const [isGeneratingPasswordResetLink, setIsGeneratingPasswordResetLink] = React.useState(false);
   const [quickResetEmail, setQuickResetEmail] = React.useState('');
   const [quickResetError, setQuickResetError] = React.useState('');
+  const [affiliateEmail, setAffiliateEmail] = React.useState('');
+  const [affiliateCode, setAffiliateCode] = React.useState('');
+  const [affiliateCommissionPercent, setAffiliateCommissionPercent] = React.useState('30');
+  const [affiliateFormNotice, setAffiliateFormNotice] = React.useState('');
+  const [affiliateFormError, setAffiliateFormError] = React.useState('');
+  const [isSavingAffiliate, setIsSavingAffiliate] = React.useState(false);
+  const [commissionActionNotice, setCommissionActionNotice] = React.useState('');
+  const [commissionActionError, setCommissionActionError] = React.useState('');
+  const [updatingCommissionId, setUpdatingCommissionId] = React.useState('');
 
   const [searchTerm, setSearchTerm] = React.useState('');
   const [filterPlan, setFilterPlan] = React.useState('All');
@@ -347,12 +362,15 @@ export const AdminDashboard = () => {
 
   const fetchAdminData = React.useCallback(async () => {
     setIsLoading(true);
+    setIsAffiliateProgramLoading(true);
     setIsLandingAnalyticsLoading(true);
     setError('');
+    setAffiliateProgramError('');
     setLandingAnalyticsError('');
 
-    const [usersResult, landingAnalyticsResult] = await Promise.allSettled([
+    const [usersResult, affiliateProgramResult, landingAnalyticsResult] = await Promise.allSettled([
       adminDashboardService.listUsers(),
+      adminDashboardService.getAffiliateProgramData(),
       adminDashboardService.getLandingPageMetrics(),
     ]);
 
@@ -365,6 +383,18 @@ export const AdminDashboard = () => {
           ? usersResult.reason.message
           : usersResult.reason?.message ||
               'Não foi possível carregar os dados do dashboard. Verifique as policies do Supabase.'
+      );
+    }
+
+    if (affiliateProgramResult.status === 'fulfilled') {
+      setAffiliateProgramData(affiliateProgramResult.value);
+    } else {
+      console.error('Erro ao carregar programa de afiliados:', affiliateProgramResult.reason);
+      setAffiliateProgramError(
+        affiliateProgramResult.reason instanceof AdminDashboardAccessError
+          ? affiliateProgramResult.reason.message
+          : affiliateProgramResult.reason?.message ||
+              'Não foi possível carregar os dados do programa de afiliados.'
       );
     }
 
@@ -381,12 +411,15 @@ export const AdminDashboard = () => {
     }
 
     setIsLoading(false);
+    setIsAffiliateProgramLoading(false);
     setIsLandingAnalyticsLoading(false);
   }, []);
 
   React.useEffect(() => {
     if (!user?.isAdmin) {
       setIsLoading(false);
+      setIsAffiliateProgramLoading(false);
+      setIsLandingAnalyticsLoading(false);
       return;
     }
 
@@ -484,11 +517,27 @@ export const AdminDashboard = () => {
     };
   }, [users, newestUsersThisWeek]);
 
+  const affiliateMetrics = affiliateProgramData?.metrics ?? {
+    activeAffiliates: 0,
+    attributedTrials: 0,
+    firstSalesPaid: 0,
+    grossRevenue: 0,
+    pendingCommission: 0,
+    paidCommission: 0,
+  };
+
   const formatPercentage = React.useCallback((value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       maximumFractionDigits: 1,
       minimumFractionDigits: Number.isInteger(value) ? 0 : 1,
     }).format(value);
+  }, []);
+
+  const formatCurrency = React.useCallback((valueInCents: number, currency = 'BRL') => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: currency.toUpperCase(),
+    }).format(valueInCents / 100);
   }, []);
 
   const formatDate = (dateString: string | null) => {
@@ -648,6 +697,96 @@ export const AdminDashboard = () => {
     }
   }, [generatedPasswordResetLink]);
 
+  const handleSaveAffiliate = React.useCallback(async () => {
+    const normalizedEmail = affiliateEmail.trim().toLowerCase();
+    const normalizedCode = normalizeAffiliateCode(affiliateCode);
+    const commissionPercent = Number(affiliateCommissionPercent.replace(',', '.'));
+
+    if (!normalizedEmail) {
+      setAffiliateFormError('Informe o email do afiliado.');
+      return;
+    }
+
+    if (!normalizedCode || normalizedCode.length < 3) {
+      setAffiliateFormError('Informe um código com pelo menos 3 caracteres.');
+      return;
+    }
+
+    if (!Number.isFinite(commissionPercent) || commissionPercent <= 0 || commissionPercent > 100) {
+      setAffiliateFormError('A comissão precisa ficar entre 0 e 100.');
+      return;
+    }
+
+    setIsSavingAffiliate(true);
+    setAffiliateFormNotice('');
+    setAffiliateFormError('');
+
+    try {
+      const result = await adminDashboardService.upsertAffiliatePartner({
+        email: normalizedEmail,
+        affiliateCode: normalizedCode,
+        commissionPercent,
+        grantProductAccess: true,
+      });
+
+      setAffiliateFormNotice(
+        `Afiliado ${result.affiliateCode} salvo com acesso liberado ao produto.`
+      );
+      setAffiliateCode(result.affiliateCode);
+      await fetchAdminData();
+    } catch (affiliateError) {
+      console.error('Erro ao salvar afiliado:', affiliateError);
+      setAffiliateFormError(
+        affiliateError instanceof Error
+          ? affiliateError.message
+          : 'Não foi possível salvar o afiliado.'
+      );
+    } finally {
+      setIsSavingAffiliate(false);
+    }
+  }, [affiliateCode, affiliateCommissionPercent, affiliateEmail, fetchAdminData]);
+
+  const handleCopyAffiliateLink = React.useCallback(async (shareUrl: string) => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setAffiliateFormNotice('Link do afiliado copiado para a área de transferência.');
+      setAffiliateFormError('');
+    } catch (copyError) {
+      console.error('Erro ao copiar link do afiliado:', copyError);
+      setAffiliateFormError('Não foi possível copiar o link do afiliado agora.');
+    }
+  }, []);
+
+  const handleUpdateCommissionStatus = React.useCallback(
+    async (commissionId: string, status: 'pending' | 'paid' | 'canceled') => {
+      setUpdatingCommissionId(commissionId);
+      setCommissionActionNotice('');
+      setCommissionActionError('');
+
+      try {
+        await adminDashboardService.updateAffiliateCommissionStatus(commissionId, status);
+        setCommissionActionNotice(
+          status === 'paid'
+            ? 'Comissão marcada como paga.'
+            : status === 'canceled'
+            ? 'Comissão cancelada.'
+            : 'Comissão movida para pendente.'
+        );
+        await fetchAdminData();
+      } catch (commissionError) {
+        console.error('Erro ao atualizar comissão:', commissionError);
+        setCommissionActionError(
+          commissionError instanceof Error
+            ? commissionError.message
+            : 'Não foi possível atualizar a comissão.'
+        );
+      } finally {
+        setUpdatingCommissionId('');
+      }
+    },
+    [fetchAdminData]
+  );
+
   const Badge = ({
     children,
     variant,
@@ -737,6 +876,355 @@ export const AdminDashboard = () => {
             tone="yellow"
           />
         </div>
+
+        <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Programa de afiliados</h2>
+              <p className="mt-1 max-w-3xl text-sm text-gray-500">
+                Cadastre afiliados por email, libere acesso ao produto e acompanhe trials,
+                primeiras vendas e comissões manuais no mesmo painel.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+              O link sugerido para compartilhamento é `/r/codigo`.
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-4 xl:grid-cols-[1.4fr_1fr_180px_160px]">
+            <input
+              type="email"
+              value={affiliateEmail}
+              onChange={(event) => setAffiliateEmail(event.target.value)}
+              placeholder="afiliado@empresa.com"
+              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-700 focus:border-[#38B6FF] focus:outline-none focus:ring-2 focus:ring-[#38B6FF]/30"
+            />
+            <input
+              type="text"
+              value={affiliateCode}
+              onChange={(event) =>
+                setAffiliateCode(normalizeAffiliateCode(event.target.value) ?? '')
+              }
+              placeholder="codigo-afiliado"
+              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-700 focus:border-[#38B6FF] focus:outline-none focus:ring-2 focus:ring-[#38B6FF]/30"
+            />
+            <input
+              type="text"
+              inputMode="decimal"
+              value={affiliateCommissionPercent}
+              onChange={(event) => setAffiliateCommissionPercent(event.target.value)}
+              placeholder="30"
+              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-700 focus:border-[#38B6FF] focus:outline-none focus:ring-2 focus:ring-[#38B6FF]/30"
+            />
+            <Button type="button" onClick={handleSaveAffiliate} isLoading={isSavingAffiliate}>
+              Salvar afiliado
+            </Button>
+          </div>
+
+          <div className="mt-3 grid gap-2 text-xs text-gray-500 md:grid-cols-3">
+            <span>Email da conta do afiliado na PostHub.</span>
+            <span>Código usado no link de indicação.</span>
+            <span>Comissão percentual da primeira venda e acesso liberado ao produto.</span>
+          </div>
+
+          {affiliateFormNotice ? (
+            <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+              {affiliateFormNotice}
+            </div>
+          ) : null}
+
+          {affiliateFormError ? (
+            <div className="mt-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
+              {affiliateFormError}
+            </div>
+          ) : null}
+
+          {affiliateProgramError ? (
+            <div className="mt-6 rounded-2xl border border-red-100 bg-red-50 px-4 py-4 text-sm text-red-600">
+              {affiliateProgramError}
+            </div>
+          ) : isAffiliateProgramLoading ? (
+            <div className="mt-6 rounded-2xl bg-slate-50 px-4 py-8 text-center text-sm text-gray-500">
+              Carregando programa de afiliados...
+            </div>
+          ) : (
+            <>
+              <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <MetricCard
+                  icon={Users}
+                  title="Afiliados ativos"
+                  value={String(affiliateMetrics.activeAffiliates)}
+                  helper="Parceiros com código cadastrado."
+                  tone="blue"
+                />
+                <MetricCard
+                  icon={UserPlus}
+                  title="Trials atribuídos"
+                  value={String(affiliateMetrics.attributedTrials)}
+                  helper="Contas atribuídas pelo último clique."
+                  tone="slate"
+                />
+                <MetricCard
+                  icon={TrendingUp}
+                  title="Primeiras vendas"
+                  value={String(affiliateMetrics.firstSalesPaid)}
+                  helper={`Receita bruta: ${formatCurrency(affiliateMetrics.grossRevenue)}`}
+                  tone="green"
+                />
+                <MetricCard
+                  icon={Timer}
+                  title="Comissão pendente"
+                  value={formatCurrency(affiliateMetrics.pendingCommission)}
+                  helper="Valor aguardando pagamento manual."
+                  tone="yellow"
+                />
+                <MetricCard
+                  icon={CheckCircle2}
+                  title="Comissão paga"
+                  value={formatCurrency(affiliateMetrics.paidCommission)}
+                  helper="Valor já marcado como pago."
+                  tone="green"
+                />
+                <MetricCard
+                  icon={Copy}
+                  title="Links prontos"
+                  value={String(affiliateProgramData?.partners.length ?? 0)}
+                  helper="Use o botão copiar na tabela para compartilhar."
+                  tone="slate"
+                />
+              </div>
+
+              <div className="mt-8 grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+                <div className="rounded-2xl border border-gray-100 bg-slate-50/60 p-4">
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-base font-semibold text-gray-900">Afiliados</h3>
+                      <p className="text-sm text-gray-500">
+                        Performance por parceiro e link pronto para compartilhar.
+                      </p>
+                    </div>
+                    <Badge variant="blue">
+                      {affiliateProgramData?.partners.length ?? 0} parceiros
+                    </Badge>
+                  </div>
+
+                  {affiliateProgramData?.partners.length ? (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-left text-sm">
+                        <thead className="text-xs uppercase tracking-[0.18em] text-gray-400">
+                          <tr>
+                            <th className="pb-3 pr-4 font-medium">Afiliado</th>
+                            <th className="pb-3 pr-4 font-medium">Código</th>
+                            <th className="pb-3 pr-4 font-medium">Trials</th>
+                            <th className="pb-3 pr-4 font-medium">Clientes</th>
+                            <th className="pb-3 pr-4 font-medium">Comissão</th>
+                            <th className="pb-3 font-medium text-right">Ações</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {affiliateProgramData.partners.map((partner) => (
+                            <tr key={partner.id}>
+                              <td className="py-4 pr-4">
+                                <div className="font-medium text-gray-900">{partner.name}</div>
+                                <div className="mt-1 text-xs text-gray-500">{partner.email}</div>
+                              </td>
+                              <td className="py-4 pr-4">
+                                <div className="font-semibold text-slate-700">
+                                  {partner.affiliateCode}
+                                </div>
+                                <div className="mt-1 text-xs text-gray-500">
+                                  {partner.commissionPercent}% da primeira venda
+                                </div>
+                              </td>
+                              <td className="py-4 pr-4 text-gray-700">
+                                {partner.attributedTrials}
+                              </td>
+                              <td className="py-4 pr-4 text-gray-700">{partner.paidCustomers}</td>
+                              <td className="py-4 pr-4">
+                                <div className="font-medium text-gray-900">
+                                  {formatCurrency(partner.pendingCommission)}
+                                </div>
+                                <div className="mt-1 text-xs text-gray-500">
+                                  Pago: {formatCurrency(partner.paidCommission)}
+                                </div>
+                              </td>
+                              <td className="py-4 text-right">
+                                <div className="flex justify-end gap-2">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="gap-2"
+                                    onClick={() => void handleCopyAffiliateLink(partner.shareUrl)}
+                                  >
+                                    <Copy className="h-4 w-4" />
+                                    Copiar link
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl bg-white px-4 py-8 text-center text-sm text-gray-500">
+                      Ainda não há afiliados cadastrados.
+                    </div>
+                  )}
+                </div>
+
+                <div className="rounded-2xl border border-gray-100 bg-slate-50/60 p-4">
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-base font-semibold text-gray-900">Comissões</h3>
+                      <p className="text-sm text-gray-500">
+                        Primeiras vendas confirmadas e controle do pagamento manual.
+                      </p>
+                    </div>
+                    <Badge variant="gray">
+                      {affiliateProgramData?.commissions.length ?? 0} registros
+                    </Badge>
+                  </div>
+
+                  {commissionActionNotice ? (
+                    <div className="mb-4 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                      {commissionActionNotice}
+                    </div>
+                  ) : null}
+
+                  {commissionActionError ? (
+                    <div className="mb-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
+                      {commissionActionError}
+                    </div>
+                  ) : null}
+
+                  {affiliateProgramData?.commissions.length ? (
+                    <div className="space-y-3">
+                      {affiliateProgramData.commissions.map((commission) => (
+                        <div
+                          key={commission.id}
+                          className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"
+                        >
+                          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                            <div>
+                              <p className="font-semibold text-gray-900">
+                                {commission.affiliateName}
+                              </p>
+                              <p className="mt-1 text-sm text-gray-500">
+                                Cliente: {commission.referredUserName} ({commission.referredUserEmail})
+                              </p>
+                              <p className="mt-1 text-xs text-gray-400">
+                                Plano: {commission.planId || '-'} • Primeira venda em{' '}
+                                {formatDateTime(commission.firstPaidAt)}
+                              </p>
+                            </div>
+
+                            <Badge
+                              variant={
+                                commission.status === 'paid'
+                                  ? 'green'
+                                  : commission.status === 'canceled'
+                                  ? 'red'
+                                  : 'yellow'
+                              }
+                            >
+                              {commission.status === 'paid'
+                                ? 'Paga'
+                                : commission.status === 'canceled'
+                                ? 'Cancelada'
+                                : 'Pendente'}
+                            </Badge>
+                          </div>
+
+                          <div className="mt-4 grid gap-3 md:grid-cols-3">
+                            <div className="rounded-xl bg-slate-50 px-3 py-3">
+                              <div className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                                Valor bruto
+                              </div>
+                              <div className="mt-2 font-semibold text-gray-900">
+                                {formatCurrency(commission.grossAmount, commission.currency)}
+                              </div>
+                            </div>
+                            <div className="rounded-xl bg-slate-50 px-3 py-3">
+                              <div className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                                Comissão
+                              </div>
+                              <div className="mt-2 font-semibold text-gray-900">
+                                {formatCurrency(commission.commissionAmount, commission.currency)}
+                              </div>
+                            </div>
+                            <div className="rounded-xl bg-slate-50 px-3 py-3">
+                              <div className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                                Percentual
+                              </div>
+                              <div className="mt-2 font-semibold text-gray-900">
+                                {formatPercentage(commission.commissionPercent)}%
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            {commission.status !== 'paid' ? (
+                              <Button
+                                type="button"
+                                size="sm"
+                                className="gap-2"
+                                isLoading={updatingCommissionId === commission.id}
+                                onClick={() =>
+                                  void handleUpdateCommissionStatus(commission.id, 'paid')
+                                }
+                              >
+                                <CheckCircle2 className="h-4 w-4" />
+                                Marcar como paga
+                              </Button>
+                            ) : null}
+
+                            {commission.status !== 'pending' ? (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="gap-2"
+                                isLoading={updatingCommissionId === commission.id}
+                                onClick={() =>
+                                  void handleUpdateCommissionStatus(commission.id, 'pending')
+                                }
+                              >
+                                <Timer className="h-4 w-4" />
+                                Voltar para pendente
+                              </Button>
+                            ) : null}
+
+                            {commission.status !== 'canceled' ? (
+                              <Button
+                                type="button"
+                                variant="danger"
+                                size="sm"
+                                className="gap-2"
+                                isLoading={updatingCommissionId === commission.id}
+                                onClick={() =>
+                                  void handleUpdateCommissionStatus(commission.id, 'canceled')
+                                }
+                              >
+                                Cancelar comissão
+                              </Button>
+                            ) : null}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl bg-white px-4 py-8 text-center text-sm text-gray-500">
+                      Nenhuma comissão registrada até agora.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </section>
 
         <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">

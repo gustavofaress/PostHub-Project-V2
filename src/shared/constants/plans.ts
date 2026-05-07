@@ -6,6 +6,7 @@ export type PlanFeature = WorkspaceModule | 'team';
 interface StripeCheckoutContext {
   userId?: string | null;
   email?: string | null;
+  affiliateCode?: string | null;
 }
 
 export const INCLUDED_PROFILES_PER_ACCOUNT = 1;
@@ -30,14 +31,30 @@ export const STRIPE_ADDON_PAYMENT_LINKS = {
 
 const EXTRA_PROFILE_PAYMENT_LINK_PLACEHOLDER = 'your_extra_profile_payment_link';
 
+const buildClientReferenceId = (context?: StripeCheckoutContext) => {
+  const parts: string[] = [];
+
+  if (context?.userId) {
+    parts.push(`u:${context.userId}`);
+  }
+
+  if (context?.affiliateCode) {
+    parts.push(`a:${context.affiliateCode}`);
+  }
+
+  return parts.length > 0 ? parts.join('|') : null;
+};
+
 const appendCheckoutContext = (baseLink: string, context?: StripeCheckoutContext) => {
   if (!baseLink) return '';
 
   try {
     const url = new URL(baseLink);
 
-    if (context?.userId) {
-      url.searchParams.set('client_reference_id', context.userId);
+    const clientReferenceId = buildClientReferenceId(context);
+
+    if (clientReferenceId) {
+      url.searchParams.set('client_reference_id', clientReferenceId);
     }
 
     if (context?.email) {
@@ -49,6 +66,9 @@ const appendCheckoutContext = (baseLink: string, context?: StripeCheckoutContext
     return baseLink;
   }
 };
+
+export const buildPlanPaymentLink = (planId: PlanId, context?: StripeCheckoutContext) =>
+  appendCheckoutContext(STRIPE_PAYMENT_LINKS[planId], context);
 
 export const buildExtraProfilePaymentLink = (context?: StripeCheckoutContext) =>
   appendCheckoutContext(STRIPE_ADDON_PAYMENT_LINKS.extraProfile, context);

@@ -2,9 +2,10 @@ import * as React from 'react';
 import { ArrowLeft, ArrowRight, CheckCircle2, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Card } from '../shared/components/Card';
-import { STRIPE_PAYMENT_LINKS, type PlanId } from '../shared/constants/plans';
+import { buildPlanPaymentLink, type PlanId } from '../shared/constants/plans';
 import { cn } from '../shared/utils/cn';
 import { trackMetaEvent } from '../services/meta-conversions.service';
+import { affiliateAttributionService } from '../services/affiliate-attribution.service';
 
 interface PricingPlan {
   id: PlanId;
@@ -58,6 +59,8 @@ const PRICING_PLANS: PricingPlan[] = [
 ];
 
 export const PricingPage = () => {
+  const affiliateCode = affiliateAttributionService.getSnapshot().affiliateCode;
+
   const handleCheckoutClick = (plan: PricingPlan) => {
     trackMetaEvent({
       eventName: 'InitiateCheckout',
@@ -136,7 +139,7 @@ export const PricingPage = () => {
               </div>
 
               <a
-                href={STRIPE_PAYMENT_LINKS[plan.id]}
+                href={buildPlanPaymentLink(plan.id, { affiliateCode })}
                 rel="noreferrer"
                 onClick={() => handleCheckoutClick(plan)}
                 className={cn(

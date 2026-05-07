@@ -6,6 +6,8 @@ import { Button } from '../../shared/components/Button';
 import { Input } from '../../shared/components/Input';
 import { useAuth } from '../../app/context/AuthContext';
 import { BrandLogo } from '../../assets/branding/BrandLogo';
+import { affiliateAttributionService } from '../../services/affiliate-attribution.service';
+import { AffiliateNotice } from '../../shared/components/AffiliateNotice';
 
 export const LoginPage = () => {
   const { login } = useAuth();
@@ -25,6 +27,10 @@ export const LoginPage = () => {
     const params = new URLSearchParams({ email: normalizedEmail });
     return `/reset-password?${params.toString()}`;
   }, [email]);
+  const signupPath = React.useMemo(
+    () => affiliateAttributionService.buildPath('/signup'),
+    []
+  );
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,6 +60,8 @@ export const LoginPage = () => {
             Entre com seus dados para acessar seu espaço de trabalho
           </p>
         </div>
+
+        <AffiliateNotice />
 
         <form onSubmit={handleLogin} className="space-y-4">
           {resetWasSuccessful && (
@@ -141,7 +149,7 @@ export const LoginPage = () => {
 
         <p className="mt-8 text-center text-sm text-text-secondary">
           Ainda não tem uma conta?{' '}
-          <Link to="/signup" className="font-semibold text-brand hover:underline">
+          <Link to={signupPath} className="font-semibold text-brand hover:underline">
             Cadastre-se grátis
           </Link>
         </p>
