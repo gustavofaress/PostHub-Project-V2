@@ -23,7 +23,7 @@ export const Sidebar = () => {
   const [hoveredItem, setHoveredItem] = React.useState<{ item: NavItem; rect: DOMRect } | null>(
     null
   );
-  const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = React.useRef<ReturnType<typeof window.setTimeout> | null>(null);
 
   const visibleGroups = React.useMemo(() => {
     const canOpenWorkspaceModule = (moduleId: NavItem['id']) => {

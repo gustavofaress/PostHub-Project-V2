@@ -7,6 +7,7 @@ import { trialAccessService } from '../../services/trial-access.service';
 import { normalizePlan } from '../../shared/constants/plans';
 import { memberAuthStorage } from '../../modules/settings/memberAuth.storage';
 import { buildAppUrl } from '../../shared/utils/appUrl';
+import { normalizeInternalRedirectPath } from '../../shared/utils/authPaths';
 import {
   accountSettingsService,
   normalizeNotificationPreferences,
@@ -58,12 +59,13 @@ interface SignupResult {
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password?: string) => Promise<void>;
+  login: (email: string, password?: string, redirectTo?: string | null) => Promise<void>;
   signup: (
     name: string,
     email: string,
     password?: string,
-    profileName?: string
+    profileName?: string,
+    redirectTo?: string | null
   ) => Promise<SignupResult>;
   requestPasswordReset: (email: string) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
@@ -539,7 +541,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, [buildAppUser, syncMockUser]);
 
-  const login = async (email: string, password?: string) => {
+  const login = async (email: string, password?: string, redirectTo?: string | null) => {
+    const safeRedirectTo = normalizeInternalRedirectPath(redirectTo);
+
     if (!supabase) {
       const memberCredential = memberAuthStorage.getByEmail(email);
 
@@ -565,7 +569,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           onboarding: null,
         };
         await syncMockUser(memberUser);
-        navigate('/workspace/dashboard');
+        navigate(safeRedirectTo ?? '/workspace/dashboard');
         return;
       }
 
@@ -586,7 +590,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         onboarding: null,
       };
       await syncMockUser(mockUser);
-      navigate('/workspace/onboarding');
+      navigate(safeRedirectTo ?? '/workspace/onboarding');
       return;
     }
 
@@ -603,7 +607,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { error: otpError } = await supabase.auth.signInWithOtp({
           email,
           options: {
-            emailRedirectTo: buildAppUrl('/workspace/dashboard'),
+            emailRedirectTo: buildAppUrl(safeRedirectTo ?? '/workspace/dashboard'),
           },
         });
         authError = otpError;
@@ -644,7 +648,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('Seu teste grátis expirou ou sua conta está bloqueada.');
       }
 
-      navigate(getPostLoginRoute(appUser));
+      navigate(safeRedirectTo ?? getPostLoginRoute(appUser));
     } catch (error: any) {
       console.error('Login error:', error);
       console.error('Login error message:', error?.message);
@@ -673,9 +677,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     name: string,
     email: string,
     password?: string,
-    profileName?: string
+    profileName?: string,
+    redirectTo?: string | null
   ): Promise<SignupResult> => {
     const sanitizedEmail = email.trim().toLowerCase();
+    const safeRedirectTo = normalizeInternalRedirectPath(redirectTo);
 
     if (!supabase) {
       const mockUser: User = {
@@ -695,7 +701,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         onboarding: null,
       };
       await syncMockUser(mockUser);
-      navigate('/workspace/onboarding');
+      navigate(safeRedirectTo ?? '/workspace/onboarding');
       return {
         requiresEmailConfirmation: false,
         email: sanitizedEmail,
@@ -719,7 +725,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               full_name: sanitizedName,
               initial_profile_name: sanitizedProfileName,
             },
-            emailRedirectTo: buildAppUrl('/workspace/onboarding'),
+            emailRedirectTo: buildAppUrl(safeRedirectTo ?? '/workspace/onboarding'),
           },
         });
         authError = signUpError;
@@ -733,7 +739,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               full_name: sanitizedName,
               initial_profile_name: sanitizedProfileName,
             },
-            emailRedirectTo: buildAppUrl('/workspace/onboarding'),
+            emailRedirectTo: buildAppUrl(safeRedirectTo ?? '/workspace/onboarding'),
           },
         });
         authError = otpError;
@@ -784,7 +790,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('Sua conta foi criada, mas o acesso não foi liberado corretamente.');
       }
 
-      navigate('/workspace/onboarding');
+      navigate(safeRedirectTo ?? '/workspace/onboarding');
       return {
         requiresEmailConfirmation: false,
         email: appUser.email || sanitizedEmail,
