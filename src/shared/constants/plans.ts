@@ -30,6 +30,13 @@ export const STRIPE_ADDON_PAYMENT_LINKS = {
 } as const;
 
 const EXTRA_PROFILE_PAYMENT_LINK_PLACEHOLDER = 'your_extra_profile_payment_link';
+const METRIC_HUB_PAYMENT_LINK_PLACEHOLDER = 'your_metric_hub_payment_link';
+
+export const STRIPE_STANDALONE_PAYMENT_LINKS = {
+  metricHub:
+    import.meta.env.VITE_STRIPE_METRIC_HUB_PAYMENT_LINK?.trim() ||
+    METRIC_HUB_PAYMENT_LINK_PLACEHOLDER,
+} as const;
 
 const buildClientReferenceId = (context?: StripeCheckoutContext) => {
   const parts: string[] = [];
@@ -73,9 +80,16 @@ export const buildPlanPaymentLink = (planId: PlanId, context?: StripeCheckoutCon
 export const buildExtraProfilePaymentLink = (context?: StripeCheckoutContext) =>
   appendCheckoutContext(STRIPE_ADDON_PAYMENT_LINKS.extraProfile, context);
 
+export const buildMetricHubPaymentLink = (context?: StripeCheckoutContext) =>
+  appendCheckoutContext(STRIPE_STANDALONE_PAYMENT_LINKS.metricHub, context);
+
 export const isExtraProfilePaymentLinkConfigured = () =>
   !!STRIPE_ADDON_PAYMENT_LINKS.extraProfile &&
   !STRIPE_ADDON_PAYMENT_LINKS.extraProfile.includes(EXTRA_PROFILE_PAYMENT_LINK_PLACEHOLDER);
+
+export const isMetricHubPaymentLinkConfigured = () =>
+  !!STRIPE_STANDALONE_PAYMENT_LINKS.metricHub &&
+  !STRIPE_STANDALONE_PAYMENT_LINKS.metricHub.includes(METRIC_HUB_PAYMENT_LINK_PLACEHOLDER);
 
 const ALWAYS_OPEN_FEATURES: PlanFeature[] = [
   'onboarding',

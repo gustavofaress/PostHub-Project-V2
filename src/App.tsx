@@ -13,6 +13,8 @@ import { PublicCalendarApprovalPage } from './pages/PublicCalendarApprovalPage';
 import { PricingPage } from './pages/PricingPage';
 import { FocusedLandingPage } from './pages/FocusedLandingPage';
 import { AffiliateReferralPage } from './pages/AffiliateReferralPage';
+import { MetricHubPage } from './pages/MetricHubPage';
+import { MetricHubAppPage } from './pages/MetricHubAppPage';
 import { ResponsiveWorkspaceLayout } from './modules/workspace/ResponsiveWorkspaceLayout';
 import { ProtectedRoute } from './shared/components/ProtectedRoute';
 import { trackMetaEvent } from './services/meta-conversions.service';
@@ -88,6 +90,7 @@ export default function App() {
       {/* Public Routes */}
       <Route path="/" element={<LandingPage />} />
       <Route path="/lp" element={<FocusedLandingPage />} />
+      <Route path="/metric-hub" element={<MetricHubPage />} />
       <Route path="/r/:affiliateCode" element={<AffiliateReferralPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
@@ -98,6 +101,10 @@ export default function App() {
       <Route path="/invite/:token" element={<AcceptInvitePage />} />
       <Route path="/aprovacao/:token" element={<PublicApprovalPage />} />
       <Route path="/calendario/aprovacao/:token" element={<PublicCalendarApprovalPage />} />
+
+      <Route element={<ProtectedRoute />}>
+        <Route path="/metric-hub/app" element={<MetricHubAppPage />} />
+      </Route>
 
       {/* Protected Workspace Routes */}
       <Route path="/workspace/*" element={<ProtectedRoute />}>

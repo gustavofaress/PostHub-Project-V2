@@ -1,13 +1,17 @@
 import * as React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Mail, Lock, Github } from 'lucide-react';
+import { Mail, Lock, Github, Smartphone } from 'lucide-react';
 import { Card } from '../../shared/components/Card';
 import { Button } from '../../shared/components/Button';
 import { Input } from '../../shared/components/Input';
 import { useAuth } from '../../app/context/AuthContext';
 import { BrandLogo } from '../../assets/branding/BrandLogo';
-import { affiliateAttributionService } from '../../services/affiliate-attribution.service';
 import { AffiliateNotice } from '../../shared/components/AffiliateNotice';
+import {
+  buildAuthPath,
+  normalizeInternalRedirectPath,
+  normalizeProductContext,
+} from '../../shared/utils/authPaths';
 
 export const LoginPage = () => {
   const { login } = useAuth();
@@ -16,6 +20,15 @@ export const LoginPage = () => {
   const [email, setEmail] = React.useState(searchParams.get('email') || '');
   const [password, setPassword] = React.useState('');
   const [error, setError] = React.useState('');
+  const redirectTo = React.useMemo(
+    () => normalizeInternalRedirectPath(searchParams.get('redirect')),
+    [searchParams]
+  );
+  const productContext = React.useMemo(
+    () => normalizeProductContext(searchParams.get('product')),
+    [searchParams]
+  );
+  const isMetricHubFlow = productContext === 'metric-hub';
   const resetWasSuccessful = searchParams.get('reset') === 'success';
   const resetPasswordPath = React.useMemo(() => {
     const normalizedEmail = email.trim();
@@ -28,8 +41,12 @@ export const LoginPage = () => {
     return `/reset-password?${params.toString()}`;
   }, [email]);
   const signupPath = React.useMemo(
-    () => affiliateAttributionService.buildPath('/signup'),
-    []
+    () =>
+      buildAuthPath('/signup', {
+        redirectTo,
+        product: productContext,
+      }),
+    [productContext, redirectTo]
   );
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -38,7 +55,7 @@ export const LoginPage = () => {
     setError('');
 
     try {
-      await login(email, password);
+      await login(email, password, redirectTo);
     } catch (err: any) {
       setError(err.message || 'Não foi possível entrar.');
     } finally {
@@ -55,9 +72,19 @@ export const LoginPage = () => {
 
       <Card className="w-full max-w-md p-8">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-text-primary">Bem-vindo de volta</h1>
+          {isMetricHubFlow ? (
+            <div className="mx-auto mb-4 inline-flex items-center gap-2 rounded-full border border-brand/20 bg-brand/10 px-4 py-2 text-sm font-semibold text-brand">
+              <Smartphone className="h-4 w-4" />
+              MetricHub mobile
+            </div>
+          ) : null}
+          <h1 className="text-2xl font-bold text-text-primary">
+            {isMetricHubFlow ? 'Entre no MetricHub' : 'Bem-vindo de volta'}
+          </h1>
           <p className="text-text-secondary">
-            Entre com seus dados para acessar seu espaço de trabalho
+            {isMetricHubFlow
+              ? 'Acesse seu histórico mobile de métricas para Instagram, TikTok e YouTube.'
+              : 'Entre com seus dados para acessar seu espaço de trabalho'}
           </p>
         </div>
 
@@ -105,7 +132,7 @@ export const LoginPage = () => {
           </div>
 
           <Button type="submit" className="w-full" isLoading={isLoading}>
-            Entrar
+            {isMetricHubFlow ? 'Entrar no MetricHub' : 'Entrar'}
           </Button>
         </form>
 
@@ -150,7 +177,7 @@ export const LoginPage = () => {
         <p className="mt-8 text-center text-sm text-text-secondary">
           Ainda não tem uma conta?{' '}
           <Link to={signupPath} className="font-semibold text-brand hover:underline">
-            Cadastre-se grátis
+            {isMetricHubFlow ? 'Criar conta no MetricHub' : 'Cadastre-se grátis'}
           </Link>
         </p>
 

@@ -38,6 +38,7 @@ const navItems = [
   { href: '#recursos', label: 'Recursos' },
   { href: '#como-funciona', label: 'Como funciona' },
   { href: '#preco', label: 'Planos' },
+  { href: '/metric-hub', label: 'MetricHub' },
 ];
 
 const heroSignals: Array<{
