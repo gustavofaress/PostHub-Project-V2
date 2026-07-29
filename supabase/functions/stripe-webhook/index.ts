@@ -10,6 +10,10 @@ type CheckoutReferenceContext = {
   userId: string | null;
   affiliateCode: string | null;
 };
+type PlanSyncResult = {
+  updated: boolean;
+  reason: 'updated' | 'unknown_price' | 'missing_customer_email';
+};
 type UsuarioAffiliateRecord = {
   id: string;
   email: string | null;
@@ -54,6 +58,9 @@ const getPlanFromPriceId = (priceId?: string | null): PlanId | null => {
   if (!priceId) return null;
   return STRIPE_PRICE_TO_PLAN[priceId] ?? null;
 };
+
+const getFirstKnownPlanPriceId = (priceIds: Array<string | null | undefined>) =>
+  priceIds.find((priceId) => !!getPlanFromPriceId(priceId)) ?? null;
 
 const normalizeAffiliateCode = (value?: string | null) => {
   const normalized = value?.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '');
@@ -107,15 +114,19 @@ const getExtraProfileQuantity = (lineItems: CheckoutLineItemSummary[]) => {
   }, 0);
 };
 
-const updateUserPlan = async (
+const syncUserPlan = async (
   adminClient: ReturnType<typeof createAdminClient>,
   email: string | null | undefined,
   plan: PlanId | null
-) => {
+): Promise<PlanSyncResult> => {
+  if (!plan) {
+    return { updated: false, reason: 'unknown_price' };
+  }
+
   const normalizedEmail = email?.trim().toLowerCase();
 
-  if (!normalizedEmail || !plan) {
-    throw new Error('Missing customer email or plan.');
+  if (!normalizedEmail) {
+    return { updated: false, reason: 'missing_customer_email' };
   }
 
   const { error } = await adminClient
@@ -126,6 +137,8 @@ const updateUserPlan = async (
   if (error) {
     throw error;
   }
+
+  return { updated: true, reason: 'updated' };
 };
 
 const getUsuarioByIdOrEmail = async (
@@ -431,13 +444,22 @@ const handleCheckoutCompleted = async (
   session: Stripe.Checkout.Session
 ) => {
   const lineItems = await getLineItems(stripe, session.id);
-  const priceId = lineItems.find((item) => getPlanFromPriceId(item.priceId))?.priceId ?? null;
+  const priceId = getFirstKnownPlanPriceId(lineItems.map((item) => item.priceId));
   const plan = getPlanFromPriceId(priceId);
   const extraProfilesQuantity = getExtraProfileQuantity(lineItems);
   const affiliateAttribution = await applyAffiliateAttributionFromCheckout(adminClient, session);
+  const planSync = await syncUserPlan(
+    adminClient,
+    session.customer_details?.email ?? session.customer_email,
+    plan
+  );
 
-  if (plan) {
-    await updateUserPlan(adminClient, session.customer_details?.email ?? session.customer_email, plan);
+  if (!planSync.updated && planSync.reason !== 'unknown_price') {
+    console.warn('[stripe-webhook] checkout.session.completed without customer email', {
+      eventType: 'checkout.session.completed',
+      sessionId: session.id,
+      priceId,
+    });
   }
 
   const extraProfiles = await grantExtraProfiles(adminClient, {
@@ -446,7 +468,7 @@ const handleCheckoutCompleted = async (
     quantity: extraProfilesQuantity,
   });
 
-  return { plan, priceId, extraProfiles, affiliateAttribution };
+  return { plan, priceId, planSync, extraProfiles, affiliateAttribution };
 };
 
 const getInvoiceCustomerEmail = async (stripe: Stripe, invoice: Stripe.Invoice) => {
@@ -469,18 +491,30 @@ const handleInvoicePaymentSucceeded = async (
   adminClient: ReturnType<typeof createAdminClient>,
   invoice: Stripe.Invoice
 ) => {
-  const priceId = invoice.lines.data.find((line) => line.price?.id)?.price?.id ?? null;
+  const priceId = getFirstKnownPlanPriceId(invoice.lines.data.map((line) => line.price?.id));
   const plan = getPlanFromPriceId(priceId);
   const customerEmail = await getInvoiceCustomerEmail(stripe, invoice);
+  const planSync = await syncUserPlan(adminClient, customerEmail, plan);
 
-  await updateUserPlan(adminClient, customerEmail, plan);
+  if (!planSync.updated) {
+    console.warn('[stripe-webhook] invoice.payment_succeeded skipped plan sync', {
+      eventType: 'invoice.payment_succeeded',
+      invoiceId: invoice.id,
+      priceId,
+      reason: planSync.reason,
+    });
+  }
+
+  if (!plan) {
+    return { plan, priceId, planSync, affiliateCommission: null };
+  }
 
   const affiliateCommission = await maybeCreateAffiliateCommission(adminClient, invoice, {
     customerEmail,
     plan,
   });
 
-  return { plan, priceId, affiliateCommission };
+  return { plan, priceId, planSync, affiliateCommission };
 };
 
 Deno.serve(async (request) => {

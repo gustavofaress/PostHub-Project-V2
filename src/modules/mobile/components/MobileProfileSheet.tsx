@@ -2,7 +2,14 @@ import * as React from 'react';
 import { ChevronRight, ExternalLink, Pencil, Plus } from 'lucide-react';
 import { useAuth } from '../../../app/context/AuthContext';
 import { Profile, canManageProfileName, useProfile } from '../../../app/context/ProfileContext';
-import { buildExtraProfilePaymentLink, EXTRA_PROFILE_PRICE_LABEL, isExtraProfilePaymentLinkConfigured } from '../../../shared/constants/plans';
+import {
+  buildExtraProfilePaymentLink,
+  EXTRA_PROFILE_CHECKOUT_DESCRIPTION,
+  EXTRA_PROFILE_CHECKOUT_EMAIL_HINT,
+  EXTRA_PROFILE_CHECKOUT_TITLE,
+  EXTRA_PROFILE_PRICE_LABEL,
+  isExtraProfilePaymentLinkConfigured,
+} from '../../../shared/constants/plans';
 import { Avatar } from '../../../shared/components/Avatar';
 import { Button } from '../../../shared/components/Button';
 import { Input } from '../../../shared/components/Input';
@@ -32,6 +39,7 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
   const [newProfileName, setNewProfileName] = React.useState('');
   const [profileActionError, setProfileActionError] = React.useState('');
   const [isSubmittingProfile, setIsSubmittingProfile] = React.useState(false);
+  const [extraProfileCheckoutLink, setExtraProfileCheckoutLink] = React.useState('');
   const [profileBeingEdited, setProfileBeingEdited] = React.useState<Profile | null>(null);
   const [profileNameDraft, setProfileNameDraft] = React.useState('');
   const [editProfileError, setEditProfileError] = React.useState('');
@@ -42,12 +50,14 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
     setIsCreateProfileModalOpen(false);
     setNewProfileName('');
     setProfileActionError('');
+    setExtraProfileCheckoutLink('');
   }, [isSubmittingProfile]);
 
   const resetCreateProfileModal = React.useCallback(() => {
     setIsCreateProfileModalOpen(false);
     setNewProfileName('');
     setProfileActionError('');
+    setExtraProfileCheckoutLink('');
   }, []);
 
   const openEditProfileModal = React.useCallback((profile: Profile) => {
@@ -91,8 +101,14 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
       return;
     }
 
-    window.location.assign(checkoutLink);
+    setExtraProfileCheckoutLink(checkoutLink);
+    setIsCreateProfileModalOpen(true);
   }, [reloadProfiles, user?.email, user?.id]);
+
+  const handleOpenExtraProfileCheckout = React.useCallback(() => {
+    if (!extraProfileCheckoutLink) return;
+    window.location.assign(extraProfileCheckoutLink);
+  }, [extraProfileCheckoutLink]);
 
   const handleCreateProfileSubmit = React.useCallback(
     async (event: React.FormEvent<HTMLFormElement>) => {
@@ -249,7 +265,7 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
                 <p className="mt-1 text-sm leading-6 text-slate-500">
                   {availableProfileSlots > 0
                     ? `Você ainda pode criar ${availableProfileSlots} ${availableProfileSlots === 1 ? 'perfil' : 'perfis'} nesta conta.`
-                    : `Cada novo perfil custa ${EXTRA_PROFILE_PRICE_LABEL}.`}
+                    : `Cada perfil adicional custa ${EXTRA_PROFILE_PRICE_LABEL} em compra separada da assinatura.`}
                 </p>
               </div>
             </div>
@@ -260,7 +276,7 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
               onClick={() => void handleAddProfileClick()}
             >
               {availableProfileSlots > 0 ? <Plus className="h-4 w-4" /> : <ExternalLink className="h-4 w-4" />}
-              {availableProfileSlots > 0 ? 'Criar novo perfil' : 'Comprar novo perfil'}
+              {availableProfileSlots > 0 ? 'Criar novo perfil' : 'Comprar perfil adicional'}
             </Button>
           </section>
         </div>
@@ -269,7 +285,7 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
       <Modal
         isOpen={isCreateProfileModalOpen}
         onClose={closeCreateProfileModal}
-        title={availableProfileSlots > 0 ? 'Criar novo perfil' : 'Comprar perfil extra'}
+        title={availableProfileSlots > 0 ? 'Criar novo perfil' : 'Comprar perfil adicional'}
       >
         {availableProfileSlots > 0 ? (
           <form className="space-y-4" onSubmit={handleCreateProfileSubmit}>
@@ -301,20 +317,36 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
           </form>
         ) : (
           <div className="space-y-4">
-            <p className="text-sm leading-6 text-text-secondary">
-              Cada perfil adicional custa {EXTRA_PROFILE_PRICE_LABEL}. Depois que o pagamento for
-              confirmado no Stripe, esta mesma conta ganha uma nova vaga para criar outro perfil.
-            </p>
+            <div className="rounded-2xl border border-brand/15 bg-brand/5 px-4 py-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand">
+                Compra avulsa
+              </p>
+              <p className="mt-2 text-lg font-semibold text-text-primary">
+                {EXTRA_PROFILE_CHECKOUT_TITLE} • {EXTRA_PROFILE_PRICE_LABEL}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-text-secondary">
+                {EXTRA_PROFILE_CHECKOUT_DESCRIPTION}
+              </p>
+            </div>
             {profileActionError ? (
               <p className="text-sm text-red-500">{profileActionError}</p>
             ) : (
               <p className="text-sm leading-6 text-text-secondary">
-                Use o mesmo email da conta no checkout para o crédito cair corretamente no seu acesso.
+                {EXTRA_PROFILE_CHECKOUT_EMAIL_HINT}
               </p>
             )}
-            <div className="flex justify-end">
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <Button type="button" variant="ghost" onClick={closeCreateProfileModal}>
                 Fechar
+              </Button>
+              <Button
+                type="button"
+                className="gap-2"
+                onClick={handleOpenExtraProfileCheckout}
+                disabled={!extraProfileCheckoutLink}
+              >
+                Ir para o checkout
+                <ExternalLink className="h-4 w-4" />
               </Button>
             </div>
           </div>

@@ -17,6 +17,9 @@ import { Badge } from '../../shared/components/Badge';
 import { useAuth } from '../../app/context/AuthContext';
 import {
   buildPlanPaymentLink,
+  EXTRA_PROFILE_CHECKOUT_DESCRIPTION,
+  EXTRA_PROFILE_CHECKOUT_TITLE,
+  EXTRA_PROFILE_PRICE_LABEL,
   normalizePlan,
   STRIPE_PRICE_IDS,
   type PlanId,
@@ -314,10 +317,18 @@ export const Credits = () => {
           <div>
             <CardTitle>Comprar Plano da Plataforma</CardTitle>
             <CardDescription>
-              Escolha um plano e finalize a compra pelo link seguro do Stripe.
+              Escolha um plano principal da plataforma e finalize a compra pelo link seguro do Stripe.
             </CardDescription>
           </div>
           <Badge variant="brand">Stripe Billing</Badge>
+        </div>
+
+        <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4">
+          <p className="text-sm font-semibold text-text-primary">Perfis adicionais sao cobrados a parte</p>
+          <p className="mt-2 text-sm leading-6 text-text-secondary">
+            {EXTRA_PROFILE_CHECKOUT_TITLE} custa {EXTRA_PROFILE_PRICE_LABEL} em compra separada e
+            {` ${EXTRA_PROFILE_CHECKOUT_DESCRIPTION.toLowerCase()}`}
+          </p>
         </div>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">

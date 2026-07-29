@@ -12,6 +12,11 @@ interface StripeCheckoutContext {
 export const INCLUDED_PROFILES_PER_ACCOUNT = 1;
 export const EXTRA_PROFILE_PRICE_LABEL = 'R$47,90';
 export const EXTRA_PROFILE_PRICE_VALUE = 47.9;
+export const EXTRA_PROFILE_CHECKOUT_TITLE = '1 perfil adicional';
+export const EXTRA_PROFILE_CHECKOUT_DESCRIPTION =
+  'Essa compra libera mais 1 vaga de perfil na conta atual e nao altera a assinatura principal da PostHub.';
+export const EXTRA_PROFILE_CHECKOUT_EMAIL_HINT =
+  'Use o mesmo email da conta no checkout para o credito cair corretamente no seu acesso.';
 
 export const STRIPE_PRICE_IDS: Record<PlanId, string> = {
   start: 'price_1TJcfiLE0cyETHYjbu7xfPYL',
