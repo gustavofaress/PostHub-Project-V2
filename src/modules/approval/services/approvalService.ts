@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { supabase } from '../../../shared/utils/supabase';
+import { buildAppUrl } from '../../../shared/utils/appUrl';
 import type { ApprovalPost, ApprovalComment } from '../approval.types';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -63,6 +64,9 @@ const hasMissingProfileSnapshotColumn = (error: any) => {
   );
 };
 
+const hasMissingCalendarPostLinkColumn = (error: any) =>
+  String(error?.message || '').toLowerCase().includes('calendar_post_id');
+
 const fetchProfileSnapshot = async (
   client: any,
   profileId?: string
@@ -89,6 +93,10 @@ const fetchProfileSnapshot = async (
 };
 
 export const approvalService = {
+  buildPublicLink(token: string) {
+    return buildAppUrl(`/aprovacao/${token}`);
+  },
+
   async uploadApprovalMedia(
     profileId: string,
     file: File
@@ -200,8 +208,12 @@ export const approvalService = {
       .select('*')
       .single();
 
-    if (error && hasMissingProfileSnapshotColumn(error)) {
+    if (
+      error &&
+      (hasMissingProfileSnapshotColumn(error) || hasMissingCalendarPostLinkColumn(error))
+    ) {
       const fallbackDbPost = removeProfileSnapshotFromDbPost(dbPost);
+      delete fallbackDbPost.calendar_post_id;
       ({ data, error } = await client
         .from('approval_posts')
         .insert([fallbackDbPost])
@@ -256,8 +268,12 @@ export const approvalService = {
       .select('*')
       .single();
 
-    if (error && hasMissingProfileSnapshotColumn(error)) {
+    if (
+      error &&
+      (hasMissingProfileSnapshotColumn(error) || hasMissingCalendarPostLinkColumn(error))
+    ) {
       const fallbackDbPost = removeProfileSnapshotFromDbPost(dbPost);
+      delete fallbackDbPost.calendar_post_id;
       ({ data, error } = await client
         .from('approval_posts')
         .update({
@@ -477,6 +493,7 @@ function mapDbToApprovalPost(dbPost: DbApprovalPost): ApprovalPost {
     profileId: dbPost.profile_id || undefined,
     profileName: dbPost.profile_name_snapshot || undefined,
     profileAvatarUrl: dbPost.profile_avatar_url_snapshot || undefined,
+    calendarPostId: dbPost.calendar_post_id || undefined,
     mediaItems,
     publicToken: dbPost.public_token,
     createdAt: dbPost.created_at,
@@ -521,6 +538,7 @@ function mapApprovalPostToDb(post: Partial<ApprovalPost>, profileId?: string): a
   if (post.profileName !== undefined) dbPost.profile_name_snapshot = post.profileName;
   if (post.profileAvatarUrl !== undefined)
     dbPost.profile_avatar_url_snapshot = post.profileAvatarUrl;
+  if (post.calendarPostId !== undefined) dbPost.calendar_post_id = post.calendarPostId;
 
   if (
     post.thumbnail &&

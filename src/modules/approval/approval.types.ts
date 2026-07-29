@@ -45,6 +45,13 @@ export interface ApprovalPost {
   profileName?: string;
   profileAvatarUrl?: string;
   publicToken?: string;
+  calendarPostId?: string;
+  linkedCalendarPost?: {
+    id: string;
+    title: string;
+    scheduledDate: string;
+    status: string;
+  };
   createdAt: string;
   updatedAt: string;
   feedbackCount: number;
