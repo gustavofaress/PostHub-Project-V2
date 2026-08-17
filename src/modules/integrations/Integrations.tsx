@@ -1,130 +1,96 @@
 import * as React from 'react';
-import { useLocation } from 'react-router-dom';
 import {
+  AlertCircle,
+  CheckCircle2,
   ExternalLink,
-  Plus,
+  Loader2,
   RefreshCcw,
-  Search,
   Share2,
-  Zap,
 } from 'lucide-react';
 import { useProfile } from '../../app/context/ProfileContext';
-import { Card } from '../../shared/components/Card';
+import { useSocialConnections } from '../../hooks/useSocialConnections';
+import { Card, CardDescription, CardTitle } from '../../shared/components/Card';
 import { Button } from '../../shared/components/Button';
-import { Input } from '../../shared/components/Input';
 import { Badge } from '../../shared/components/Badge';
-import {
-  InstagramConnection,
-  metaInstagramService,
-} from '../../services/meta-instagram.service';
+import { SOCIAL_PLATFORM_LIST } from '../../shared/constants/socialPlatforms';
+import { socialAnalyticsService } from '../../services/social-analytics.service';
+import type {
+  SocialConnectionAttemptAccount,
+} from '../../types/social-analytics';
 
-type IntegrationStatus = 'connected' | 'not_connected';
+type InstagramUiState = 'idle' | 'authorizing' | 'selecting' | 'connected';
 
-interface IntegrationCard {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-  status: IntegrationStatus;
-  icon: string;
-}
-
-const DEFAULT_INTEGRATIONS: IntegrationCard[] = [
-  {
-    id: 'instagram',
-    name: 'Instagram',
-    description: 'Conecte contas Business via Meta OAuth e sincronize métricas reais.',
-    category: 'Redes Sociais',
-    status: 'not_connected',
-    icon: '📸',
-  },
-  {
-    id: 'tiktok',
-    name: 'TikTok',
-    description: 'Automatize seus uploads de vídeo e tendências.',
-    category: 'Redes Sociais',
-    status: 'not_connected',
-    icon: '🎵',
-  },
-  {
-    id: 'youtube',
-    name: 'YouTube',
-    description: 'Agende shorts e gerencie os dados do canal.',
-    category: 'Redes Sociais',
-    status: 'not_connected',
-    icon: '📺',
-  },
-  {
-    id: 'slack',
-    name: 'Slack',
-    description: 'Receba notificações sobre aprovações e status.',
-    category: 'Comunicação',
-    status: 'not_connected',
-    icon: '💬',
-  },
-  {
-    id: 'drive',
-    name: 'Google Drive',
-    description: 'Importe mídias diretamente do seu drive.',
-    category: 'Armazenamento',
-    status: 'not_connected',
-    icon: '📁',
-  },
-  {
-    id: 'mailchimp',
-    name: 'Mailchimp',
-    description: 'Sincronize seu conteúdo com suas newsletters.',
-    category: 'Marketing',
-    status: 'not_connected',
-    icon: '📧',
-  },
-];
+const WINDSOR_POLL_INTERVAL_MS = 4000;
+const WINDSOR_POLL_TIMEOUT_MS = 2 * 60 * 1000;
 
 export const Integrations = () => {
-  const location = useLocation();
   const { activeProfile } = useProfile();
-
-  const [connections, setConnections] = React.useState<InstagramConnection[]>([]);
-  const [isLoadingConnections, setIsLoadingConnections] = React.useState(false);
-  const [isConnectingInstagram, setIsConnectingInstagram] = React.useState(false);
-  const [isSyncingInstagram, setIsSyncingInstagram] = React.useState(false);
+  const {
+    connections,
+    isLoadingConnections,
+    connectionsError,
+    reloadConnections,
+  } = useSocialConnections(activeProfile?.id);
+  const [isCreatingConnection, setIsCreatingConnection] = React.useState(false);
+  const [isCheckingConnection, setIsCheckingConnection] = React.useState(false);
+  const [isDisconnectingConnection, setIsDisconnectingConnection] = React.useState(false);
+  const [isSyncingConnection, setIsSyncingConnection] = React.useState(false);
+  const [currentAttemptId, setCurrentAttemptId] = React.useState<string | null>(null);
+  const [attemptExpiresAt, setAttemptExpiresAt] = React.useState<string | null>(null);
+  const [pendingAccounts, setPendingAccounts] = React.useState<SocialConnectionAttemptAccount[]>(
+    []
+  );
+  const [selectedExternalAccountId, setSelectedExternalAccountId] = React.useState<string | null>(
+    null
+  );
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+  const [infoMessage, setInfoMessage] = React.useState<string | null>(null);
+  const [pollCycle, setPollCycle] = React.useState(0);
+  const [hasAutoPollingTimedOut, setHasAutoPollingTimedOut] = React.useState(false);
+  const pollingStartedAtRef = React.useRef<number | null>(null);
 
-  const metaFeedback = React.useMemo(() => {
-    const searchParams = new URLSearchParams(location.search);
-    const status = searchParams.get('meta_status');
-    const message = searchParams.get('meta_message');
-
-    if (!status || !message) {
-      return null;
-    }
-
-    return { status, message };
-  }, [location.search]);
-
-  const loadConnections = React.useCallback(async () => {
-    if (!activeProfile?.id) {
-      setConnections([]);
-      return;
-    }
-
-    setIsLoadingConnections(true);
-
-    try {
-      const data = await metaInstagramService.listConnections(activeProfile.id);
-      setConnections(data);
-    } catch (error) {
-      console.error('[Integrations] Error loading Instagram connections:', error);
-      setConnections([]);
-      setErrorMessage('Não foi possível carregar as conexões do Instagram deste perfil.');
-    } finally {
-      setIsLoadingConnections(false);
-    }
+  React.useEffect(() => {
+    setCurrentAttemptId(null);
+    setAttemptExpiresAt(null);
+    setPendingAccounts([]);
+    setSelectedExternalAccountId(null);
+    setErrorMessage(null);
+    setInfoMessage(null);
+    setPollCycle(0);
+    setHasAutoPollingTimedOut(false);
+    pollingStartedAtRef.current = null;
   }, [activeProfile?.id]);
 
   React.useEffect(() => {
-    void loadConnections();
-  }, [loadConnections]);
+    if (connectionsError) {
+      setErrorMessage(connectionsError);
+    }
+  }, [connectionsError]);
+
+  const instagramConnection = React.useMemo(
+    () =>
+      connections.find(
+        (connection) => connection.platform === 'instagram' && connection.status === 'active'
+      ) ?? null,
+    [connections]
+  );
+
+  const instagramUiState: InstagramUiState = React.useMemo(() => {
+    if (instagramConnection) return 'connected';
+    if (pendingAccounts.length > 0) return 'selecting';
+    if (currentAttemptId) return 'authorizing';
+    return 'idle';
+  }, [currentAttemptId, instagramConnection, pendingAccounts.length]);
+
+  const clearAttemptState = React.useCallback(() => {
+    setCurrentAttemptId(null);
+    setAttemptExpiresAt(null);
+    setPendingAccounts([]);
+    setSelectedExternalAccountId(null);
+    setPollCycle(0);
+    setHasAutoPollingTimedOut(false);
+    pollingStartedAtRef.current = null;
+  }, []);
 
   const handleConnectInstagram = React.useCallback(async () => {
     if (!activeProfile?.id) {
@@ -132,78 +98,205 @@ export const Integrations = () => {
       return;
     }
 
-    setIsConnectingInstagram(true);
+    setIsCreatingConnection(true);
     setErrorMessage(null);
+    setInfoMessage(null);
+    setPendingAccounts([]);
+    setSelectedExternalAccountId(null);
+    setPollCycle(0);
+    setHasAutoPollingTimedOut(false);
+    pollingStartedAtRef.current = null;
 
     try {
-      const authUrl = await metaInstagramService.getAuthUrl(activeProfile.id, '/workspace/integrations');
-      window.location.assign(authUrl);
-    } catch (error) {
-      console.error('[Integrations] Error starting Instagram OAuth:', error);
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : 'Não foi possível iniciar a conexão com a Meta.'
+      const result = await socialAnalyticsService.createConnection(activeProfile.id, 'instagram');
+      setCurrentAttemptId(result.attemptId);
+      setAttemptExpiresAt(result.expiresAt);
+      pollingStartedAtRef.current = Date.now();
+      window.open(result.authorizationUrl, '_blank', 'noopener,noreferrer');
+      setInfoMessage(
+        'Aguardando conclusão da conexão no Windsor. Assim que a autorização terminar, vamos verificar automaticamente.'
       );
-      setIsConnectingInstagram(false);
+    } catch (error) {
+      console.error('[Integrations] Error starting social authorization:', error);
+      setErrorMessage('Não foi possível iniciar a conexão. Tente novamente.');
+    } finally {
+      setIsCreatingConnection(false);
     }
   }, [activeProfile?.id]);
 
-  const handleSyncInstagram = React.useCallback(async () => {
-    if (!activeProfile?.id) {
-      setErrorMessage('Selecione um perfil antes de sincronizar métricas.');
+  const handleCheckConnection = React.useCallback(async (mode: 'manual' | 'poll' = 'manual') => {
+    if (!currentAttemptId) {
+      if (mode === 'manual') {
+        setErrorMessage('Gere um novo link para continuar a conexão.');
+      }
+      return null;
+    }
+
+    const isManualCheck = mode === 'manual';
+
+    setIsCheckingConnection(true);
+    if (isManualCheck) {
+      setErrorMessage(null);
+      setInfoMessage(null);
+    }
+
+    try {
+      const result = await socialAnalyticsService.checkConnection(
+        currentAttemptId,
+        pendingAccounts.length > 0 ? selectedExternalAccountId : undefined
+      );
+
+      if (result.status === 'pending') {
+        setPendingAccounts([]);
+        setSelectedExternalAccountId(null);
+        setInfoMessage(
+          result.message ||
+            'Aguardando conclusão da conexão...'
+        );
+      } else if (result.status === 'awaiting_account_selection') {
+        const nextAccounts = result.accounts ?? [];
+        setPendingAccounts(nextAccounts);
+        setSelectedExternalAccountId(nextAccounts[0]?.externalAccountId ?? null);
+        setHasAutoPollingTimedOut(false);
+        setInfoMessage('Escolha qual conta você quer conectar ao PostHub.');
+      } else if (result.status === 'expired') {
+        clearAttemptState();
+        setErrorMessage(result.message || 'Sua autorização expirou. Gere um novo link.');
+      } else if (result.status === 'failed') {
+        setHasAutoPollingTimedOut(true);
+        setErrorMessage(
+          result.message || 'Não conseguimos confirmar a conexão agora. Tente novamente em alguns instantes.'
+        );
+      } else if (result.status === 'completed') {
+        await reloadConnections();
+        clearAttemptState();
+        setInfoMessage('Instagram conectado com sucesso.');
+      }
+
+      return result.status;
+    } catch (error) {
+      console.error('[Integrations] Error checking social connection:', error);
+      setErrorMessage('Não foi possível verificar a conexão. Tente novamente.');
+      return null;
+    } finally {
+      setIsCheckingConnection(false);
+    }
+  }, [clearAttemptState, currentAttemptId, pendingAccounts.length, reloadConnections, selectedExternalAccountId]);
+
+  React.useEffect(() => {
+    if (!currentAttemptId || pendingAccounts.length > 0 || instagramConnection || hasAutoPollingTimedOut) {
       return;
     }
 
-    setIsSyncingInstagram(true);
+    if (isCheckingConnection) {
+      return;
+    }
+
+    const startedAt = pollingStartedAtRef.current;
+    if (!startedAt) {
+      pollingStartedAtRef.current = Date.now();
+    }
+
+    const elapsedMs = Date.now() - (pollingStartedAtRef.current ?? Date.now());
+    const remainingMs = WINDSOR_POLL_TIMEOUT_MS - elapsedMs;
+
+    if (remainingMs <= 0) {
+      setHasAutoPollingTimedOut(true);
+      setInfoMessage(
+        'Aguardando conclusão da conexão... Você pode continuar nesta tela e usar "Verificar conexão" com o mesmo link.'
+      );
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void handleCheckConnection('poll').then((status) => {
+        if (status === 'pending') {
+          setPollCycle((currentCycle) => currentCycle + 1);
+        }
+      });
+    }, Math.min(WINDSOR_POLL_INTERVAL_MS, remainingMs));
+
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    currentAttemptId,
+    pendingAccounts.length,
+    instagramConnection,
+    hasAutoPollingTimedOut,
+    isCheckingConnection,
+    handleCheckConnection,
+    pollCycle,
+  ]);
+
+  const handleDisconnectInstagram = React.useCallback(async () => {
+    if (!instagramConnection) {
+      return;
+    }
+
+    setIsDisconnectingConnection(true);
     setErrorMessage(null);
+    setInfoMessage(null);
 
     try {
-      const result = await metaInstagramService.syncMetrics(activeProfile.id);
-      const failedSync = result.results.find((item) => item.status === 'error');
-
-      if (failedSync?.error) {
-        setErrorMessage(failedSync.error);
-      }
-
-      await loadConnections();
+      await socialAnalyticsService.disconnect(instagramConnection.id);
+      await reloadConnections();
+      setInfoMessage('Instagram desconectado com sucesso.');
     } catch (error) {
-      console.error('[Integrations] Error syncing Instagram metrics:', error);
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : 'Não foi possível sincronizar as métricas do Instagram.'
-      );
+      console.error('[Integrations] Error disconnecting social connection:', error);
+      setErrorMessage('Não foi possível desconectar o Instagram. Tente novamente.');
     } finally {
-      setIsSyncingInstagram(false);
+      setIsDisconnectingConnection(false);
     }
-  }, [activeProfile?.id, loadConnections]);
+  }, [instagramConnection, reloadConnections]);
 
-  const hasInstagramConnections = connections.length > 0;
+  const handleSyncInstagramMetrics = React.useCallback(async () => {
+    if (!activeProfile?.id || !instagramConnection) {
+      setErrorMessage('Selecione um perfil com Instagram conectado antes de sincronizar.');
+      return;
+    }
 
-  const integrations = React.useMemo(
-    () =>
-      DEFAULT_INTEGRATIONS.map((integration) =>
-        integration.id === 'instagram'
-          ? {
-              ...integration,
-              status: hasInstagramConnections ? 'connected' : 'not_connected',
-              description: hasInstagramConnections
-                ? `${connections.length} conta(s) conectada(s). Última sincronização: ${
-                    connections[0]?.last_synced_at
-                      ? new Date(connections[0].last_synced_at).toLocaleDateString()
-                      : 'pendente'
-                  }.`
-                : integration.description,
-            }
-          : integration
-      ),
-    [connections, hasInstagramConnections]
-  );
+    setIsSyncingConnection(true);
+    setErrorMessage(null);
+    setInfoMessage(null);
+
+    try {
+      console.info('[Integrations] Sync Instagram metrics start:', {
+        profileId: activeProfile.id,
+        connectionId: instagramConnection.id,
+      });
+
+      const result = await socialAnalyticsService.syncConnection(
+        activeProfile.id,
+        instagramConnection.id
+      );
+
+      console.info('[Integrations] Sync Instagram metrics result:', {
+        profileId: result.profileId,
+        connectionId: result.connectionId,
+        status: result.status,
+        recordsReceived: result.recordsReceived,
+        recordsProcessed: result.recordsProcessed,
+      });
+
+      await reloadConnections();
+
+      setInfoMessage(
+        result.status === 'success'
+          ? 'Métricas do Instagram sincronizadas com sucesso.'
+          : 'Sincronização concluída, mas ainda não encontramos novas métricas disponíveis.'
+      );
+    } catch (error) {
+      console.error('[Integrations] Error syncing Instagram metrics:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+      setErrorMessage('Não foi possível sincronizar as métricas agora. Tente novamente em alguns minutos.');
+    } finally {
+      setIsSyncingConnection(false);
+    }
+  }, [activeProfile?.id, instagramConnection, reloadConnections]);
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold text-text-primary">
             <Share2 className="h-6 w-6 text-brand" />
@@ -213,132 +306,232 @@ export const Integrations = () => {
             Conecte o PostHub às suas ferramentas e plataformas favoritas.
           </p>
         </div>
-        <Button className="gap-2">
-          <Plus className="h-4 w-4" />
-          Solicitar Integração
-        </Button>
+
+        {activeProfile ? <Badge variant="brand">Perfil ativo: {activeProfile.name}</Badge> : null}
       </div>
 
-      {metaFeedback && (
-        <Card
-          className={
-            metaFeedback.status === 'success'
-              ? 'border-green-200 bg-green-50 p-4 text-green-700'
-              : 'border-red-200 bg-red-50 p-4 text-red-700'
-          }
-        >
-          {metaFeedback.message}
-        </Card>
-      )}
+      {infoMessage ? (
+        <Card className="border-blue-200 bg-blue-50 p-4 text-blue-700">{infoMessage}</Card>
+      ) : null}
 
-      {errorMessage && (
-        <Card className="border-red-200 bg-red-50 p-4 text-red-700">
-          {errorMessage}
-        </Card>
-      )}
+      {errorMessage ? (
+        <Card className="border-red-200 bg-red-50 p-4 text-red-700">{errorMessage}</Card>
+      ) : null}
 
-      <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
-        <div className="w-full md:w-96">
-          <Input placeholder="Buscar integrações..." icon={<Search className="h-4 w-4" />} />
+      <Card className="space-y-6">
+        <div>
+          <CardTitle>Redes sociais</CardTitle>
+          <CardDescription>
+            Conecte suas redes sociais para acompanhar resultados dentro do PostHub.
+          </CardDescription>
         </div>
-        <div className="flex w-full gap-2 overflow-x-auto pb-2 md:w-auto md:pb-0">
-          {['Todas', 'Redes Sociais', 'Comunicação', 'Armazenamento', 'Marketing'].map((cat) => (
-            <Button
-              key={cat}
-              variant={cat === 'Todas' ? 'primary' : 'ghost'}
-              size="sm"
-              className="whitespace-nowrap"
-            >
-              {cat}
-            </Button>
-          ))}
-        </div>
-      </div>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {integrations.map((app) => {
-          const isInstagram = app.id === 'instagram';
-          const isInstagramBusy =
-            isInstagram && (isConnectingInstagram || isSyncingInstagram || isLoadingConnections);
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          {SOCIAL_PLATFORM_LIST.map((platform) => {
+            const Icon = platform.icon;
 
-          return (
-            <Card
-              key={app.id}
-              className="group transition-all duration-300 hover:border-brand/50"
-            >
-              <div className="mb-4 flex items-start justify-between">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-50 text-2xl shadow-sm transition-transform group-hover:scale-110">
-                  {app.icon}
+            return (
+              <Card key={platform.id} className="border-slate-200/90">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-50 text-brand">
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-text-primary">{platform.label}</h3>
+                      <p className="mt-1 text-sm text-text-secondary">{platform.description}</p>
+                    </div>
+                  </div>
+                  <Badge variant={platform.available ? 'brand' : 'default'}>
+                    {platform.availabilityLabel}
+                  </Badge>
                 </div>
-                <Badge variant={app.status === 'connected' ? 'success' : 'default'}>
-                  {app.status === 'connected' ? 'Conectado' : 'Não Conectado'}
-                </Badge>
-              </div>
 
-              <h3 className="mb-1 font-bold text-text-primary">{app.name}</h3>
-              <p className="mb-6 line-clamp-2 text-xs text-text-secondary">
-                {app.description}
-              </p>
+                {platform.id === 'instagram' ? (
+                  <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+                    {instagramUiState === 'connected' && instagramConnection ? (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 text-green-700">
+                          <CheckCircle2 className="h-4 w-4" />
+                          <span className="text-sm font-medium">Conectado</span>
+                        </div>
 
-              <div className="flex items-center justify-between border-t border-gray-100 pt-4">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                  {app.category}
-                </span>
-                {isInstagram ? (
-                  <Button
-                    variant={app.status === 'connected' ? 'outline' : 'primary'}
-                    size="sm"
-                    className="h-8 gap-2"
-                    onClick={() =>
-                      app.status === 'connected'
-                        ? void handleSyncInstagram()
-                        : void handleConnectInstagram()
-                    }
-                    isLoading={isInstagramBusy}
-                  >
-                    {app.status === 'connected' ? (
-                      <>
-                        Atualizar
-                        <RefreshCcw className="h-3 w-3" />
-                      </>
+                        <div className="space-y-1">
+                          <p className="font-medium text-text-primary">
+                            {instagramConnection.externalAccountHandle
+                              ? `@${instagramConnection.externalAccountHandle.replace(/^@/, '')}`
+                              : 'Conta conectada'}
+                          </p>
+                          <p className="text-sm text-text-secondary">
+                            {instagramConnection.externalAccountName || 'Nome da conta não informado'}
+                          </p>
+                          <p className="text-sm text-text-secondary">
+                            Última sincronização:{' '}
+                            {instagramConnection.lastSuccessfulSyncAt
+                              ? new Date(instagramConnection.lastSuccessfulSyncAt).toLocaleString()
+                              : 'Ainda não sincronizado'}
+                          </p>
+                        </div>
+
+                        <div className="flex flex-wrap gap-3">
+                          <Button
+                            variant="outline"
+                            onClick={() => void handleSyncInstagramMetrics()}
+                            isLoading={isSyncingConnection}
+                            disabled={isSyncingConnection || isDisconnectingConnection}
+                            className="gap-2"
+                          >
+                            <RefreshCcw className="h-4 w-4" />
+                            {isSyncingConnection ? 'Sincronizando...' : 'Sincronizar métricas'}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            onClick={() => void handleDisconnectInstagram()}
+                            isLoading={isDisconnectingConnection}
+                          >
+                            Desconectar
+                          </Button>
+                        </div>
+                      </div>
+                    ) : instagramUiState === 'selecting' ? (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 text-text-primary">
+                          <AlertCircle className="h-4 w-4 text-brand" />
+                          <span className="text-sm font-medium">Qual conta você quer conectar?</span>
+                        </div>
+
+                        <div className="space-y-2">
+                          {pendingAccounts.map((account) => (
+                            <label
+                              key={account.externalAccountId}
+                              className="flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 bg-white p-3"
+                            >
+                              <input
+                                type="radio"
+                                name="instagram-account"
+                                value={account.externalAccountId}
+                                checked={selectedExternalAccountId === account.externalAccountId}
+                                onChange={() => setSelectedExternalAccountId(account.externalAccountId)}
+                                className="mt-1"
+                              />
+                              <div>
+                                <p className="font-medium text-text-primary">
+                                  {account.accountName || 'Conta sem nome'}
+                                </p>
+                                <p className="text-sm text-text-secondary">
+                                  {account.accountHandle
+                                    ? `@${account.accountHandle.replace(/^@/, '')}`
+                                    : 'Handle não informado'}
+                                </p>
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+
+                        <div className="flex flex-wrap gap-3">
+                          <Button
+                            onClick={() => void handleCheckConnection()}
+                            isLoading={isCheckingConnection}
+                            disabled={!selectedExternalAccountId}
+                          >
+                            Conectar esta conta
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => void handleConnectInstagram()}
+                            isLoading={isCreatingConnection}
+                          >
+                            Gerar novo link
+                          </Button>
+                        </div>
+                      </div>
+                    ) : instagramUiState === 'authorizing' ? (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 text-text-primary">
+                          {isCheckingConnection ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-brand" />
+                          ) : (
+                            <ExternalLink className="h-4 w-4 text-brand" />
+                          )}
+                          <span className="text-sm font-medium">Aguardando conclusão da conexão...</span>
+                        </div>
+
+                        <div className="space-y-1 text-sm text-text-secondary">
+                          <p>Autorize seu Instagram na página que foi aberta.</p>
+                          <p>
+                            Vamos verificar automaticamente por alguns instantes. Se preferir, você também pode
+                            clicar em verificar conexão com este mesmo link.
+                          </p>
+                          {attemptExpiresAt ? (
+                            <p>Esta autorização expira em {new Date(attemptExpiresAt).toLocaleString()}.</p>
+                          ) : null}
+                          {hasAutoPollingTimedOut ? (
+                            <p>A conexão ainda pode ser concluída. Use o botão abaixo para verificar novamente.</p>
+                          ) : null}
+                        </div>
+
+                        <div className="flex flex-wrap gap-3">
+                          <Button
+                            onClick={() => void handleCheckConnection()}
+                            isLoading={isCheckingConnection}
+                          >
+                            Verificar conexão
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => void handleConnectInstagram()}
+                            isLoading={isCreatingConnection}
+                          >
+                            Gerar novo link
+                          </Button>
+                        </div>
+                      </div>
                     ) : (
-                      <>
-                        Conectar
-                        <ExternalLink className="h-3 w-3" />
-                      </>
+                      <div className="space-y-4">
+                        <div className="space-y-1">
+                          <p className="font-medium text-text-primary">Instagram</p>
+                          <p className="text-sm text-text-secondary">
+                            Conecte sua conta do Instagram para acompanhar seus resultados dentro do PostHub.
+                          </p>
+                        </div>
+
+                        <Button
+                          onClick={() => void handleConnectInstagram()}
+                          isLoading={isCreatingConnection}
+                          className="gap-2"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                          Conectar Instagram
+                        </Button>
+                      </div>
                     )}
-                  </Button>
+                  </div>
                 ) : (
-                  <Button variant="outline" size="sm" className="h-8 gap-2">
-                    Em breve
-                  </Button>
+                  <div className="mt-6">
+                    <Button variant="outline" disabled>
+                      Em breve
+                    </Button>
+                  </div>
                 )}
-              </div>
-            </Card>
-          );
-        })}
-      </div>
-
-      <Card className="relative overflow-hidden border-none bg-gradient-to-r from-brand to-blue-600 p-8 text-white">
-        <div className="relative z-10 max-w-lg">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-xs font-bold backdrop-blur-md">
-            <Zap className="h-3 w-3" />
-            NOVA INTEGRAÇÃO
-          </div>
-          <h2 className="mb-4 text-3xl font-bold">PostHub para Slack</h2>
-          <p className="mb-6 text-white/80">
-            Receba notificações em tempo real sobre aprovações de conteúdo, comentários e status de
-            publicação diretamente nos seus canais do Slack.
-          </p>
-          <Button className="gap-2 bg-white text-brand hover:bg-white/90">
-            Adicionar ao Slack
-            <ExternalLink className="h-4 w-4" />
-          </Button>
+              </Card>
+            );
+          })}
         </div>
+      </Card>
 
-        <div className="pointer-events-none absolute right-0 top-0 h-full w-1/2 opacity-10">
-          <div className="absolute right-[-10%] top-[-20%] h-64 w-64 rounded-full bg-white blur-3xl" />
-          <div className="absolute bottom-[-20%] right-[10%] h-48 w-48 rounded-full bg-white blur-2xl" />
+      <Card className="border-slate-200/90 bg-slate-50/70">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <CardTitle>Estado desta fase</CardTitle>
+            <CardDescription>
+	              A conexão estrutural com Instagram já fica centralizada em Social Analytics. Use o botão do Instagram para executar o primeiro teste manual de métricas.
+            </CardDescription>
+          </div>
+          <Badge variant="info">
+            {isLoadingConnections
+              ? 'Carregando conexões...'
+              : `${connections.length} conexão(ões) neste perfil`}
+          </Badge>
         </div>
       </Card>
     </div>

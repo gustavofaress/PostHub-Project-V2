@@ -99,6 +99,8 @@ export const isMetricHubPaymentLinkConfigured = () =>
 const ALWAYS_OPEN_FEATURES: PlanFeature[] = [
   'onboarding',
   'dashboard',
+  'integrations',
+  'performance',
   'settings',
   'account',
   'credits',
@@ -143,8 +145,7 @@ export const hasAccess = (
   feature: PlanFeature,
   isAdmin = false
 ) => {
-  if (isAdmin) return feature !== 'performance';
-  if (feature === 'performance') return false;
+  if (isAdmin) return true;
   if (isTrialPlan(plan)) return true;
   if (ALWAYS_OPEN_FEATURES.includes(feature)) return true;
 
