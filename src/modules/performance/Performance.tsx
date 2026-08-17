@@ -1,352 +1,855 @@
 import * as React from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   Activity,
+  ArrowDownRight,
   ArrowUpRight,
   BarChart3,
-  ChevronRight,
+  Clock,
+  Heart,
   Instagram,
+  MessageCircle,
   RefreshCcw,
+  Send,
+  TrendingUp,
+  Users,
+  Bookmark,
 } from 'lucide-react';
-import { Card, CardDescription, CardTitle } from '../../shared/components/Card';
+import { useProfile } from '../../app/context/ProfileContext';
 import { Badge } from '../../shared/components/Badge';
 import { Button } from '../../shared/components/Button';
+import { Card, CardDescription, CardTitle } from '../../shared/components/Card';
 import { EmptyState } from '../../shared/components/EmptyState';
-import { Tabs } from '../../shared/components/Tabs';
-import { useProfile } from '../../app/context/ProfileContext';
-import { useAuth } from '../../app/context/AuthContext';
-import { supabase } from '../../shared/utils/supabase';
-import {
-  InstagramConnection,
-  metaInstagramService,
-} from '../../services/meta-instagram.service';
-import { PerformanceInstagramUploads } from './PerformanceInstagramUploads';
-import { useIsMobile } from '../mobile/hooks/useIsMobile';
+import { socialAnalyticsService } from '../../services/social-analytics.service';
+import type { SocialAccountMetric, SocialConnection } from '../../types/social-analytics';
 
-interface InstagramMetricRow {
-  id: string;
-  metric_external_id?: string | null;
-  metric_scope?: 'account' | 'media' | null;
-  user_id?: string | null;
-  customer_id: string;
-  profile_id: string | null;
-  page_id?: string | null;
-  instagram_user_id?: string | null;
-  media_id?: string | null;
-  date?: string | null;
-  data?: string | null;
-  likes?: number | null;
-  comments?: number | null;
-  total_interactions?: number | null;
-  accounts_engaged?: number | null;
-  saves?: number | null;
-  shares?: number | null;
-  follows?: number | null;
-  unfollows?: number | null;
-  profile_link_taps?: number | null;
-  website_clicks?: number | null;
-  profile_views?: number | null;
-  impressions?: number | null;
-  reach?: number | null;
-  impressoes?: number | null;
-  alcance?: number | null;
-  seguidores?: number | null;
-  caption?: string | null;
-  permalink?: string | null;
-  created_at: string;
-  updated_at?: string | null;
+type PeriodDays = 7 | 30 | 90;
+
+interface DateRange {
+  start: string;
+  end: string;
 }
 
-interface MetricCard {
+interface KpiCardData {
   label: string;
   value: string;
-  change: string;
-  trend: 'up' | 'down';
+  comparison: ComparisonResult;
+  icon: React.ElementType;
 }
 
-interface TopPostRow {
+interface ChartPoint {
+  date: string;
+  value: number;
+}
+
+interface ChartSeries {
   id: string;
-  title: string;
-  platform: string;
-  reach: number;
-  engagement: number;
-  createdAt: string;
-}
-
-interface MetricsSummary {
-  reach: number;
-  impressions: number;
-  engagementRate: number;
-  profileViews: number;
-}
-
-interface PerformanceSection {
-  id: 'overview' | 'instagram-uploads';
   label: string;
-  description: string;
-  badge?: string;
+  color: string;
+  points: ChartPoint[];
+  valueFormatter?: (value: number) => string;
 }
 
-function cn(...inputs: Array<string | boolean | null | undefined>) {
-  return inputs.filter(Boolean).join(' ');
+interface BarChartItem {
+  label: string;
+  value: number | null;
+  icon: React.ElementType;
+  color: string;
 }
 
-function safeNumber(value: number | null | undefined): number {
-  return typeof value === 'number' && !Number.isNaN(value) ? value : 0;
+interface ComparisonResult {
+  label: string;
+  trend: 'up' | 'down' | 'neutral';
 }
 
-function formatCompactNumber(value: number): string {
-  if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}m`;
-  if (Math.abs(value) >= 1_000) return `${(value / 1_000).toFixed(1)}k`;
-  return String(value);
+const PERIOD_TABS: Array<{ id: string; label: string }> = [
+  { id: '7', label: '7 dias' },
+  { id: '30', label: '30 dias' },
+  { id: '90', label: '90 dias' },
+];
+
+const numberFormatter = new Intl.NumberFormat('pt-BR');
+
+function formatTime(date: Date) {
+  return date.toLocaleTimeString('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
-function formatPercent(value: number): string {
-  return `${value.toFixed(1)}%`;
+function isSameCalendarDay(first: Date, second: Date) {
+  return (
+    first.getFullYear() === second.getFullYear() &&
+    first.getMonth() === second.getMonth() &&
+    first.getDate() === second.getDate()
+  );
 }
 
-function startOfDay(date: Date) {
+function formatLastUpdate(value: string | null | undefined) {
+  if (!value) return 'Ainda não atualizado';
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return 'Ainda não atualizado';
+
+  const now = new Date();
+  const diffMinutes = Math.max(0, Math.floor((now.getTime() - parsed.getTime()) / 60_000));
+
+  if (diffMinutes < 5) {
+    return 'Atualizado há poucos minutos';
+  }
+
+  if (isSameCalendarDay(parsed, now)) {
+    return `Atualizado hoje às ${formatTime(parsed)}`;
+  }
+
+  const yesterday = addDays(now, -1);
+  if (isSameCalendarDay(parsed, yesterday)) {
+    return `Atualizado ontem às ${formatTime(parsed)}`;
+  }
+
+  return `Atualizado em ${parsed.toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  })} às ${formatTime(parsed)}`;
+}
+
+function formatMetricDate(value: string) {
+  const parsed = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return value;
+
+  return parsed.toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: 'short',
+  });
+}
+
+function formatTooltipDate(value: string) {
+  const parsed = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return value;
+
+  return parsed.toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: 'long',
+  });
+}
+
+function formatNumber(value: number | null) {
+  return value === null ? '—' : numberFormatter.format(value);
+}
+
+function formatPercent(value: number | null) {
+  if (value === null) return '—';
+
+  return `${value.toLocaleString('pt-BR', {
+    minimumFractionDigits: value % 1 === 0 ? 0 : 1,
+    maximumFractionDigits: 1,
+  })}%`;
+}
+
+function toIsoDate(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function addDays(date: Date, days: number) {
   const copy = new Date(date);
-  copy.setHours(0, 0, 0, 0);
+  copy.setDate(copy.getDate() + days);
   return copy;
 }
 
-function getMetricDate(row: InstagramMetricRow): Date {
-  const raw = row.data || row.date || row.created_at;
-  const parsed = new Date(raw || '');
+function getRangeForLastDays(days: PeriodDays): DateRange {
+  const today = new Date();
+  const end = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const start = addDays(end, -(days - 1));
 
-  if (Number.isNaN(parsed.getTime())) {
-    return new Date(row.created_at);
-  }
-
-  return parsed;
-}
-
-function getReach(row: InstagramMetricRow): number {
-  return safeNumber(row.alcance ?? row.reach);
-}
-
-function getImpressions(row: InstagramMetricRow): number {
-  return safeNumber(row.impressoes ?? row.impressions);
-}
-
-function getFollowers(row: InstagramMetricRow): number {
-  return safeNumber(row.seguidores);
-}
-
-function getProfileViews(row: InstagramMetricRow): number {
-  return safeNumber(row.profile_views);
-}
-
-function getEngagementSignals(row: InstagramMetricRow): number {
-  return (
-    safeNumber(row.likes) +
-    safeNumber(row.comments) +
-    safeNumber(row.shares) +
-    safeNumber(row.saves)
-  );
-}
-
-function getEngagementRate(row: InstagramMetricRow): number {
-  const explicitTotal = safeNumber(row.total_interactions);
-  const explicitEngaged = safeNumber(row.accounts_engaged);
-  const reach = getReach(row);
-
-  if (reach <= 0) return 0;
-
-  if (explicitTotal > 0) {
-    return (explicitTotal / reach) * 100;
-  }
-
-  if (explicitEngaged > 0) {
-    return (explicitEngaged / reach) * 100;
-  }
-
-  return (getEngagementSignals(row) / reach) * 100;
-}
-
-function calculateMetrics(rows: InstagramMetricRow[]) {
-  const now = new Date();
-  const currentStart = startOfDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29));
-
-  const filteredRows = rows.filter((row) => getMetricDate(row) >= currentStart);
-  const currentRows = filteredRows.length > 0 ? filteredRows : rows;
-  const accountRows = currentRows.filter((row) => row.metric_scope === 'account');
-  const mediaRows = currentRows.filter(
-    (row) => row.metric_scope === 'media' || (!row.metric_scope && Boolean(row.caption || row.permalink))
-  );
-  const summaryRows = accountRows.length > 0 ? accountRows : mediaRows;
-
-  const sumBy = (items: InstagramMetricRow[], getter: (row: InstagramMetricRow) => number) =>
-    items.reduce((acc, item) => acc + getter(item), 0);
-
-  const avgBy = (items: InstagramMetricRow[], getter: (row: InstagramMetricRow) => number) => {
-    if (!items.length) return 0;
-    return sumBy(items, getter) / items.length;
+  return {
+    start: toIsoDate(start),
+    end: toIsoDate(end),
   };
+}
 
-  const accountRowsSorted = [...summaryRows].sort(
-    (a, b) => getMetricDate(a).getTime() - getMetricDate(b).getTime()
+function getPreviousRange(currentRange: DateRange, days: PeriodDays): DateRange {
+  const currentStart = new Date(`${currentRange.start}T00:00:00`);
+  const previousEnd = addDays(currentStart, -1);
+  const previousStart = addDays(previousEnd, -(days - 1));
+
+  return {
+    start: toIsoDate(previousStart),
+    end: toIsoDate(previousEnd),
+  };
+}
+
+function isInRange(metric: SocialAccountMetric, range: DateRange) {
+  return metric.metricDate >= range.start && metric.metricDate <= range.end;
+}
+
+function sumAvailable(
+  rows: SocialAccountMetric[],
+  getter: (row: SocialAccountMetric) => number | null
+) {
+  let total = 0;
+  let hasAnyValue = false;
+
+  for (const row of rows) {
+    const value = getter(row);
+
+    if (value !== null && value !== undefined) {
+      total += value;
+      hasAnyValue = true;
+    }
+  }
+
+  return hasAnyValue ? total : null;
+}
+
+function getInteractionValue(row: SocialAccountMetric) {
+  const values = [row.likes, row.comments, row.saves, row.shares];
+  const availableValues = values.filter((value): value is number => value !== null && value !== undefined);
+
+  if (!availableValues.length) return null;
+
+  return availableValues.reduce((total, value) => total + value, 0);
+}
+
+function getInteractionRateByReach(row: SocialAccountMetric) {
+  const interactions = getInteractionValue(row);
+
+  if (interactions === null || row.reach1d === null || row.reach1d === undefined || row.reach1d <= 0) {
+    return null;
+  }
+
+  return (interactions / row.reach1d) * 100;
+}
+
+function getAccountsEngagedRateByReach(row: SocialAccountMetric) {
+  if (
+    row.accountsEngaged === null ||
+    row.accountsEngaged === undefined ||
+    row.reach1d === null ||
+    row.reach1d === undefined ||
+    row.reach1d <= 0
+  ) {
+    return null;
+  }
+
+  return (row.accountsEngaged / row.reach1d) * 100;
+}
+
+function getLatestFollowersCount(rows: SocialAccountMetric[]) {
+  const snapshots = rows
+    .filter((row) => row.followersCount !== null && row.followersCount !== undefined)
+    .sort((a, b) => a.metricDate.localeCompare(b.metricDate));
+
+  return snapshots.at(-1)?.followersCount ?? null;
+}
+
+function calculateFollowersComparison(rows: SocialAccountMetric[]) {
+  const snapshots = rows
+    .filter((row) => row.followersCount !== null && row.followersCount !== undefined)
+    .sort((a, b) => a.metricDate.localeCompare(b.metricDate));
+
+  if (snapshots.length < 2) {
+    return {
+      label: 'Histórico insuficiente para comparação',
+      trend: 'neutral' as const,
+    };
+  }
+
+  const first = snapshots[0].followersCount;
+  const last = snapshots.at(-1)?.followersCount;
+
+  if (first === null || first === undefined || last === null || last === undefined || first === 0) {
+    return {
+      label: 'Histórico insuficiente para comparação',
+      trend: 'neutral' as const,
+    };
+  }
+
+  const percentage = ((last - first) / first) * 100;
+
+  return {
+    label: `${Math.abs(percentage).toFixed(1)}% no período`,
+    trend: percentage > 0 ? 'up' as const : percentage < 0 ? 'down' as const : 'neutral' as const,
+  };
+}
+
+function calculatePeriodComparison(
+  currentRows: SocialAccountMetric[],
+  previousRows: SocialAccountMetric[],
+  getter: (row: SocialAccountMetric) => number | null
+) {
+  const current = sumAvailable(currentRows, getter);
+  const previous = sumAvailable(previousRows, getter);
+
+  if (current === null || previous === null || previous === 0) {
+    return {
+      label: 'Histórico insuficiente para comparação',
+      trend: 'neutral' as const,
+    };
+  }
+
+  const percentage = ((current - previous) / previous) * 100;
+
+  return {
+    label: `${Math.abs(percentage).toFixed(1)}% vs. período anterior`,
+    trend: percentage > 0 ? 'up' as const : percentage < 0 ? 'down' as const : 'neutral' as const,
+  };
+}
+
+function buildDailyPoints(
+  rows: SocialAccountMetric[],
+  getter: (row: SocialAccountMetric) => number | null
+): ChartPoint[] {
+  const pointsByDate = new Map<string, number>();
+
+  for (const row of rows) {
+    const value = getter(row);
+
+    if (value === null || value === undefined) {
+      continue;
+    }
+
+    pointsByDate.set(row.metricDate, (pointsByDate.get(row.metricDate) ?? 0) + value);
+  }
+
+  return Array.from(pointsByDate.entries())
+    .map(([date, value]) => ({ date, value }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function getLatestPointValue(points: ChartPoint[]) {
+  return points.at(-1)?.value ?? null;
+}
+
+function ChartEmptyState({ message = 'Nenhum dado disponível neste período.' }: { message?: string }) {
+  return (
+    <div className="flex min-h-[150px] items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50/70 px-4 text-center text-sm text-text-secondary">
+      {message}
+    </div>
   );
+}
 
-  const followerGrowth =
-    accountRowsSorted.length >= 2
-      ? getFollowers(accountRowsSorted[accountRowsSorted.length - 1]) - getFollowers(accountRowsSorted[0])
-      : accountRowsSorted.length === 1
-      ? getFollowers(accountRowsSorted[0])
-      : 0;
+function TinyLineChart({
+  points,
+  color = '#6D5DFB',
+  label,
+  valueFormatter = formatNumber,
+  heightClassName = 'h-44',
+  variant = 'line',
+}: {
+  points: ChartPoint[];
+  color?: string;
+  label: string;
+  valueFormatter?: (value: number) => string;
+  heightClassName?: string;
+  variant?: 'line' | 'area';
+}) {
+  const gradientId = React.useId().replace(/:/g, '');
 
-  const totalLikes = sumBy(mediaRows, (row) => safeNumber(row.likes));
-  const totalComments = sumBy(mediaRows, (row) => safeNumber(row.comments));
-  const totalAccountsEngaged = sumBy(mediaRows, (row) => safeNumber(row.accounts_engaged));
-  const totalSavesAndShares = sumBy(
-    mediaRows,
-    (row) => safeNumber(row.saves) + safeNumber(row.shares)
+  if (!points.length) {
+    return <ChartEmptyState />;
+  }
+
+  const width = 640;
+  const height = 190;
+  const paddingX = 34;
+  const paddingY = 30;
+  const values = points.map((point) => point.value);
+  const minValue = Math.min(...values, 0);
+  const maxValue = Math.max(...values, 1);
+  const valueRange = maxValue - minValue || 1;
+  const xStep = points.length > 1 ? (width - paddingX * 2) / (points.length - 1) : 0;
+  const coordinates = points.map((point, index) => {
+    const x = points.length > 1 ? paddingX + index * xStep : width / 2;
+    const y = height - paddingY - ((point.value - minValue) / valueRange) * (height - paddingY * 2);
+
+    return { ...point, x, y };
+  });
+  const path = coordinates
+    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
+    .join(' ');
+
+  return (
+    <div className="w-full overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-3">
+      <svg viewBox={`0 0 ${width} ${height}`} className={`${heightClassName} w-full max-w-full`}>
+        <defs>
+          <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity="0.22" />
+            <stop offset="100%" stopColor={color} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+
+        <line
+          x1={paddingX}
+          x2={width - paddingX}
+          y1={height - paddingY}
+          y2={height - paddingY}
+          stroke="#E2E8F0"
+          strokeWidth="1"
+        />
+
+        {coordinates.length > 1 ? (
+          <>
+            {variant === 'area' ? (
+              <path
+                d={`${path} L ${coordinates.at(-1)?.x ?? width - paddingX} ${height - paddingY} L ${coordinates[0].x} ${height - paddingY} Z`}
+                fill={`url(#${gradientId})`}
+              />
+            ) : null}
+            <path d={path} fill="none" stroke={color} strokeLinecap="round" strokeWidth="3" />
+          </>
+        ) : null}
+
+        {variant === 'area' && coordinates.length === 1 ? (
+          <rect
+            x={coordinates[0].x - 32}
+            y={coordinates[0].y}
+            width="64"
+            height={height - paddingY - coordinates[0].y}
+            rx="16"
+            fill={`url(#${gradientId})`}
+          />
+        ) : null}
+
+        {coordinates.map((point) => (
+          <g key={point.date}>
+            <title>{`${formatTooltipDate(point.date)}\n${label}: ${valueFormatter(point.value)}`}</title>
+            <circle cx={point.x} cy={point.y} r="5" fill={color} />
+            <circle cx={point.x} cy={point.y} r="9" fill={color} opacity="0.12" />
+          </g>
+        ))}
+      </svg>
+
+      <div className="flex items-center justify-between gap-3 px-2 pb-1 text-xs text-text-secondary">
+        <span>{formatMetricDate(points[0].date)}</span>
+        <span>{points.length} ponto(s) disponível(is)</span>
+        <span>{formatMetricDate(points.at(-1)?.date ?? points[0].date)}</span>
+      </div>
+    </div>
   );
+}
 
-  const totalReach = sumBy(summaryRows, getReach);
-  const totalImpressions = sumBy(summaryRows, getImpressions);
-  const totalProfileViews = sumBy(summaryRows, getProfileViews);
-  const avgEngagementRate = avgBy(mediaRows, getEngagementRate);
-
-  const metrics: MetricCard[] = [
+function ReachEngagementComboChart({
+  reachPoints,
+  engagedPoints,
+}: {
+  reachPoints: ChartPoint[];
+  engagedPoints: ChartPoint[];
+}) {
+  const series: ChartSeries[] = [
     {
-      label: 'Curtidas',
-      value: formatCompactNumber(totalLikes),
-      change: `${mediaRows.length} posts`,
-      trend: 'up',
+      id: 'reach',
+      label: 'Alcance',
+      color: '#6D5DFB',
+      points: reachPoints,
     },
     {
-      label: 'Comentários',
-      value: formatCompactNumber(totalComments),
-      change: `${mediaRows.length} posts`,
-      trend: 'up',
-    },
-    {
-      label: 'Contas Engajadas',
-      value: formatCompactNumber(totalAccountsEngaged),
-      change: `${mediaRows.length} posts`,
-      trend: 'up',
-    },
-    {
-      label: 'Salvamentos + Compartilhamentos',
-      value: formatCompactNumber(totalSavesAndShares),
-      change: `${mediaRows.length} posts`,
-      trend: 'up',
+      id: 'engaged',
+      label: 'Contas engajadas',
+      color: '#F97316',
+      points: engagedPoints,
     },
   ];
+  const visibleSeries = series.filter((item) => item.points.length > 0);
 
-  const summary: MetricsSummary = {
-    reach: totalReach,
-    impressions: totalImpressions,
-    engagementRate: avgEngagementRate,
-    profileViews: totalProfileViews,
-  };
+  if (!visibleSeries.length) {
+    return <ChartEmptyState />;
+  }
 
-  const topPosts: TopPostRow[] = mediaRows
-    .filter((row) => Boolean(row.caption || row.permalink))
-    .map((row) => ({
-      id: row.id,
-      title: row.caption?.trim() || 'Post sem legenda',
-      platform: 'Instagram',
-      reach: getReach(row),
-      engagement: getEngagementRate(row),
-      createdAt: row.created_at,
-    }))
-    .sort((a, b) => b.reach - a.reach)
-    .slice(0, 8);
+  const width = 640;
+  const height = 190;
+  const paddingX = 34;
+  const paddingY = 30;
+  const dates = Array.from(
+    new Set(visibleSeries.flatMap((item) => item.points.map((point) => point.date)))
+  ).sort((a, b) => a.localeCompare(b));
+  const values = visibleSeries.flatMap((item) => item.points.map((point) => point.value));
+  const minValue = Math.min(...values, 0);
+  const maxValue = Math.max(...values, 1);
+  const valueRange = maxValue - minValue || 1;
+  const xStep = dates.length > 1 ? (width - paddingX * 2) / (dates.length - 1) : 0;
+  const barWidth = Math.min(42, Math.max(18, (width - paddingX * 2) / Math.max(dates.length, 1) * 0.42));
+  const getX = (date: string) =>
+    dates.length > 1 ? paddingX + dates.indexOf(date) * xStep : width / 2;
+  const getY = (value: number) =>
+    height - paddingY - ((value - minValue) / valueRange) * (height - paddingY * 2);
+  const reachByDate = new Map(reachPoints.map((point) => [point.date, point.value]));
+  const engagedCoordinates = engagedPoints.map((point) => ({
+    ...point,
+    x: getX(point.date),
+    y: getY(point.value),
+  }));
+  const engagedPath = engagedCoordinates
+    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
+    .join(' ');
 
-  return {
-    metrics,
-    topPosts,
-    summary,
-    followerGrowth,
-    hasAccountData: summaryRows.length > 0,
-    hasMediaData: mediaRows.length > 0,
-  };
+  return (
+    <div className="w-full overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-3">
+      <div className="mb-2 flex flex-wrap gap-3 px-2 text-xs text-text-secondary">
+        {visibleSeries.map((item) => (
+          <span key={item.id} className="inline-flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: item.color }} />
+            {item.label}
+          </span>
+        ))}
+      </div>
+
+      <svg viewBox={`0 0 ${width} ${height}`} className="h-44 w-full max-w-full">
+        <line
+          x1={paddingX}
+          x2={width - paddingX}
+          y1={height - paddingY}
+          y2={height - paddingY}
+          stroke="#E2E8F0"
+          strokeWidth="1"
+        />
+
+        {dates.map((date) => {
+          const value = reachByDate.get(date);
+
+          if (value === undefined) return null;
+
+          const barHeight = maxValue === 0 ? 2 : Math.max(2, height - paddingY - getY(value));
+          const x = getX(date) - barWidth / 2;
+          const y = height - paddingY - barHeight;
+
+          return (
+            <rect
+              key={date}
+              x={x}
+              y={y}
+              width={barWidth}
+              height={barHeight}
+              rx="10"
+              fill="#6D5DFB"
+              opacity="0.28"
+            >
+              <title>{`${formatTooltipDate(date)}\nAlcance: ${formatNumber(value)}`}</title>
+            </rect>
+          );
+        })}
+
+        {engagedCoordinates.length > 1 ? (
+          <path d={engagedPath} fill="none" stroke="#F97316" strokeLinecap="round" strokeWidth="3" />
+        ) : null}
+
+        {engagedCoordinates.map((point) => (
+          <g key={`engaged-${point.date}`}>
+            <title>{`${formatTooltipDate(point.date)}\nContas engajadas: ${formatNumber(point.value)}`}</title>
+            <circle cx={point.x} cy={point.y} r="5" fill="#F97316" />
+            <circle cx={point.x} cy={point.y} r="9" fill="#F97316" opacity="0.12" />
+          </g>
+        ))}
+      </svg>
+
+      <div className="flex items-center justify-between gap-3 px-2 pb-1 text-xs text-text-secondary">
+        <span>{formatMetricDate(dates[0])}</span>
+        <span>{dates.length} dia(s) com dados</span>
+        <span>{formatMetricDate(dates.at(-1) ?? dates[0])}</span>
+      </div>
+    </div>
+  );
 }
 
-function formatConnectionStatus(connection: InstagramConnection) {
-  if (connection.last_sync_status === 'error') {
-    return {
-      label: 'Erro na sincronização',
-      variant: 'default' as const,
-    };
+function VerticalBarChart({
+  points,
+  label,
+  color = '#DB2777',
+  valueFormatter = formatNumber,
+  heightClassName = 'h-44',
+}: {
+  points: ChartPoint[];
+  label: string;
+  color?: string;
+  valueFormatter?: (value: number) => string;
+  heightClassName?: string;
+}) {
+  if (!points.length) {
+    return <ChartEmptyState />;
   }
 
-  if (connection.last_sync_status === 'success') {
-    return {
-      label: 'Sincronizado',
-      variant: 'success' as const,
-    };
+  const width = 640;
+  const height = 190;
+  const paddingX = 34;
+  const paddingY = 30;
+  const values = points.map((point) => point.value);
+  const maxValue = Math.max(...values, 1);
+  const xStep = points.length > 1 ? (width - paddingX * 2) / (points.length - 1) : 0;
+  const barWidth = Math.min(42, Math.max(18, (width - paddingX * 2) / Math.max(points.length, 1) * 0.42));
+
+  return (
+    <div className="w-full overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-3">
+      <svg viewBox={`0 0 ${width} ${height}`} className={`${heightClassName} w-full max-w-full`}>
+        <line
+          x1={paddingX}
+          x2={width - paddingX}
+          y1={height - paddingY}
+          y2={height - paddingY}
+          stroke="#E2E8F0"
+          strokeWidth="1"
+        />
+
+        {points.map((point, index) => {
+          const x = points.length > 1 ? paddingX + index * xStep : width / 2;
+          const barHeight = point.value === 0 ? 2 : Math.max(2, (point.value / maxValue) * (height - paddingY * 2));
+          const y = height - paddingY - barHeight;
+
+          return (
+            <rect
+              key={point.date}
+              x={x - barWidth / 2}
+              y={y}
+              width={barWidth}
+              height={barHeight}
+              rx="10"
+              fill={color}
+              opacity="0.82"
+            >
+              <title>{`${formatTooltipDate(point.date)}\n${label}: ${valueFormatter(point.value)}`}</title>
+            </rect>
+          );
+        })}
+      </svg>
+
+      <div className="flex items-center justify-between gap-3 px-2 pb-1 text-xs text-text-secondary">
+        <span>{formatMetricDate(points[0].date)}</span>
+        <span>{points.length} barra(s) disponível(is)</span>
+        <span>{formatMetricDate(points.at(-1)?.date ?? points[0].date)}</span>
+      </div>
+    </div>
+  );
+}
+
+function InteractionCompositionDonut({ items }: { items: BarChartItem[] }) {
+  const availableItems = items.filter((item) => item.value !== null && item.value !== undefined);
+  const total = availableItems.reduce((sum, item) => sum + (item.value ?? 0), 0);
+
+  if (!availableItems.length) {
+    return <ChartEmptyState message="Nenhum dado de interação disponível neste período." />;
   }
 
-  return {
-    label: 'Pendente',
-    variant: 'default' as const,
-  };
+  const size = 220;
+  const center = size / 2;
+  const radius = 72;
+  const strokeWidth = 24;
+  const circumference = 2 * Math.PI * radius;
+  let accumulated = 0;
+
+  return (
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-[220px_1fr] sm:items-center">
+      <div className="relative mx-auto h-[220px] w-[220px]">
+        <svg viewBox={`0 0 ${size} ${size}`} className="h-full w-full -rotate-90">
+          <circle
+            cx={center}
+            cy={center}
+            r={radius}
+            fill="none"
+            stroke="#E2E8F0"
+            strokeWidth={strokeWidth}
+          />
+          {total > 0
+            ? availableItems.map((item) => {
+                const value = item.value ?? 0;
+                const ratio = value / total;
+                const dashLength = ratio * circumference;
+                const dashOffset = -accumulated;
+                accumulated += dashLength;
+
+                if (value <= 0) return null;
+
+                return (
+                  <circle
+                    key={item.label}
+                    cx={center}
+                    cy={center}
+                    r={radius}
+                    fill="none"
+                    stroke={item.color}
+                    strokeWidth={strokeWidth}
+                    strokeDasharray={`${dashLength} ${circumference - dashLength}`}
+                    strokeDashoffset={dashOffset}
+                  >
+                    <title>{`${item.label}\n${formatNumber(value)}\n${formatPercent(ratio * 100)} das interações`}</title>
+                  </circle>
+                );
+              })
+            : null}
+        </svg>
+
+        <div className="absolute inset-0 flex flex-col items-center justify-center rounded-full text-center">
+          <p className="text-3xl font-bold tracking-tight text-text-primary">{formatNumber(total)}</p>
+          <p className="text-sm font-medium text-text-secondary">Interações</p>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        {items.map((item) => {
+          const Icon = item.icon;
+          const value = item.value;
+          const percentage =
+            value !== null && value !== undefined && total > 0 ? formatPercent((value / total) * 100) : null;
+
+          return (
+            <div key={item.label} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 px-3 py-2.5">
+              <div className="flex min-w-0 items-center gap-2 text-sm text-text-secondary">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: item.color }} />
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-brand shadow-sm">
+                  <Icon className="h-4 w-4 shrink-0 text-brand" />
+                </span>
+                <span className="truncate">{item.label}</span>
+              </div>
+              <div className="shrink-0 text-right">
+                <p className="text-sm font-semibold text-text-primary">{formatNumber(value)}</p>
+                {percentage ? <p className="text-xs text-text-secondary">{percentage}</p> : null}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function AnalyticsCard({
+  title,
+  description,
+  children,
+  footer,
+}: {
+  title: string;
+  description: string;
+  children: React.ReactNode;
+  footer?: React.ReactNode;
+}) {
+  return (
+    <Card className="flex h-full flex-col">
+      <div className="mb-5">
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </div>
+      <div className="min-w-0 flex-1">{children}</div>
+      {footer ? <div className="mt-4">{footer}</div> : null}
+    </Card>
+  );
+}
+
+function RateSummary({
+  value,
+  description,
+}: {
+  value: number | null;
+  description: string;
+}) {
+  return (
+    <div className="mb-4 rounded-3xl border border-slate-200 bg-slate-50/70 p-4">
+      <p className="text-2xl font-bold tracking-tight text-text-primary">{formatPercent(value)}</p>
+      <p className="mt-1 text-sm text-text-secondary">{description}</p>
+    </div>
+  );
+}
+
+function SegmentedControl<T extends string>({
+  options,
+  value,
+  onChange,
+  ariaLabel,
+}: {
+  options: Array<{ id: T; label: string }>;
+  value: T;
+  onChange: (value: T) => void;
+  ariaLabel: string;
+}) {
+  return (
+    <div
+      className="flex max-w-full gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-slate-50 p-1"
+      role="tablist"
+      aria-label={ariaLabel}
+    >
+      {options.map((option) => {
+        const isActive = option.id === value;
+
+        return (
+          <button
+            key={option.id}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            onClick={() => onChange(option.id)}
+            className={[
+              'min-h-[36px] shrink-0 rounded-xl px-3 text-sm font-medium transition-colors',
+              isActive
+                ? 'bg-white text-brand shadow-sm'
+                : 'text-text-secondary hover:bg-white/70 hover:text-text-primary',
+            ].join(' ')}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function KpiCard({ metric }: { metric: KpiCardData }) {
+  const Icon = metric.icon;
+  const TrendIcon =
+    metric.comparison.trend === 'up'
+      ? ArrowUpRight
+      : metric.comparison.trend === 'down'
+      ? ArrowDownRight
+      : null;
+
+  return (
+    <Card className="min-h-[142px]">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium text-text-secondary">{metric.label}</p>
+          <p className="mt-3 text-3xl font-bold tracking-tight text-text-primary">{metric.value}</p>
+        </div>
+        <div className="rounded-2xl bg-brand/[0.08] p-3 text-brand">
+          <Icon className="h-5 w-5" />
+        </div>
+      </div>
+      <div
+        className={[
+          'mt-5 flex items-center gap-1.5 text-xs font-medium',
+          metric.comparison.trend === 'up'
+            ? 'text-green-600'
+            : metric.comparison.trend === 'down'
+            ? 'text-red-600'
+            : 'text-text-secondary',
+        ].join(' ')}
+      >
+        {TrendIcon ? <TrendIcon className="h-3.5 w-3.5" /> : null}
+        <span>{metric.comparison.label}</span>
+      </div>
+    </Card>
+  );
 }
 
 export const Performance = () => {
-  const isMobile = useIsMobile();
-  const location = useLocation();
   const navigate = useNavigate();
   const { activeProfile } = useProfile();
-  const { user } = useAuth();
 
-  const [rows, setRows] = React.useState<InstagramMetricRow[]>([]);
-  const [connections, setConnections] = React.useState<InstagramConnection[]>([]);
+  const [periodDays, setPeriodDays] = React.useState<PeriodDays>(30);
+  const [activeInstagramConnection, setActiveInstagramConnection] =
+    React.useState<SocialConnection | null>(null);
+  const [metrics, setMetrics] = React.useState<SocialAccountMetric[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
-  const [isConnecting, setIsConnecting] = React.useState(false);
   const [isSyncing, setIsSyncing] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = React.useState<string | null>(null);
 
-  const metaFeedback = React.useMemo(() => {
-    const searchParams = new URLSearchParams(location.search);
-    const status = searchParams.get('meta_status');
-    const message = searchParams.get('meta_message');
+  const currentRange = React.useMemo(() => getRangeForLastDays(periodDays), [periodDays]);
+  const previousRange = React.useMemo(
+    () => getPreviousRange(currentRange, periodDays),
+    [currentRange, periodDays]
+  );
 
-    if (!status || !message) {
-      return null;
-    }
-
-    return { status, message };
-  }, [location.search]);
-
-  const loadMetrics = React.useCallback(async () => {
-    if (!supabase || !user?.id || !activeProfile?.id) {
-      setRows([]);
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from('instagram_metrics')
-      .select('*')
-      .eq('customer_id', user.id)
-      .eq('profile_id', activeProfile.id)
-      .order('data', { ascending: false });
-
-    if (error) {
-      throw error;
-    }
-
-    setRows((data ?? []) as InstagramMetricRow[]);
-  }, [activeProfile?.id, user?.id]);
-
-  const loadConnections = React.useCallback(async () => {
+  const loadDashboardData = React.useCallback(async () => {
     if (!activeProfile?.id) {
-      setConnections([]);
-      return;
-    }
-
-    const data = await metaInstagramService.listConnections(activeProfile.id);
-    setConnections(data);
-  }, [activeProfile?.id]);
-
-  const loadData = React.useCallback(async () => {
-    if (!activeProfile?.id || !user?.id) {
-      setRows([]);
-      setConnections([]);
+      setActiveInstagramConnection(null);
+      setMetrics([]);
       return;
     }
 
@@ -354,546 +857,390 @@ export const Performance = () => {
     setErrorMessage(null);
 
     try {
-      await Promise.all([loadConnections(), loadMetrics()]);
-    } catch (error) {
-      console.error('[Performance] Error loading performance data:', error);
-      setRows([]);
-      setConnections([]);
-      setErrorMessage(
-        'Não foi possível carregar as conexões e métricas do Instagram para este perfil.'
+      const instagramConnection = await socialAnalyticsService.getActiveInstagramConnection(
+        activeProfile.id
       );
+      setActiveInstagramConnection(instagramConnection);
+
+      if (!instagramConnection) {
+        setMetrics([]);
+        return;
+      }
+
+      const loadedMetrics = await socialAnalyticsService.listAccountMetrics({
+        profileId: activeProfile.id,
+        connectionId: instagramConnection.id,
+        startDate: previousRange.start,
+        endDate: currentRange.end,
+      });
+
+      setMetrics(loadedMetrics);
+    } catch (error) {
+      console.error('[PerformanceV2] Error loading dashboard:', error);
+      setActiveInstagramConnection(null);
+      setMetrics([]);
+      setErrorMessage('Não foi possível carregar os dados de Performance agora.');
     } finally {
       setIsLoading(false);
     }
-  }, [activeProfile?.id, loadConnections, loadMetrics, user?.id]);
+  }, [activeProfile?.id, currentRange.end, previousRange.start]);
 
   React.useEffect(() => {
-    void loadData();
-  }, [loadData]);
+    void loadDashboardData();
+  }, [loadDashboardData]);
 
-  const handleConnectInstagram = React.useCallback(async () => {
-    if (!activeProfile?.id) {
-      return;
-    }
-
-    setIsConnecting(true);
-    setErrorMessage(null);
-
-    try {
-      const authUrl = await metaInstagramService.getAuthUrl(activeProfile.id);
-      window.location.assign(authUrl);
-    } catch (error) {
-      console.error('[Performance] Error starting Meta OAuth:', error);
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : 'Não foi possível iniciar a conexão com a Meta.'
-      );
-      setIsConnecting(false);
-    }
-  }, [activeProfile?.id]);
-
-  const handleSyncMetrics = React.useCallback(async () => {
-    if (!activeProfile?.id) {
+  const handleSync = React.useCallback(async () => {
+    if (!activeProfile?.id || !activeInstagramConnection) {
       return;
     }
 
     setIsSyncing(true);
     setErrorMessage(null);
+    setSuccessMessage(null);
 
     try {
-      const result = await metaInstagramService.syncMetrics(activeProfile.id);
-      const failedSync = result.results.find((item) => item.status === 'error');
-
-      if (failedSync?.error) {
-        setErrorMessage(failedSync.error);
-      }
-
-      await loadData();
+      await socialAnalyticsService.syncConnection(activeProfile.id, activeInstagramConnection.id);
+      setSuccessMessage('Dados atualizados com sucesso.');
+      await loadDashboardData();
     } catch (error) {
-      console.error('[Performance] Error syncing instagram metrics:', error);
+      console.error('[PerformanceV2] Error syncing dashboard:', error);
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : 'Não foi possível sincronizar as métricas do Instagram.'
+          : 'Não foi possível atualizar os dados do Instagram.'
       );
     } finally {
       setIsSyncing(false);
     }
-  }, [activeProfile?.id, loadData]);
+  }, [activeInstagramConnection, activeProfile?.id, loadDashboardData]);
 
-  const { metrics, topPosts, summary, followerGrowth, hasAccountData, hasMediaData } =
-    React.useMemo(() => calculateMetrics(rows), [rows]);
+  const currentRows = React.useMemo(
+    () => metrics.filter((metric) => isInRange(metric, currentRange)),
+    [currentRange, metrics]
+  );
+  const previousRows = React.useMemo(
+    () => metrics.filter((metric) => isInRange(metric, previousRange)),
+    [metrics, previousRange]
+  );
+  const followersCount = React.useMemo(() => getLatestFollowersCount(currentRows), [currentRows]);
+  const reach = React.useMemo(() => sumAvailable(currentRows, (row) => row.reach1d), [currentRows]);
+  const accountsEngaged = React.useMemo(
+    () => sumAvailable(currentRows, (row) => row.accountsEngaged),
+    [currentRows]
+  );
+  const interactions = React.useMemo(
+    () => sumAvailable(currentRows, getInteractionValue),
+    [currentRows]
+  );
+  const reachPoints = React.useMemo(
+    () => buildDailyPoints(currentRows, (row) => row.reach1d),
+    [currentRows]
+  );
+  const accountsEngagedPoints = React.useMemo(
+    () => buildDailyPoints(currentRows, (row) => row.accountsEngaged),
+    [currentRows]
+  );
+  const interactionPoints = React.useMemo(
+    () => buildDailyPoints(currentRows, getInteractionValue),
+    [currentRows]
+  );
+  const followerPoints = React.useMemo(
+    () =>
+      currentRows
+        .filter((row) => row.followersCount !== null && row.followersCount !== undefined)
+        .map((row) => ({ date: row.metricDate, value: row.followersCount ?? 0 }))
+        .sort((a, b) => a.date.localeCompare(b.date)),
+    [currentRows]
+  );
+  const interactionRateByReachPoints = React.useMemo(
+    () => buildDailyPoints(currentRows, getInteractionRateByReach),
+    [currentRows]
+  );
+  const accountsEngagedRateByReachPoints = React.useMemo(
+    () => buildDailyPoints(currentRows, getAccountsEngagedRateByReach),
+    [currentRows]
+  );
+  const latestInteractionRateByReach = React.useMemo(
+    () => getLatestPointValue(interactionRateByReachPoints),
+    [interactionRateByReachPoints]
+  );
+  const latestAccountsEngagedRateByReach = React.useMemo(
+    () => getLatestPointValue(accountsEngagedRateByReachPoints),
+    [accountsEngagedRateByReachPoints]
+  );
 
-  const hasConnections = connections.length > 0;
-  const hasData = rows.length > 0;
-  const sections: PerformanceSection[] = React.useMemo(
+  const interactionBreakdown = React.useMemo<BarChartItem[]>(
     () => [
       {
-        id: 'overview',
-        label: 'Visão Geral',
-        description: 'Métricas atuais vindas da Meta e ranking do Instagram conectado.',
+        label: 'Curtidas',
+        value: sumAvailable(currentRows, (row) => row.likes),
+        icon: Heart,
+        color: '#D85D7C',
       },
       {
-        id: 'instagram-uploads',
-        label: 'Instagram Uploads',
-        description:
-          'Nova página para subir imagens e PDFs, revisar extrações e consolidar dashboard próprio.',
-        badge: 'Novo',
+        label: 'Comentários',
+        value: sumAvailable(currentRows, (row) => row.comments),
+        icon: MessageCircle,
+        color: '#5477E8',
+      },
+      {
+        label: 'Salvamentos',
+        value: sumAvailable(currentRows, (row) => row.saves),
+        icon: Bookmark,
+        color: '#C08A34',
+      },
+      {
+        label: 'Compartilhamentos',
+        value: sumAvailable(currentRows, (row) => row.shares),
+        icon: Send,
+        color: '#2FA986',
       },
     ],
-    []
+    [currentRows]
   );
-  const activeTab = React.useMemo(() => {
-    const searchParams = new URLSearchParams(location.search);
-    return searchParams.get('tab') === 'instagram-uploads' ? 'instagram-uploads' : 'overview';
-  }, [location.search]);
 
-  const handleTabChange = React.useCallback(
-    (nextTab: string) => {
-      const searchParams = new URLSearchParams(location.search);
-
-      if (nextTab === 'overview') {
-        searchParams.delete('tab');
-      } else {
-        searchParams.set('tab', nextTab);
-      }
-
-      const nextSearch = searchParams.toString();
-      navigate(
-        {
-          pathname: location.pathname,
-          search: nextSearch ? `?${nextSearch}` : '',
-        },
-        { replace: true }
-      );
-    },
-    [location.pathname, location.search, navigate]
+  const kpis: KpiCardData[] = React.useMemo(
+    () => [
+      {
+        label: 'Seguidores',
+        value: formatNumber(followersCount),
+        comparison: calculateFollowersComparison(currentRows),
+        icon: Users,
+      },
+      {
+        label: 'Alcance',
+        value: formatNumber(reach),
+        comparison: calculatePeriodComparison(currentRows, previousRows, (row) => row.reach1d),
+        icon: TrendingUp,
+      },
+      {
+        label: 'Contas engajadas',
+        value: formatNumber(accountsEngaged),
+        comparison: calculatePeriodComparison(currentRows, previousRows, (row) => row.accountsEngaged),
+        icon: Activity,
+      },
+      {
+        label: 'Interações',
+        value: formatNumber(interactions),
+        comparison: calculatePeriodComparison(currentRows, previousRows, getInteractionValue),
+        icon: Heart,
+      },
+    ],
+    [accountsEngaged, currentRows, followersCount, interactions, previousRows, reach]
   );
+
+  const accountLabel =
+    activeInstagramConnection?.externalAccountHandle ||
+    activeInstagramConnection?.externalAccountName ||
+    'Instagram conectado';
+  const displayAccountLabel = accountLabel.startsWith('@') ? accountLabel : `@${accountLabel}`;
+  const hasAnyMetrics = metrics.length > 0;
+  const hasCurrentPeriodMetrics = currentRows.length > 0;
+  const isConnectedWithoutSync =
+    activeInstagramConnection && !activeInstagramConnection.lastSuccessfulSyncAt && !hasAnyMetrics;
 
   return (
-    <div className="space-y-8">
-      <div className="space-y-3">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-text-primary">
-            <BarChart3 className="h-6 w-6 text-brand" />
-            Análise de Performance
-          </h1>
-          <p className="text-text-secondary">
-            Acompanhe métricas do Instagram e navegue entre as seções do módulo por perfil.
-          </p>
-          {activeProfile && (
-            <p className="mt-1 text-sm text-text-secondary">
-              Perfil ativo: <span className="font-medium">{activeProfile.name}</span>
+    <div className="space-y-6">
+      <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0 space-y-2">
+          <h1 className="text-2xl font-bold text-text-primary">Performance</h1>
+          <div className="flex flex-wrap items-center gap-2 text-sm text-text-secondary">
+            {activeInstagramConnection ? (
+              <>
+                <span className="font-medium text-text-primary">{displayAccountLabel}</span>
+                <span className="text-slate-300">•</span>
+                <span>Instagram</span>
+                <span className="text-slate-300">•</span>
+                <Badge variant="success">Conectado</Badge>
+              </>
+            ) : (
+              <span>Acompanhe o crescimento e o desempenho das suas redes sociais.</span>
+            )}
+          </div>
+          {activeInstagramConnection ? (
+            <p className="flex items-center gap-1.5 text-sm text-text-secondary">
+              <Clock className="h-4 w-4" />
+              {formatLastUpdate(activeInstagramConnection.lastSuccessfulSyncAt)}
             </p>
-          )}
+          ) : null}
         </div>
 
-        <Tabs
-          tabs={[
-            { id: 'overview', label: 'Visão Geral' },
-            { id: 'instagram-uploads', label: 'Instagram Uploads' },
-          ]}
-          activeTab={activeTab}
-          onChange={handleTabChange}
-        />
-      </div>
-
-      <Card className="border-gray-200 bg-white">
-        <div className="mb-4">
-          <CardTitle>Seções do módulo</CardTitle>
-          <CardDescription>
-            O Performance agora está dividido em páginas internas. Você pode navegar por aqui sem
-            depender da sidebar.
-          </CardDescription>
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-          {sections.map((section) => {
-            const isActiveSection = activeTab === section.id;
-
-            return (
-              <button
-                key={section.id}
-                type="button"
-                onClick={() => handleTabChange(section.id)}
-                className={cn(
-                  'rounded-2xl border p-4 text-left transition-all',
-                  isActiveSection
-                    ? 'border-brand bg-brand/[0.05] shadow-sm'
-                    : 'border-gray-200 bg-gray-50/70 hover:border-brand/30 hover:bg-white'
-                )}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-semibold text-text-primary">{section.label}</p>
-                      {section.badge ? <Badge variant="brand">{section.badge}</Badge> : null}
-                    </div>
-                    <p className="mt-1 text-sm leading-6 text-text-secondary">
-                      {section.description}
-                    </p>
-                  </div>
-                  <ChevronRight
-                    className={cn(
-                      'mt-1 h-4 w-4 shrink-0 transition-transform',
-                      isActiveSection ? 'translate-x-0 text-brand' : 'text-text-secondary'
-                    )}
-                  />
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </Card>
-
-      {activeTab === 'instagram-uploads' ? (
-        <PerformanceInstagramUploads />
-      ) : (
-        <>
-          <Card className="border-brand/15 bg-brand/[0.05]">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <CardTitle>Base atual do Analytics</CardTitle>
-                <CardDescription>
-                  Esta seção mostra os dados sincronizados pela Meta. A área de Instagram Uploads
-                  fica disponível como uma seção separada do mesmo módulo.
-                </CardDescription>
-              </div>
-              <Button
-                variant="outline"
-                className="gap-2"
-                onClick={() => handleTabChange('instagram-uploads')}
-              >
-                Abrir Instagram Uploads
-              </Button>
-            </div>
-          </Card>
-
-          <div className="flex flex-wrap gap-3">
+        {activeInstagramConnection ? (
+          <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center lg:w-auto lg:justify-end">
+            <SegmentedControl
+              options={PERIOD_TABS}
+              value={String(periodDays)}
+              onChange={(id) => setPeriodDays(Number(id) as PeriodDays)}
+              ariaLabel="Selecionar período"
+            />
             <Button
               variant="outline"
-              onClick={() => void handleConnectInstagram()}
-              isLoading={isConnecting}
-              className="gap-2"
-            >
-              <Instagram className="h-4 w-4" />
-              Conectar Instagram
-            </Button>
-            <Button
-              onClick={() => void handleSyncMetrics()}
+              className="gap-2 whitespace-nowrap"
               isLoading={isSyncing}
-              disabled={!hasConnections}
-              className="gap-2"
+              onClick={() => void handleSync()}
             >
-              <RefreshCcw className="h-4 w-4" />
-              Sincronizar Agora
+              {!isSyncing ? <RefreshCcw className="h-4 w-4" /> : null}
+              {isSyncing ? 'Atualizando...' : 'Atualizar dados'}
             </Button>
           </div>
+        ) : null}
+      </header>
 
-          {metaFeedback && (
-            <Card
-              className={cn(
-                'p-4',
-                metaFeedback.status === 'success'
-                  ? 'border-green-200 bg-green-50 text-green-700'
-                  : 'border-red-200 bg-red-50 text-red-700'
-              )}
-            >
-              {metaFeedback.message}
-            </Card>
-          )}
+      {errorMessage ? (
+        <Card className="border-red-200 bg-red-50 text-red-700">{errorMessage}</Card>
+      ) : null}
+      {successMessage ? (
+        <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
+          {successMessage}
+        </div>
+      ) : null}
 
-          {errorMessage && (
-            <Card className="border-red-200 bg-red-50 p-4 text-red-700">{errorMessage}</Card>
-          )}
-
-          <Card>
-            <div className="mb-6 flex items-center justify-between gap-4">
-              <div>
-                <CardTitle>Contas Conectadas</CardTitle>
-                <CardDescription>
-                  Cada conexão é vinculada ao `profile_id` ativo e sincronizada somente via Edge
-                  Functions.
-                </CardDescription>
-              </div>
-              <Badge variant={hasConnections ? 'success' : 'default'}>
-                {hasConnections ? `${connections.length} conectada(s)` : 'Nenhuma conexão'}
-              </Badge>
-            </div>
-
-            {!hasConnections && !isLoading ? (
+      {isLoading ? (
+        <Card>
+          <div className="flex min-h-[360px] items-center justify-center text-text-secondary">
+            Carregando dados de performance...
+          </div>
+        </Card>
+      ) : !activeInstagramConnection ? (
+        <Card>
+          <EmptyState
+            title="Conecte seu Instagram para acompanhar sua performance."
+            description="Depois da conexão, a PostHub começa a construir seu histórico diário com dados reais da sua conta."
+            icon={Instagram}
+            action={
+              <Button onClick={() => navigate('/workspace/integrations')}>
+                Ir para Integrações
+              </Button>
+            }
+          />
+        </Card>
+      ) : (
+        <>
+          {isConnectedWithoutSync ? (
+            <Card>
               <EmptyState
-                title="Nenhuma conta do Instagram conectada"
-                description="Conecte uma conta Business vinculada a uma página do Facebook para liberar métricas reais no módulo de performance."
-                icon={Instagram}
+                title="Instagram conectado, aguardando a primeira atualização"
+                description="Clique em Atualizar dados para buscar as primeiras métricas deste perfil."
+                icon={RefreshCcw}
                 action={
-                  <Button onClick={() => void handleConnectInstagram()} isLoading={isConnecting}>
-                    Conectar Instagram
+                  <Button isLoading={isSyncing} onClick={() => void handleSync()}>
+                    Atualizar dados
                   </Button>
                 }
               />
-            ) : (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {connections.map((connection) => {
-                  const status = formatConnectionStatus(connection);
-
-                  return (
-                    <Card key={connection.id} className="border-gray-200 bg-gray-50/40">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-sm">
-                            {connection.profile_picture_url ? (
-                              <img
-                                src={connection.profile_picture_url}
-                                alt={connection.username || 'Instagram'}
-                                className="h-12 w-12 rounded-full object-cover"
-                              />
-                            ) : (
-                              <Instagram className="h-5 w-5 text-brand" />
-                            )}
-                          </div>
-                          <div>
-                            <p className="font-semibold text-text-primary">
-                              @{connection.username || connection.instagram_user_id}
-                            </p>
-                            <p className="text-xs text-text-secondary">
-                              IG User ID: {connection.instagram_user_id}
-                            </p>
-                          </div>
-                        </div>
-                        <Badge variant={status.variant}>{status.label}</Badge>
-                      </div>
-
-                      <div className="mt-4 space-y-2 text-sm text-text-secondary">
-                        <p>Página vinculada: {connection.page_id}</p>
-                        <p>
-                          Última sincronização:{' '}
-                          {connection.last_synced_at
-                            ? new Date(connection.last_synced_at).toLocaleString()
-                            : 'Ainda não sincronizada'}
-                        </p>
-                        {connection.token_expires_at && (
-                          <p>
-                            Token expira em:{' '}
-                            {new Date(connection.token_expires_at).toLocaleDateString()}
-                          </p>
-                        )}
-                        {connection.last_sync_error && (
-                          <p className="text-red-600">{connection.last_sync_error}</p>
-                        )}
-                      </div>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-          </Card>
-
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-            {metrics.map((metric) => (
-              <Card key={metric.label}>
-                <p className="mb-1 text-sm text-text-secondary">{metric.label}</p>
-                <div className="flex items-end justify-between">
-                  <h3 className="text-2xl font-bold text-text-primary">{metric.value}</h3>
-                  <div
-                    className={cn(
-                      'flex items-center gap-1 text-xs font-medium',
-                      metric.trend === 'up' ? 'text-green-600' : 'text-red-600'
-                    )}
-                  >
-                    {metric.change}
-                    <ArrowUpRight className="h-3 w-3" />
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-            <Card className="flex h-80 flex-col">
-              <CardTitle className="mb-4">Crescimento de Audiência</CardTitle>
-              <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-gray-200 bg-gray-50">
-                {isLoading ? (
-                  <p className="text-text-secondary">Carregando métricas...</p>
-                ) : hasAccountData ? (
-                  <div className="flex h-full w-full flex-col justify-center p-6">
-                    <div className="space-y-4">
-                      <div>
-                        <p className="text-sm text-text-secondary">Crescimento de Seguidores</p>
-                        <p className="text-3xl font-bold text-text-primary">
-                          {followerGrowth >= 0 ? '+' : ''}
-                          {formatCompactNumber(followerGrowth)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-text-secondary">Alcance Total</p>
-                        <p className="text-2xl font-semibold text-text-primary">
-                          {formatCompactNumber(summary.reach)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-text-secondary">Visualizações de Perfil</p>
-                        <p className="text-2xl font-semibold text-text-primary">
-                          {formatCompactNumber(summary.profileViews)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <EmptyState
-                    title="Ainda não há dados diários"
-                    description="Depois de conectar a Meta e rodar a sincronização, o PostHub passa a preencher os snapshots diários da conta."
-                    icon={Activity}
-                    action={
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={!hasConnections}
-                        onClick={() => void handleSyncMetrics()}
-                      >
-                        Sincronizar agora
-                      </Button>
-                    }
-                  />
-                )}
-              </div>
             </Card>
-
-            <Card className="flex h-80 flex-col">
-              <CardTitle className="mb-4">Resumo de Engajamento</CardTitle>
-              <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-gray-200 bg-gray-50">
-                {isLoading ? (
-                  <p className="text-text-secondary">Carregando métricas...</p>
-                ) : hasMediaData ? (
-                  <div className="flex h-full w-full flex-col justify-center p-6">
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-text-secondary">Impressões</span>
-                        <span className="font-semibold text-text-primary">
-                          {formatCompactNumber(summary.impressions)}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-text-secondary">Taxa Média de Engajamento</span>
-                        <span className="font-semibold text-text-primary">
-                          {formatPercent(summary.engagementRate)}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-text-secondary">Visualizações de Perfil</span>
-                        <span className="font-semibold text-text-primary">
-                          {formatCompactNumber(summary.profileViews)}
-                        </span>
-                      </div>
-                      <div className="pt-3">
-                        <Badge variant="brand">Métricas reais via Instagram Graph API</Badge>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <EmptyState
-                    title="Dados insuficientes"
-                    description="Quando a Meta devolver métricas por mídia, os posts com insights reais vão aparecer aqui."
-                    icon={BarChart3}
-                  />
-                )}
-              </div>
-            </Card>
-          </div>
-
-          <Card>
-            <CardTitle className="mb-6">Posts com Melhor Performance</CardTitle>
-
-            {!isLoading && !hasData ? (
+          ) : !hasAnyMetrics ? (
+            <Card>
               <EmptyState
-                title="Nenhuma métrica de post encontrada"
-                description="Conecte a conta, sincronize os dados e o ranking dos melhores posts será preenchido aqui."
+                title="Ainda não encontramos métricas para esta conexão"
+                description="A conexão existe, mas ainda não há dados de performance disponíveis para este perfil."
+                icon={BarChart3}
+              />
+            </Card>
+          ) : !hasCurrentPeriodMetrics ? (
+            <Card>
+              <EmptyState
+                title="Sem métricas neste período"
+                description="Escolha outro intervalo ou aguarde novas atualizações diárias para preencher o histórico."
                 icon={Activity}
               />
-            ) : isLoading ? (
-              <div className="py-10 text-center text-text-secondary">Carregando posts...</div>
-            ) : isMobile ? (
-              <div className="space-y-3">
-                {topPosts.map((post) => (
-                  <div
-                    key={post.id}
-                    className="rounded-[22px] border border-slate-200 bg-slate-50/65 p-4"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="line-clamp-2 font-semibold text-text-primary">
-                          {post.title}
-                        </p>
-                        <p className="mt-1 text-xs text-text-secondary">
-                          {post.platform} • {new Date(post.createdAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <Badge variant="success">Sync</Badge>
-                    </div>
-
-                    <div className="mt-4 grid grid-cols-2 gap-3">
-                      <div className="rounded-2xl bg-white px-3 py-3">
-                        <p className="text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-text-secondary">
-                          Alcance
-                        </p>
-                        <p className="mt-1 text-lg font-semibold text-text-primary">
-                          {formatCompactNumber(post.reach)}
-                        </p>
-                      </div>
-                      <div className="rounded-2xl bg-white px-3 py-3">
-                        <p className="text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-text-secondary">
-                          Engajamento
-                        </p>
-                        <p className="mt-1 text-lg font-semibold text-text-primary">
-                          {formatPercent(post.engagement)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+            </Card>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 gap-4 min-[520px]:grid-cols-2 xl:grid-cols-4">
+                {kpis.map((metric) => (
+                  <KpiCard key={metric.label} metric={metric} />
                 ))}
               </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-100 text-text-secondary">
-                      <th className="pb-4 font-medium">Conteúdo</th>
-                      <th className="pb-4 font-medium">Plataforma</th>
-                      <th className="pb-4 font-medium">Alcance</th>
-                      <th className="pb-4 font-medium">Engajamento</th>
-                      <th className="pb-4 font-medium">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {topPosts.map((post) => (
-                      <tr key={post.id} className="group transition-colors hover:bg-gray-50/50">
-                        <td className="py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded bg-gray-100" />
-                            <div>
-                              <p className="line-clamp-1 font-medium text-text-primary">
-                                {post.title}
-                              </p>
-                              <p className="text-xs text-text-secondary">
-                                {new Date(post.createdAt).toLocaleDateString()}
-                              </p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-4">{post.platform}</td>
-                        <td className="py-4">{formatCompactNumber(post.reach)}</td>
-                        <td className="py-4">{formatPercent(post.engagement)}</td>
-                        <td className="py-4">
-                          <Badge variant="success">Sincronizado</Badge>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+
+              <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+                <AnalyticsCard
+                  title="Evolução do alcance"
+                  description="Quantas contas foram alcançadas em cada dia do período."
+                >
+                  <TinyLineChart
+                    points={reachPoints}
+                    label="Alcance"
+                    color="#6D5DFB"
+                    variant="area"
+                  />
+                </AnalyticsCard>
+
+                <AnalyticsCard
+                  title="Evolução de seguidores"
+                  description="Registros reais da sua audiência ao longo do tempo."
+                >
+                  <TinyLineChart points={followerPoints} label="Seguidores" color="#16A34A" />
+                </AnalyticsCard>
+
+                <AnalyticsCard
+                  title="Alcance e contas engajadas"
+                  description="Compare se o alcance também está gerando pessoas engajadas."
+                >
+                  <ReachEngagementComboChart
+                    reachPoints={reachPoints}
+                    engagedPoints={accountsEngagedPoints}
+                  />
+                </AnalyticsCard>
+
+                <AnalyticsCard
+                  title="Composição das interações"
+                  description="Veja como curtidas, comentários, salvamentos e compartilhamentos compõem o total."
+                >
+                  <InteractionCompositionDonut items={interactionBreakdown} />
+                </AnalyticsCard>
+
+                <AnalyticsCard
+                  title="Evolução das interações"
+                  description="Soma diária de curtidas, comentários, salvamentos e compartilhamentos."
+                >
+                  <VerticalBarChart
+                    points={interactionPoints}
+                    label="Interações"
+                    color="#DB2777"
+                  />
+                </AnalyticsCard>
+
+                <AnalyticsCard
+                  title="Interações por alcance"
+                  description="Interações em relação às contas alcançadas."
+                >
+                  <RateSummary
+                    value={latestInteractionRateByReach}
+                    description="Interações em relação às contas alcançadas."
+                  />
+                  <TinyLineChart
+                    points={interactionRateByReachPoints}
+                    label="Interações por alcance"
+                    color="#0EA5E9"
+                    valueFormatter={formatPercent}
+                    heightClassName="h-36"
+                  />
+                </AnalyticsCard>
               </div>
-            )}
-          </Card>
+
+              <div className="grid grid-cols-1">
+                <AnalyticsCard
+                  title="Contas engajadas por alcance"
+                  description="Métrica derivada da PostHub para entender a proporção de contas alcançadas que engajaram."
+                >
+                  <div className="grid grid-cols-1 gap-5 lg:grid-cols-[0.75fr_1.25fr] lg:items-stretch">
+                    <RateSummary
+                      value={latestAccountsEngagedRateByReach}
+                      description="Contas engajadas em relação ao alcance do período."
+                    />
+                    <VerticalBarChart
+                      points={accountsEngagedRateByReachPoints}
+                      label="Contas engajadas por alcance"
+                      color="#14B8A6"
+                      valueFormatter={formatPercent}
+                      heightClassName="h-36"
+                    />
+                  </div>
+                </AnalyticsCard>
+              </div>
+            </>
+          )}
         </>
       )}
     </div>

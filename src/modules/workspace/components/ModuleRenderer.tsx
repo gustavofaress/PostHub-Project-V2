@@ -17,6 +17,7 @@ import { SettingsArea } from '../../settings/SettingsArea';
 import { Support } from '../../support/Support';
 import { ReportsModule } from '../../reports/ReportsModule';
 import { AdminDashboard } from '../../admin/AdminDashboard';
+import { Integrations } from '../../integrations/Integrations';
 import { LockedModuleState } from '../../../shared/components/LockedModuleState';
 import { hasAccess } from '../../../shared/constants/plans';
 import { useWorkspacePermissions } from '../../../hooks/useWorkspacePermissions';
@@ -29,8 +30,7 @@ export const ModuleRenderer = () => {
 
   if (
     activeModule === 'consultant' ||
-    activeModule === 'scheduler' ||
-    activeModule === 'integrations'
+    activeModule === 'scheduler'
   ) {
     return <Navigate to="/workspace/dashboard" replace />;
   }
@@ -90,6 +90,8 @@ export const ModuleRenderer = () => {
       return <ReportsModule />;
     case 'references':
       return <References />;
+    case 'integrations':
+      return <Integrations />;
     case 'settings':
       return <SettingsArea />;
     case 'account':

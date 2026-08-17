@@ -12,5 +12,4 @@ export const WORKSPACE_MODULE_PERMISSION_MAP: Partial<
   references: 'references',
   scheduler: 'scheduler',
   reports: 'reports',
-  performance: 'performance',
 };
