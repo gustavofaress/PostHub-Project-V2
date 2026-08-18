@@ -21,6 +21,7 @@ import { Button } from '../../shared/components/Button';
 import { Card, CardDescription, CardTitle } from '../../shared/components/Card';
 import { EmptyState } from '../../shared/components/EmptyState';
 import { socialAnalyticsService } from '../../services/social-analytics.service';
+import { supabase } from '../../shared/utils/supabase';
 import type { SocialAccountMetric, SocialConnection } from '../../types/social-analytics';
 
 type PeriodDays = 7 | 30 | 90;
@@ -67,6 +68,15 @@ const PERIOD_TABS: Array<{ id: string; label: string }> = [
   { id: '30', label: '30 dias' },
   { id: '90', label: '90 dias' },
 ];
+
+const REALTIME_REFETCH_DEBOUNCE_MS = 800;
+
+type LoadDashboardTrigger = 'initial' | 'manual' | 'realtime';
+
+interface LoadDashboardOptions {
+  silent?: boolean;
+  trigger?: LoadDashboardTrigger;
+}
 
 const numberFormatter = new Intl.NumberFormat('pt-BR');
 
@@ -839,6 +849,9 @@ export const Performance = () => {
   const [isSyncing, setIsSyncing] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   const [successMessage, setSuccessMessage] = React.useState<string | null>(null);
+  const [lastAutoRefreshAt, setLastAutoRefreshAt] = React.useState<string | null>(null);
+  const loadDashboardRequestIdRef = React.useRef(0);
+  const realtimeRefetchTimeoutRef = React.useRef<number | null>(null);
 
   const currentRange = React.useMemo(() => getRangeForLastDays(periodDays), [periodDays]);
   const previousRange = React.useMemo(
@@ -846,48 +859,160 @@ export const Performance = () => {
     [currentRange, periodDays]
   );
 
-  const loadDashboardData = React.useCallback(async () => {
-    if (!activeProfile?.id) {
-      setActiveInstagramConnection(null);
-      setMetrics([]);
-      return;
+  const clearRealtimeRefetchTimeout = React.useCallback(() => {
+    if (realtimeRefetchTimeoutRef.current !== null) {
+      window.clearTimeout(realtimeRefetchTimeoutRef.current);
+      realtimeRefetchTimeoutRef.current = null;
     }
+  }, []);
 
-    setIsLoading(true);
-    setErrorMessage(null);
+  const loadDashboardData = React.useCallback(
+    async (options: LoadDashboardOptions = {}) => {
+      const { silent = false, trigger = 'initial' } = options;
+      const requestId = ++loadDashboardRequestIdRef.current;
 
-    try {
-      const instagramConnection = await socialAnalyticsService.getActiveInstagramConnection(
-        activeProfile.id
-      );
-      setActiveInstagramConnection(instagramConnection);
-
-      if (!instagramConnection) {
+      if (!activeProfile?.id) {
+        clearRealtimeRefetchTimeout();
+        setIsLoading(false);
+        setActiveInstagramConnection(null);
         setMetrics([]);
+        setErrorMessage(null);
+        setLastAutoRefreshAt(null);
         return;
       }
 
-      const loadedMetrics = await socialAnalyticsService.listAccountMetrics({
-        profileId: activeProfile.id,
-        connectionId: instagramConnection.id,
-        startDate: previousRange.start,
-        endDate: currentRange.end,
-      });
+      if (!silent) {
+        setIsLoading(true);
+        setErrorMessage(null);
+      }
 
-      setMetrics(loadedMetrics);
-    } catch (error) {
-      console.error('[PerformanceV2] Error loading dashboard:', error);
-      setActiveInstagramConnection(null);
-      setMetrics([]);
-      setErrorMessage('Não foi possível carregar os dados de Performance agora.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [activeProfile?.id, currentRange.end, previousRange.start]);
+      try {
+        const instagramConnection = await socialAnalyticsService.getActiveInstagramConnection(
+          activeProfile.id
+        );
+
+        if (requestId !== loadDashboardRequestIdRef.current) {
+          return;
+        }
+
+        setActiveInstagramConnection(instagramConnection);
+
+        if (!instagramConnection) {
+          setMetrics([]);
+          setLastAutoRefreshAt(null);
+          return;
+        }
+
+        const loadedMetrics = await socialAnalyticsService.listAccountMetrics({
+          profileId: activeProfile.id,
+          connectionId: instagramConnection.id,
+          startDate: previousRange.start,
+          endDate: currentRange.end,
+        });
+
+        if (requestId !== loadDashboardRequestIdRef.current) {
+          return;
+        }
+
+        setMetrics(loadedMetrics);
+        setErrorMessage(null);
+
+        if (trigger === 'realtime') {
+          setLastAutoRefreshAt(new Date().toISOString());
+        }
+      } catch (error) {
+        console.error('[PerformanceV2] Error loading dashboard:', error);
+
+        if (requestId !== loadDashboardRequestIdRef.current) {
+          return;
+        }
+
+        if (silent) {
+          return;
+        }
+
+        setActiveInstagramConnection(null);
+        setMetrics([]);
+        setLastAutoRefreshAt(null);
+        setErrorMessage('Não foi possível carregar os dados de Performance agora.');
+      } finally {
+        if (!silent && requestId === loadDashboardRequestIdRef.current) {
+          setIsLoading(false);
+        }
+      }
+    },
+    [activeProfile?.id, clearRealtimeRefetchTimeout, currentRange.end, previousRange.start]
+  );
 
   React.useEffect(() => {
-    void loadDashboardData();
+    void loadDashboardData({ trigger: 'initial' });
   }, [loadDashboardData]);
+
+  React.useEffect(() => {
+    return () => {
+      loadDashboardRequestIdRef.current += 1;
+      clearRealtimeRefetchTimeout();
+    };
+  }, [clearRealtimeRefetchTimeout]);
+
+  React.useEffect(() => {
+    setLastAutoRefreshAt(null);
+  }, [activeProfile?.id, activeInstagramConnection?.id]);
+
+  const scheduleRealtimeRefresh = React.useCallback(() => {
+    clearRealtimeRefetchTimeout();
+    realtimeRefetchTimeoutRef.current = window.setTimeout(() => {
+      realtimeRefetchTimeoutRef.current = null;
+      void loadDashboardData({
+        silent: true,
+        trigger: 'realtime',
+      });
+    }, REALTIME_REFETCH_DEBOUNCE_MS);
+  }, [clearRealtimeRefetchTimeout, loadDashboardData]);
+
+  React.useEffect(() => {
+    if (!supabase || !activeInstagramConnection?.id) {
+      return;
+    }
+
+    const filter = `connection_id=eq.${activeInstagramConnection.id}`;
+    const channel = supabase
+      .channel(`social-account-metrics:${activeInstagramConnection.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'social_account_metrics',
+          filter,
+        },
+        () => {
+          scheduleRealtimeRefresh();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'social_account_metrics',
+          filter,
+        },
+        () => {
+          scheduleRealtimeRefresh();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      clearRealtimeRefetchTimeout();
+      void supabase.removeChannel(channel);
+    };
+  }, [
+    activeInstagramConnection?.id,
+    clearRealtimeRefetchTimeout,
+    scheduleRealtimeRefresh,
+  ]);
 
   const handleSync = React.useCallback(async () => {
     if (!activeProfile?.id || !activeInstagramConnection) {
@@ -901,7 +1026,7 @@ export const Performance = () => {
     try {
       await socialAnalyticsService.syncConnection(activeProfile.id, activeInstagramConnection.id);
       setSuccessMessage('Dados atualizados com sucesso.');
-      await loadDashboardData();
+      await loadDashboardData({ trigger: 'manual' });
     } catch (error) {
       console.error('[PerformanceV2] Error syncing dashboard:', error);
       setErrorMessage(
@@ -1058,10 +1183,17 @@ export const Performance = () => {
             )}
           </div>
           {activeInstagramConnection ? (
-            <p className="flex items-center gap-1.5 text-sm text-text-secondary">
-              <Clock className="h-4 w-4" />
-              {formatLastUpdate(activeInstagramConnection.lastSuccessfulSyncAt)}
-            </p>
+            <div className="space-y-1">
+              <p className="flex items-center gap-1.5 text-sm text-text-secondary">
+                <Clock className="h-4 w-4" />
+                {formatLastUpdate(activeInstagramConnection.lastSuccessfulSyncAt)}
+              </p>
+              {lastAutoRefreshAt ? (
+                <p className="text-xs text-text-secondary">
+                  Dados atualizados automaticamente às {formatTime(new Date(lastAutoRefreshAt))}
+                </p>
+              ) : null}
+            </div>
           ) : null}
         </div>
 

@@ -61,6 +61,8 @@ export function createAdminClient() {
   return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 }
 
+export type SocialAdminClient = ReturnType<typeof createAdminClient>;
+
 export async function requireAuthenticatedUser(request: Request) {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !SUPABASE_SERVICE_ROLE_KEY) {
     throw new Error('Supabase environment variables are missing.');
