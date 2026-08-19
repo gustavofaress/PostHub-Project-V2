@@ -19,30 +19,41 @@ export const useWorkspacePermissions = () => {
   const { user } = useAuth();
   const { activeProfile } = useProfile();
 
-  const [permissions, setPermissions] = React.useState<PermissionMap>(buildDefaultPermissions(true));
-  const [canManageMembers, setCanManageMembers] = React.useState(true);
+  const [permissions, setPermissions] = React.useState<PermissionMap>(buildDefaultPermissions(false));
+  const [canManageMembers, setCanManageMembers] = React.useState(false);
   const [isLoadingPermissions, setIsLoadingPermissions] = React.useState(false);
+  const [resolvedProfileId, setResolvedProfileId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (!activeProfile?.id || !user) {
       setPermissions(buildDefaultPermissions(false));
       setCanManageMembers(false);
+      setResolvedProfileId(null);
+      setIsLoadingPermissions(false);
       return;
     }
 
     if (!supabase) {
       setPermissions(buildDefaultPermissions(true));
       setCanManageMembers(true);
+      setResolvedProfileId(activeProfile.id);
+      setIsLoadingPermissions(false);
       return;
     }
 
     if (activeProfile.role === 'owner') {
       setPermissions(buildDefaultPermissions(true));
       setCanManageMembers(true);
+      setResolvedProfileId(activeProfile.id);
+      setIsLoadingPermissions(false);
       return;
     }
 
     let isMounted = true;
+
+    setPermissions(buildDefaultPermissions(false));
+    setCanManageMembers(false);
+    setResolvedProfileId(null);
 
     const loadPermissions = async () => {
       setIsLoadingPermissions(true);
@@ -79,11 +90,13 @@ export const useWorkspacePermissions = () => {
           }, {} as PermissionMap)
         );
         setCanManageMembers(!!manageMembersData);
+        setResolvedProfileId(activeProfile.id);
       } catch (error) {
         console.error('[WorkspacePermissions] Failed to load permissions:', error);
         if (!isMounted) return;
         setPermissions(buildDefaultPermissions(false));
         setCanManageMembers(false);
+        setResolvedProfileId(activeProfile.id);
       } finally {
         if (isMounted) {
           setIsLoadingPermissions(false);
@@ -98,10 +111,17 @@ export const useWorkspacePermissions = () => {
     };
   }, [activeProfile?.id, activeProfile?.role, user]);
 
+  const isScopedToActiveProfile =
+    !activeProfile?.id ||
+    !supabase ||
+    activeProfile.role === 'owner' ||
+    resolvedProfileId === activeProfile.id;
+
   return {
     permissions,
-    canAccess: (permissionId: TeamPermissionId) => permissions[permissionId] ?? false,
-    canManageMembers,
+    canAccess: (permissionId: TeamPermissionId) =>
+      isScopedToActiveProfile ? permissions[permissionId] ?? false : false,
+    canManageMembers: isScopedToActiveProfile ? canManageMembers : false,
     isLoadingPermissions,
   };
 };

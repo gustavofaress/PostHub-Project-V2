@@ -12,6 +12,9 @@ interface LockedModuleStateProps {
   description?: string;
   autoOpen?: boolean;
   compact?: boolean;
+  eyebrowLabel?: string;
+  showUpgradeActions?: boolean;
+  actions?: React.ReactNode;
 }
 
 const BENEFITS = [
@@ -22,9 +25,9 @@ const BENEFITS = [
 
 const MODULE_COPY: Partial<Record<PlanFeature, { title: string; description: string }>> = {
   performance: {
-    title: 'Performance está em preparação',
+    title: 'Performance é exclusiva do plano PRO',
     description:
-      'Em breve, seus indicadores entram no fluxo para orientar decisões com mais clareza.',
+      'Acompanhe métricas e conecte analytics sociais no perfil ativo com o plano PRO.',
   },
   team: {
     title: 'Gerenciar equipe é exclusivo do plano PRO',
@@ -54,6 +57,9 @@ export const LockedModuleState = ({
   description,
   autoOpen = false,
   compact = false,
+  eyebrowLabel = 'Plano PRO',
+  showUpgradeActions = true,
+  actions,
 }: LockedModuleStateProps) => {
   const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = React.useState(autoOpen);
@@ -87,7 +93,7 @@ export const LockedModuleState = ({
             <Lock className="h-7 w-7" />
           </div>
           <p className="mb-2 text-sm font-semibold uppercase tracking-[0.18em] text-brand">
-            Plano PRO
+            {eyebrowLabel}
           </p>
           <h1 className="text-2xl font-bold text-text-primary md:text-3xl">
             {title ?? copy.title}
@@ -96,11 +102,9 @@ export const LockedModuleState = ({
             {description ?? copy.description}
           </p>
 
-          {feature === 'performance' ? (
-            <div className="mt-7 inline-flex rounded-full border border-gray-200 bg-gray-50 px-4 py-2 text-sm font-medium text-text-secondary">
-              Em breve
-            </div>
-          ) : (
+          {actions ? (
+            <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">{actions}</div>
+          ) : showUpgradeActions ? (
             <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
               <Button onClick={() => setIsModalOpen(true)} className="gap-2">
                 Fazer upgrade
@@ -110,12 +114,12 @@ export const LockedModuleState = ({
                 Ver planos
               </Button>
             </div>
-          )}
+          ) : null}
         </div>
       </div>
 
       <Modal
-        isOpen={isModalOpen && feature !== 'performance'}
+        isOpen={isModalOpen && showUpgradeActions}
         onClose={() => setIsModalOpen(false)}
         title="Desbloquear plano PRO"
         className="max-w-2xl"
