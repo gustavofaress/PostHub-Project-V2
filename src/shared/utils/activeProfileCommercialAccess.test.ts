@@ -51,6 +51,23 @@ test('FREE resolved denies premium features and keeps calendar plus kanban enabl
   assert.equal(canUseActiveProfileFeature(access, 'kanban'), true);
 });
 
+test('legacy runtime free still respects a FREE resolved profile entitlement', () => {
+  const access = resolveActiveProfileCommercialAccess({
+    hasActiveProfile: true,
+    entitlementStatus: 'resolved',
+    entitlements: freeResolved,
+    currentPlan: 'free',
+    isAdmin: false,
+  });
+
+  assert.equal(access.status, 'resolved');
+  assert.equal(canUseActiveProfileFeature(access, 'references'), false);
+  assert.equal(canUseActiveProfileFeature(access, 'metrics'), false);
+  assert.equal(canUseActiveProfileFeature(access, 'approval'), false);
+  assert.equal(canUseActiveProfileFeature(access, 'calendar'), true);
+  assert.equal(canUseActiveProfileFeature(access, 'kanban'), true);
+});
+
 test('legacy trial runtime start_7 still respects a FREE resolved profile entitlement', () => {
   const access = resolveActiveProfileCommercialAccess({
     hasActiveProfile: true,
@@ -66,6 +83,21 @@ test('legacy trial runtime start_7 still respects a FREE resolved profile entitl
   assert.equal(canUseActiveProfileFeature(access, 'approval'), false);
   assert.equal(canUseActiveProfileFeature(access, 'calendar'), true);
   assert.equal(canUseActiveProfileFeature(access, 'kanban'), true);
+});
+
+test('legacy runtime free still follows a resolved LEGACY PRO profile capability row', () => {
+  const access = resolveActiveProfileCommercialAccess({
+    hasActiveProfile: true,
+    entitlementStatus: 'resolved',
+    entitlements: legacyProResolved,
+    currentPlan: 'free',
+    isAdmin: false,
+  });
+
+  assert.equal(access.status, 'resolved');
+  assert.equal(canUseActiveProfileFeature(access, 'references'), true);
+  assert.equal(canUseActiveProfileFeature(access, 'metrics'), true);
+  assert.equal(canUseActiveProfileFeature(access, 'approval'), true);
 });
 
 test('LEGACY PRO resolved keeps premium features enabled from materialized entitlements', () => {

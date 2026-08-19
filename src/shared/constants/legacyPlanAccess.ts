@@ -1,6 +1,7 @@
 import type { WorkspaceModule } from './navigation';
 
-export type PlanId = 'start' | 'growth' | 'pro';
+export type PlanId = 'free' | 'start' | 'growth' | 'pro';
+export type PaidPlanId = Exclude<PlanId, 'free'>;
 export type PlanFeature = WorkspaceModule | 'team';
 
 export const ALWAYS_OPEN_FEATURES: PlanFeature[] = [
@@ -15,7 +16,15 @@ export const ALWAYS_OPEN_FEATURES: PlanFeature[] = [
   'admin',
 ];
 
+export const PLAN_LABELS: Record<PlanId, string> = {
+  free: 'FREE',
+  start: 'Start',
+  growth: 'Growth',
+  pro: 'Pro',
+};
+
 export const PLAN_FEATURES: Record<PlanId, PlanFeature[]> = {
+  free: ['ideas'],
   start: ['calendar', 'kanban', 'ideas', 'clients'],
   growth: ['calendar', 'kanban', 'ideas', 'clients', 'references', 'reports'],
   pro: [
@@ -35,11 +44,24 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeature[]> = {
 export const normalizePlan = (plan?: string | null): PlanId | null => {
   const normalizedPlan = (plan || '').toLowerCase().trim();
 
-  if (normalizedPlan === 'start' || normalizedPlan === 'growth' || normalizedPlan === 'pro') {
+  if (
+    normalizedPlan === 'free' ||
+    normalizedPlan === 'start' ||
+    normalizedPlan === 'growth' ||
+    normalizedPlan === 'pro'
+  ) {
     return normalizedPlan;
   }
 
   return null;
+};
+
+export const isPaidPlanId = (plan?: PlanId | null): plan is PaidPlanId =>
+  plan === 'start' || plan === 'growth' || plan === 'pro';
+
+export const getPlanLabel = (plan?: string | null): string | null => {
+  const normalizedPlan = normalizePlan(plan);
+  return normalizedPlan ? PLAN_LABELS[normalizedPlan] : null;
 };
 
 export const isTrialPlan = (plan?: string | null) => {
@@ -65,6 +87,7 @@ export const hasLegacyPlanAccess = (
 export const getMinimumPlanForFeature = (feature: PlanFeature): PlanId | null => {
   if (feature === 'performance') return 'pro';
 
+  if (PLAN_FEATURES.free.includes(feature)) return 'free';
   if (PLAN_FEATURES.start.includes(feature)) return 'start';
   if (PLAN_FEATURES.growth.includes(feature)) return 'growth';
   if (PLAN_FEATURES.pro.includes(feature)) return 'pro';

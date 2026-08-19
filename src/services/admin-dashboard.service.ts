@@ -47,7 +47,7 @@ export interface AdminDashboardUser {
   id: string;
   name: string;
   email: string;
-  plan: 'Trial' | 'Pro';
+  plan: 'Trial' | 'Free' | 'Pro';
   trialStatus: 'Active' | 'Expired' | 'N/A';
   trialStartedAt: string | null;
   trialExpiresAt: string | null;
@@ -269,7 +269,9 @@ export const adminDashboardService = {
       })
       .map((usuario) => {
         const onboarding = onboardingMap.get(usuario.id);
-        const isPro = usuario.current_plan === 'pro';
+        const normalizedPlan = (usuario.current_plan || '').toLowerCase().trim();
+        const isPro = normalizedPlan === 'pro';
+        const isFree = normalizedPlan === 'free';
         const trialAccessRows = trialAccessMap.get(usuario.id) ?? [];
         const trialAccessDates = resolveTrialAccessDates(trialAccessRows);
         const trialAccessDays = trialAccessDates.length;
@@ -278,13 +280,13 @@ export const adminDashboardService = {
           id: usuario.id,
           name: usuario.nome?.trim() || 'Usuário sem nome',
           email: usuario.email?.trim() || '-',
-          plan: isPro ? ('Pro' as const) : ('Trial' as const),
+          plan: isPro ? ('Pro' as const) : isFree ? ('Free' as const) : ('Trial' as const),
           trialStatus: getTrialStatus(usuario.current_plan, usuario.trial_expires_at),
           trialStartedAt: usuario.trial_started_at,
           trialExpiresAt: usuario.trial_expires_at,
           trialAccessDays,
           trialAccessDates,
-          trialKanbanDay: isPro ? null : clampTrialKanbanDay(trialAccessDays || 1),
+          trialKanbanDay: isPro || isFree ? null : clampTrialKanbanDay(trialAccessDays || 1),
           firstTrialAccessAt: resolveFirstTrialAccessAt(trialAccessRows),
           lastTrialAccessAt: resolveLastTrialAccessAt(trialAccessRows),
           totalTrialAccesses: trialAccessRows.reduce(
@@ -826,7 +828,9 @@ function getTrialStatus(
   currentPlan: string | null,
   trialExpiresAt: string | null
 ): 'Active' | 'Expired' | 'N/A' {
-  if (currentPlan === 'pro') return 'N/A';
+  const normalizedPlan = (currentPlan || '').toLowerCase().trim();
+
+  if (normalizedPlan === 'pro' || normalizedPlan === 'free') return 'N/A';
   if (!trialExpiresAt) return 'Active';
 
   const expiresAt = new Date(trialExpiresAt).getTime();

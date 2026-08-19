@@ -498,6 +498,9 @@ export const AdminDashboard = () => {
     const proUsersThisWeek = newestUsersThisWeek.filter(
       (currentUser) => currentUser.plan === 'Pro'
     ).length;
+    const trialUsersThisWeek = newestUsersThisWeek.filter(
+      (currentUser) => currentUser.plan === 'Trial'
+    ).length;
 
     return {
       totalUsers,
@@ -508,7 +511,7 @@ export const AdminDashboard = () => {
       onboardingCompletedThisWeek,
       onboardingPendingThisWeek: Math.max(newUsersThisWeek - onboardingCompletedThisWeek, 0),
       proUsersThisWeek,
-      trialUsersThisWeek: Math.max(newUsersThisWeek - proUsersThisWeek, 0),
+      trialUsersThisWeek,
       growthLabel: formatGrowthDelta(newUsersThisWeek, newUsersPreviousWeek),
       weeklyCompletionRate:
         newUsersThisWeek > 0
@@ -1610,6 +1613,7 @@ export const AdminDashboard = () => {
               onChange={(event) => setFilterPlan(event.target.value)}
             >
               <option value="All">Todos os planos</option>
+              <option value="Free">Free</option>
               <option value="Trial">Trial</option>
               <option value="Pro">Pro</option>
             </select>
@@ -1722,7 +1726,15 @@ export const AdminDashboard = () => {
 
                       <td className="px-6 py-4">
                         <div className="flex flex-col items-start gap-1.5">
-                          <Badge variant={currentUser.plan === 'Pro' ? 'green' : 'yellow'}>
+                          <Badge
+                            variant={
+                              currentUser.plan === 'Pro'
+                                ? 'green'
+                                : currentUser.plan === 'Free'
+                                ? 'blue'
+                                : 'yellow'
+                            }
+                          >
                             {currentUser.plan}
                           </Badge>
 

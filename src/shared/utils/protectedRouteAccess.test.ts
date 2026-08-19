@@ -54,6 +54,18 @@ test('a valid unknown session can enter the PostHub workspace', () => {
   );
 });
 
+test('a valid free session can enter the PostHub workspace', () => {
+  assert.equal(
+    resolveProtectedRouteDecision({
+      isLoading: false,
+      hasAuthenticatedSession: true,
+      product: 'workspace',
+      accessStatus: 'free',
+    }),
+    'allow'
+  );
+});
+
 test('a valid missing session can enter the PostHub workspace', () => {
   assert.equal(
     resolveProtectedRouteDecision({
@@ -108,6 +120,15 @@ test('Metric Hub keeps the legacy commercial gate', () => {
       isLoading: false,
       hasAuthenticatedSession: true,
       product: 'metric-hub',
+      accessStatus: 'free',
+    }),
+    'redirect_login'
+  );
+  assert.equal(
+    resolveProtectedRouteDecision({
+      isLoading: false,
+      hasAuthenticatedSession: true,
+      product: 'metric-hub',
       accessStatus: 'trial_expired',
     }),
     'redirect_login'
@@ -139,6 +160,13 @@ test('post-login routing still preserves the admin default and explicit redirect
 });
 
 test('explicit Metric Hub redirects keep the legacy commercial validation after login', () => {
+  assert.equal(
+    canAccessRequestedProductAfterLogin({
+      redirectTo: '/metric-hub/app',
+      accessStatus: 'free',
+    }),
+    false
+  );
   assert.equal(
     canAccessRequestedProductAfterLogin({
       redirectTo: '/metric-hub/app',

@@ -1,11 +1,7 @@
+import type { UserAccessStatus } from './legacyUserAccess';
+
 export type LegacyCommercialAccessStatus =
-  | 'trial_active'
-  | 'trial_expired'
-  | 'paid'
-  | 'pro'
-  | 'blocked'
-  | 'missing'
-  | 'unknown'
+  | UserAccessStatus
   | null
   | undefined;
 

@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Button } from '../shared/components/Button';
-import { buildPlanPaymentLink, type PlanId } from '../shared/constants/plans';
+import { buildPlanPaymentLink, type PaidPlanId } from '../shared/constants/plans';
 import { trackMetaEvent } from '../services/meta-conversions.service';
 import { affiliateAttributionService } from '../services/affiliate-attribution.service';
 
@@ -173,7 +173,7 @@ const modules: LandingModule[] = [
 ];
 
 const pricingPlans: Array<{
-  id: PlanId;
+  id: PaidPlanId;
   name: string;
   price: string;
   value: number;

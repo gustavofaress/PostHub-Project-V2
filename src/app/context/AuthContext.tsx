@@ -4,10 +4,13 @@ import { supabase } from '../../shared/utils/supabase';
 import { onboardingService } from '../../services/onboarding.service';
 import { userService } from '../../services/user.service';
 import { trialAccessService } from '../../services/trial-access.service';
-import { normalizePlan } from '../../shared/constants/plans';
 import { memberAuthStorage } from '../../modules/settings/memberAuth.storage';
 import { buildAppUrl } from '../../shared/utils/appUrl';
 import { normalizeInternalRedirectPath } from '../../shared/utils/authPaths';
+import {
+  resolveLegacyUserAccessStatus,
+  type UserAccessStatus,
+} from '../../shared/utils/legacyUserAccess';
 import {
   canAccessRequestedProductAfterLogin,
   resolvePostAuthDestination,
@@ -29,15 +32,6 @@ interface UserOnboardingState {
   guided_steps_completed?: string[];
   guided_flow_completed_at?: string | null;
 }
-
-type UserAccessStatus =
-  | 'trial_active'
-  | 'trial_expired'
-  | 'paid'
-  | 'pro'
-  | 'blocked'
-  | 'missing'
-  | 'unknown';
 
 interface User {
   id: string;
@@ -86,11 +80,6 @@ interface AuthContextType {
 }
 
 const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
-
-const isTrialStillActive = (trialExpiresAt?: string | null) => {
-  if (!trialExpiresAt) return false;
-  return new Date(trialExpiresAt).getTime() > Date.now();
-};
 
 const getLocalIsoDate = (value = new Date()) => {
   const year = value.getFullYear();
@@ -230,31 +219,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       currentPlan?: string | null;
       isAdmin?: boolean;
       trialExpiresAt?: string | null;
-    }): UserAccessStatus => {
-      const { currentPlan, isAdmin, trialExpiresAt } = params;
-
-      if (isAdmin) return 'pro';
-
-      const normalizedPlan = (currentPlan || '').toLowerCase().trim();
-
-      if (!normalizedPlan) return 'missing';
-      if (normalizedPlan === 'pro') return 'pro';
-      if (normalizePlan(normalizedPlan)) return 'paid';
-
-      if (
-        normalizedPlan === 'start_7' ||
-        normalizedPlan === 'teste' ||
-        normalizedPlan === 'trial'
-      ) {
-        return isTrialStillActive(trialExpiresAt) ? 'trial_active' : 'trial_expired';
-      }
-
-      if (normalizedPlan === 'blocked' || normalizedPlan === 'bloqueado') {
-        return 'blocked';
-      }
-
-      return 'unknown';
-    },
+    }): UserAccessStatus => resolveLegacyUserAccessStatus(params),
     []
   );
 

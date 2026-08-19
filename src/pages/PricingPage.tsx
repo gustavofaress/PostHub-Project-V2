@@ -2,13 +2,13 @@ import * as React from 'react';
 import { ArrowLeft, ArrowRight, CheckCircle2, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Card } from '../shared/components/Card';
-import { buildPlanPaymentLink, type PlanId } from '../shared/constants/plans';
+import { buildPlanPaymentLink, type PaidPlanId } from '../shared/constants/plans';
 import { cn } from '../shared/utils/cn';
 import { trackMetaEvent } from '../services/meta-conversions.service';
 import { affiliateAttributionService } from '../services/affiliate-attribution.service';
 
 interface PricingPlan {
-  id: PlanId;
+  id: PaidPlanId;
   name: string;
   price: string;
   value: number;
