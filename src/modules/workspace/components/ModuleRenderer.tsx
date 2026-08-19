@@ -4,7 +4,6 @@ import { Loader2, RefreshCcw } from 'lucide-react';
 import { useApp } from '../../../app/context/AppContext';
 import { useAuth } from '../../../app/context/AuthContext';
 import { Dashboard } from '../../dashboard/Dashboard';
-import { Onboarding } from '../../onboarding/Onboarding';
 import { IdeasBank } from '../../ideas/IdeasBank';
 import { ApprovalModule } from '../../approval/ApprovalModule';
 import { EditorialCalendar } from '../../calendar/EditorialCalendar';
@@ -41,7 +40,7 @@ export const ModuleRenderer = () => {
     return <Navigate to="/workspace/dashboard" replace />;
   }
 
-  if (activeModule === 'onboarding' && user?.isMemberOnlyAccount) {
+  if (activeModule === 'onboarding') {
     return <Navigate to="/workspace/dashboard" replace />;
   }
 
@@ -158,8 +157,6 @@ export const ModuleRenderer = () => {
   }
 
   switch (activeModule) {
-    case 'onboarding':
-      return <Onboarding />;
     case 'dashboard':
       return <Dashboard />;
     case 'scripts':

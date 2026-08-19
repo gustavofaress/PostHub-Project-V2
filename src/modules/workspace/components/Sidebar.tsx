@@ -9,7 +9,6 @@ import {
 import { cn } from '../../../shared/utils/cn';
 import { useAuth } from '../../../app/context/AuthContext';
 import { hasAccess } from '../../../shared/constants/plans';
-import { useTrialGuidedFlow } from '../../onboarding/hooks/useTrialGuidedFlow';
 import { useWorkspacePermissions } from '../../../hooks/useWorkspacePermissions';
 import { WORKSPACE_MODULE_PERMISSION_MAP } from '../../../shared/constants/workspaceAccess';
 import { useActiveProfileCommercialAccess } from '../../../hooks/useActiveProfileCommercialAccess';
@@ -18,7 +17,6 @@ import { getWorkspaceModuleCommercialFeature } from '../../../shared/utils/activ
 export const Sidebar = () => {
   const location = useLocation();
   const { logout, user } = useAuth();
-  const { isActive: isGuidedFlowActive } = useTrialGuidedFlow();
   const { canAccess, canManageMembers } = useWorkspacePermissions();
   const commercialAccess = useActiveProfileCommercialAccess();
   const currentPathWithSearch = `${location.pathname}${location.search}`;
@@ -45,10 +43,6 @@ export const Sidebar = () => {
           items = items.filter(() => !!user?.isAdmin);
         }
 
-        if (user?.isMemberOnlyAccount) {
-          items = items.filter((item) => item.id !== 'onboarding');
-        }
-
         items = items.filter((item) => canOpenWorkspaceModule(item.id));
 
         return {
@@ -60,14 +54,12 @@ export const Sidebar = () => {
   }, [canAccess, canManageMembers, user?.isAdmin, user?.isWorkspaceMember]);
 
   const handleMouseEnter = (item: NavItem, e: React.MouseEvent) => {
-    if (isGuidedFlowActive) return;
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     const rect = e.currentTarget.getBoundingClientRect();
     setHoveredItem({ item, rect });
   };
 
   const handleMouseLeave = () => {
-    if (isGuidedFlowActive) return;
     timeoutRef.current = setTimeout(() => {
       setHoveredItem(null);
     }, 150);
@@ -197,8 +189,7 @@ export const Sidebar = () => {
         </div>
       </aside>
 
-      {!isGuidedFlowActive &&
-        hoveredItem &&
+      {hoveredItem &&
         (() => {
           const isBottomHalf = hoveredItem.rect.top > window.innerHeight / 2;
           const availableHeight = isBottomHalf

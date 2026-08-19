@@ -35,32 +35,6 @@ interface HelpArticle {
 
 const HELP_ARTICLES: HelpArticle[] = [
   {
-    id: 'onboarding',
-    title: 'Onboarding e Setup Inicial',
-    category: 'Primeiros passos',
-    status: 'Disponivel agora',
-    summary:
-      'O onboarding coleta o contexto da sua operacao e libera um checklist inicial para voce criar ideia, estruturar conteudo, levar para o calendario e finalizar a configuracao do workspace.',
-    keywords: ['setup', 'inicio', 'primeiro acesso', 'quiz', 'checklist'],
-    questions: [
-      {
-        question: 'Para que serve o quiz inicial?',
-        answer:
-          'O quiz registra modelo de trabalho, tamanho da operacao e processo atual. Essas respostas ficam vinculadas ao usuario e ajudam a personalizar a mensagem inicial e o contexto da conta.',
-      },
-      {
-        question: 'O que eu preciso fazer para concluir o setup?',
-        answer:
-          'O fluxo sugerido hoje e: criar a primeira ideia, abrir o gerador de roteiros, organizar no calendario e depois ir para o dashboard. Ao finalizar, o sistema marca o setup como concluido.',
-      },
-      {
-        question: 'Se eu fechar o onboarding, perco minhas respostas?',
-        answer:
-          'Nao. Quando o quiz e salvo, as respostas ficam registradas na conta. O modulo deixa de abrir como primeira etapa obrigatoria, mas os dados continuam disponiveis em Conta.',
-      },
-    ],
-  },
-  {
     id: 'dashboard',
     title: 'Dashboard',
     category: 'Visao geral',

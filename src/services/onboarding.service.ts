@@ -195,21 +195,24 @@ export const onboardingService = {
       if (!isMissingGuidedFlowColumnError(error)) throw error;
 
       const fallbackState = persistOnboardingFallback(userId, updates);
-      const remoteInsert =
+      const onboardingTable = supabase.from('user_onboarding');
+      const safeUpsertQuery =
         typeof updates.setup_completed === 'boolean'
-          ? {
-              user_id: userId,
-              setup_completed: updates.setup_completed,
-            }
-          : {
-              user_id: userId,
-            };
+          ? onboardingTable.upsert(
+              {
+                user_id: userId,
+                setup_completed: updates.setup_completed,
+              },
+              { onConflict: 'user_id' }
+            )
+          : onboardingTable.upsert(
+              {
+                user_id: userId,
+              },
+              { onConflict: 'user_id' }
+            );
 
-      const { data: safeData, error: safeUpsertError } = await supabase
-        .from('user_onboarding')
-        .upsert(remoteInsert, { onConflict: 'user_id' })
-        .select()
-        .single();
+      const { data: safeData, error: safeUpsertError } = await safeUpsertQuery.select().single();
 
       if (safeUpsertError) throw safeUpsertError;
 

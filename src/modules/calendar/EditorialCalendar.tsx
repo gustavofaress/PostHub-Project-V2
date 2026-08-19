@@ -40,7 +40,6 @@ import { Tabs } from '../../shared/components/Tabs';
 import { useProfile } from '../../app/context/ProfileContext';
 import { useAuth } from '../../app/context/AuthContext';
 import { supabase } from '../../shared/utils/supabase';
-import { useTrialGuidedFlow } from '../onboarding/hooks/useTrialGuidedFlow';
 import { useWorkspaceMembers } from '../../hooks/useWorkspaceMembers';
 import { useWorkspacePermissions } from '../../hooks/useWorkspacePermissions';
 import { useActiveProfileCommercialAccess } from '../../hooks/useActiveProfileCommercialAccess';
@@ -183,7 +182,6 @@ export const EditorialCalendar = () => {
   const { canManageMembers, isLoadingPermissions } = useWorkspacePermissions();
   const commercialAccess = useActiveProfileCommercialAccess();
   const isMobile = useIsMobile();
-  const guidedFlow = useTrialGuidedFlow();
 
   const [currentDate, setCurrentDate] = React.useState(new Date());
   const [posts, setPosts] = React.useState<CalendarPost[]>([]);
@@ -778,10 +776,6 @@ export const EditorialCalendar = () => {
 
       setIsModalOpen(false);
       resetModalForm();
-
-      if (!editingPostId && guidedFlow.currentTourStepId === 'calendar-save') {
-        await guidedFlow.advanceAfterRequiredAction();
-      }
     } catch (error: any) {
       console.error('[EditorialCalendar] Error saving post:', error);
       setErrorMessage(error?.message || 'Não foi possível salvar o post.');
