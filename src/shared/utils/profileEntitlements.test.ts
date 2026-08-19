@@ -22,6 +22,7 @@ test('buildFreeEntitlements materializes the expected FREE capabilities', () => 
 
   assert.equal(free.plan_code, 'free');
   assert.equal(free.source, 'default_free');
+  assert.equal(free.ideas_enabled, true);
   assert.equal(free.calendar_enabled, true);
   assert.equal(free.kanban_enabled, true);
   assert.equal(free.references_enabled, false);
@@ -29,6 +30,7 @@ test('buildFreeEntitlements materializes the expected FREE capabilities', () => 
   assert.equal(free.social_analytics_enabled, false);
   assert.equal(free.approval_enabled, false);
   assert.equal(free.approval_link_creation_enabled, false);
+  assert.equal(free.reports_enabled, false);
   assert.equal(free.max_additional_members, 2);
 });
 
@@ -42,6 +44,7 @@ test('buildProEntitlements materializes the expected PRO capabilities', () => {
 
   assert.equal(pro.plan_code, 'pro');
   assert.equal(pro.source, 'stripe');
+  assert.equal(pro.ideas_enabled, true);
   assert.equal(pro.calendar_enabled, true);
   assert.equal(pro.kanban_enabled, true);
   assert.equal(pro.references_enabled, true);
@@ -49,6 +52,7 @@ test('buildProEntitlements materializes the expected PRO capabilities', () => {
   assert.equal(pro.social_analytics_enabled, true);
   assert.equal(pro.approval_enabled, true);
   assert.equal(pro.approval_link_creation_enabled, true);
+  assert.equal(pro.reports_enabled, true);
   assert.equal(pro.max_additional_members, null);
 });
 
@@ -60,6 +64,7 @@ test('legacy records respect their materialized booleans instead of recalculatin
     subscription_ref: 'legacy-subscription-ref',
     effective_from: FIXED_ISO,
     effective_until: null,
+    ideas_enabled: true,
     calendar_enabled: true,
     kanban_enabled: true,
     references_enabled: true,
@@ -67,6 +72,7 @@ test('legacy records respect their materialized booleans instead of recalculatin
     social_analytics_enabled: false,
     approval_enabled: true,
     approval_link_creation_enabled: false,
+    reports_enabled: true,
     max_additional_members: 2,
     created_at: FIXED_ISO,
     updated_at: FIXED_ISO,
@@ -75,10 +81,12 @@ test('legacy records respect their materialized booleans instead of recalculatin
   const resolved = resolveProfileEntitlements(legacyGrowth);
 
   assert.equal(resolved.plan_code, 'legacy_growth');
+  assert.equal(hasProfileFeature(resolved, 'ideas'), true);
   assert.equal(hasProfileFeature(resolved, 'references'), true);
   assert.equal(hasProfileFeature(resolved, 'metrics'), false);
   assert.equal(hasProfileFeature(resolved, 'approval'), true);
   assert.equal(hasProfileFeature(resolved, 'approvalLinkCreation'), false);
+  assert.equal(hasProfileFeature(resolved, 'reports'), true);
 });
 
 test('resolveProfileFeature keeps missing distinct from FREE', () => {

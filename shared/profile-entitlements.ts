@@ -13,6 +13,7 @@ export const ENTITLEMENT_SOURCES = ['default_free', 'legacy_snapshot', 'stripe']
 export type EntitlementSource = (typeof ENTITLEMENT_SOURCES)[number];
 
 export const PROFILE_FEATURES = [
+  'ideas',
   'calendar',
   'kanban',
   'references',
@@ -20,6 +21,7 @@ export const PROFILE_FEATURES = [
   'socialAnalytics',
   'approval',
   'approvalLinkCreation',
+  'reports',
   'team',
 ] as const;
 
@@ -32,6 +34,7 @@ export interface ProfileEntitlementRecord {
   subscription_ref: string | null;
   effective_from: string;
   effective_until: string | null;
+  ideas_enabled: boolean;
   calendar_enabled: boolean;
   kanban_enabled: boolean;
   references_enabled: boolean;
@@ -39,6 +42,7 @@ export interface ProfileEntitlementRecord {
   social_analytics_enabled: boolean;
   approval_enabled: boolean;
   approval_link_creation_enabled: boolean;
+  reports_enabled: boolean;
   max_additional_members: number | null;
   created_at: string;
   updated_at: string;
@@ -75,6 +79,7 @@ export const PROFILE_ENTITLEMENTS_SELECT = [
   'subscription_ref',
   'effective_from',
   'effective_until',
+  'ideas_enabled',
   'calendar_enabled',
   'kanban_enabled',
   'references_enabled',
@@ -82,6 +87,7 @@ export const PROFILE_ENTITLEMENTS_SELECT = [
   'social_analytics_enabled',
   'approval_enabled',
   'approval_link_creation_enabled',
+  'reports_enabled',
   'max_additional_members',
   'created_at',
   'updated_at',
@@ -98,6 +104,7 @@ interface BuildPlanEntitlementOptions {
 }
 
 const FREE_FEATURE_FLAGS = {
+  ideas_enabled: true,
   calendar_enabled: true,
   kanban_enabled: true,
   references_enabled: false,
@@ -105,10 +112,12 @@ const FREE_FEATURE_FLAGS = {
   social_analytics_enabled: false,
   approval_enabled: false,
   approval_link_creation_enabled: false,
+  reports_enabled: false,
   max_additional_members: 2,
 } as const;
 
 const PRO_FEATURE_FLAGS = {
+  ideas_enabled: true,
   calendar_enabled: true,
   kanban_enabled: true,
   references_enabled: true,
@@ -116,6 +125,7 @@ const PRO_FEATURE_FLAGS = {
   social_analytics_enabled: true,
   approval_enabled: true,
   approval_link_creation_enabled: true,
+  reports_enabled: true,
   max_additional_members: null,
 } as const;
 
@@ -139,6 +149,7 @@ const buildEntitlementRecord = (
     subscription_ref: input.subscriptionRef ?? null,
     effective_from: effectiveFrom,
     effective_until: input.effectiveUntil ?? null,
+    ideas_enabled: input.features.ideas_enabled,
     calendar_enabled: input.features.calendar_enabled,
     kanban_enabled: input.features.kanban_enabled,
     references_enabled: input.features.references_enabled,
@@ -146,6 +157,7 @@ const buildEntitlementRecord = (
     social_analytics_enabled: input.features.social_analytics_enabled,
     approval_enabled: input.features.approval_enabled,
     approval_link_creation_enabled: input.features.approval_link_creation_enabled,
+    reports_enabled: input.features.reports_enabled,
     max_additional_members: input.features.max_additional_members,
     created_at: createdAt,
     updated_at: updatedAt,
@@ -155,6 +167,7 @@ const buildEntitlementRecord = (
 const buildFeatureFlags = (
   entitlements: ProfileEntitlementRecord | ResolvedProfileEntitlements
 ): ProfileFeatureFlags => ({
+  ideas: entitlements.ideas_enabled,
   calendar: entitlements.calendar_enabled,
   kanban: entitlements.kanban_enabled,
   references: entitlements.references_enabled,
@@ -162,6 +175,7 @@ const buildFeatureFlags = (
   socialAnalytics: entitlements.social_analytics_enabled,
   approval: entitlements.approval_enabled,
   approvalLinkCreation: entitlements.approval_link_creation_enabled,
+  reports: entitlements.reports_enabled,
   team: entitlements.max_additional_members === null || entitlements.max_additional_members >= 0,
 });
 

@@ -44,9 +44,11 @@ test('FREE resolved denies premium features and keeps calendar plus kanban enabl
   });
 
   assert.equal(access.status, 'resolved');
+  assert.equal(canUseActiveProfileFeature(access, 'ideas'), true);
   assert.equal(canUseActiveProfileFeature(access, 'references'), false);
   assert.equal(canUseActiveProfileFeature(access, 'metrics'), false);
   assert.equal(canUseActiveProfileFeature(access, 'approval'), false);
+  assert.equal(canUseActiveProfileFeature(access, 'reports'), false);
   assert.equal(canUseActiveProfileFeature(access, 'calendar'), true);
   assert.equal(canUseActiveProfileFeature(access, 'kanban'), true);
 });
@@ -95,9 +97,11 @@ test('legacy runtime free still follows a resolved LEGACY PRO profile capability
   });
 
   assert.equal(access.status, 'resolved');
+  assert.equal(canUseActiveProfileFeature(access, 'ideas'), true);
   assert.equal(canUseActiveProfileFeature(access, 'references'), true);
   assert.equal(canUseActiveProfileFeature(access, 'metrics'), true);
   assert.equal(canUseActiveProfileFeature(access, 'approval'), true);
+  assert.equal(canUseActiveProfileFeature(access, 'reports'), true);
 });
 
 test('LEGACY PRO resolved keeps premium features enabled from materialized entitlements', () => {

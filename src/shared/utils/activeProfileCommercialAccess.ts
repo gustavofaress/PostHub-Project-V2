@@ -54,6 +54,7 @@ interface ResolveActiveProfileCommercialAccessInput {
 const BASELINE_FREE_FEATURES = new Set<ProfileFeature>(['calendar', 'kanban']);
 
 const LEGACY_COMPATIBILITY_FEATURE_MAP: Record<ProfileFeature, PlanFeature> = {
+  ideas: 'ideas',
   calendar: 'calendar',
   kanban: 'kanban',
   references: 'references',
@@ -61,6 +62,7 @@ const LEGACY_COMPATIBILITY_FEATURE_MAP: Record<ProfileFeature, PlanFeature> = {
   socialAnalytics: 'integrations',
   approval: 'approval',
   approvalLinkCreation: 'calendar',
+  reports: 'reports',
   team: 'team',
 };
 
@@ -88,6 +90,7 @@ const buildFeatureAccess = (
   input: ResolveActiveProfileCommercialAccessInput
 ): Record<ProfileFeature, CommercialFeatureAccess> => {
   return {
+    ideas: resolveFeatureAccessForStatus('ideas', status, input),
     calendar: resolveFeatureAccessForStatus('calendar', status, input),
     kanban: resolveFeatureAccessForStatus('kanban', status, input),
     references: resolveFeatureAccessForStatus('references', status, input),
@@ -95,6 +98,7 @@ const buildFeatureAccess = (
     socialAnalytics: resolveFeatureAccessForStatus('socialAnalytics', status, input),
     approval: resolveFeatureAccessForStatus('approval', status, input),
     approvalLinkCreation: resolveFeatureAccessForStatus('approvalLinkCreation', status, input),
+    reports: resolveFeatureAccessForStatus('reports', status, input),
     team: resolveFeatureAccessForStatus('team', status, input),
   };
 };
