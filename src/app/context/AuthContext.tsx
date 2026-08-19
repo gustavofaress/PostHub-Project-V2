@@ -9,6 +9,10 @@ import { memberAuthStorage } from '../../modules/settings/memberAuth.storage';
 import { buildAppUrl } from '../../shared/utils/appUrl';
 import { normalizeInternalRedirectPath } from '../../shared/utils/authPaths';
 import {
+  canAccessRequestedProductAfterLogin,
+  resolvePostAuthDestination,
+} from '../../shared/utils/protectedRouteAccess';
+import {
   accountSettingsService,
   normalizeNotificationPreferences,
   normalizeWebsite,
@@ -406,13 +410,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [getAccessStatus, mapOnboardingState, mapSessionUser]
   );
 
-  const getPostLoginRoute = React.useCallback((appUser: User) => {
-    if (appUser.isAdmin) return '/workspace/admin';
-    if (appUser.accessStatus === 'pro') return '/workspace/dashboard';
-    if (appUser.accessStatus === 'paid') return '/workspace/dashboard';
-    if (appUser.accessStatus === 'trial_active') return '/workspace/onboarding';
-    return '/login';
-  }, []);
+  const getPostLoginRoute = React.useCallback(
+    (appUser: User, redirectTo?: string | null) =>
+      resolvePostAuthDestination({
+        redirectTo,
+        isAdmin: !!appUser.isAdmin,
+      }),
+    []
+  );
 
   const refreshUser = React.useCallback(async () => {
     if (!supabase) {
@@ -590,7 +595,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         onboarding: null,
       };
       await syncMockUser(mockUser);
-      navigate(safeRedirectTo ?? '/workspace/onboarding');
+      navigate(getPostLoginRoute(mockUser, safeRedirectTo));
       return;
     }
 
@@ -607,7 +612,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { error: otpError } = await supabase.auth.signInWithOtp({
           email,
           options: {
-            emailRedirectTo: buildAppUrl(safeRedirectTo ?? '/workspace/dashboard'),
+            emailRedirectTo: buildAppUrl(
+              resolvePostAuthDestination({ redirectTo: safeRedirectTo })
+            ),
           },
         });
         authError = otpError;
@@ -641,14 +648,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(appUser);
 
       if (
-        appUser.accessStatus === 'trial_expired' ||
-        appUser.accessStatus === 'blocked' ||
-        appUser.accessStatus === 'missing'
+        safeRedirectTo &&
+        !canAccessRequestedProductAfterLogin({
+          redirectTo: safeRedirectTo,
+          accessStatus: appUser.accessStatus,
+        })
       ) {
-        throw new Error('Seu teste grátis expirou ou sua conta está bloqueada.');
+        throw new Error('Seu acesso atual não libera este produto.');
       }
 
-      navigate(safeRedirectTo ?? getPostLoginRoute(appUser));
+      navigate(getPostLoginRoute(appUser, safeRedirectTo));
     } catch (error: any) {
       console.error('Login error:', error);
       console.error('Login error message:', error?.message);
@@ -701,7 +710,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         onboarding: null,
       };
       await syncMockUser(mockUser);
-      navigate(safeRedirectTo ?? '/workspace/onboarding');
+      navigate(getPostLoginRoute(mockUser, safeRedirectTo));
       return {
         requiresEmailConfirmation: false,
         email: sanitizedEmail,
@@ -725,7 +734,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               full_name: sanitizedName,
               initial_profile_name: sanitizedProfileName,
             },
-            emailRedirectTo: buildAppUrl(safeRedirectTo ?? '/workspace/onboarding'),
+            emailRedirectTo: buildAppUrl(
+              resolvePostAuthDestination({ redirectTo: safeRedirectTo })
+            ),
           },
         });
         authError = signUpError;
@@ -739,7 +750,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               full_name: sanitizedName,
               initial_profile_name: sanitizedProfileName,
             },
-            emailRedirectTo: buildAppUrl(safeRedirectTo ?? '/workspace/onboarding'),
+            emailRedirectTo: buildAppUrl(
+              resolvePostAuthDestination({ redirectTo: safeRedirectTo })
+            ),
           },
         });
         authError = otpError;
@@ -782,15 +795,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setUser(appUser);
 
-      if (
-        appUser.accessStatus === 'trial_expired' ||
-        appUser.accessStatus === 'blocked' ||
-        appUser.accessStatus === 'missing'
-      ) {
-        throw new Error('Sua conta foi criada, mas o acesso não foi liberado corretamente.');
-      }
-
-      navigate(safeRedirectTo ?? '/workspace/onboarding');
+      navigate(getPostLoginRoute(appUser, safeRedirectTo));
       return {
         requiresEmailConfirmation: false,
         email: appUser.email || sanitizedEmail,

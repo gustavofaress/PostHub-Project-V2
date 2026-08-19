@@ -102,12 +102,12 @@ export default function App() {
       <Route path="/aprovacao/:token" element={<PublicApprovalPage />} />
       <Route path="/calendario/aprovacao/:token" element={<PublicCalendarApprovalPage />} />
 
-      <Route element={<ProtectedRoute />}>
+      <Route element={<ProtectedRoute product="metric-hub" />}>
         <Route path="/metric-hub/app" element={<MetricHubAppPage />} />
       </Route>
 
       {/* Protected Workspace Routes */}
-      <Route path="/workspace/*" element={<ProtectedRoute />}>
+      <Route path="/workspace/*" element={<ProtectedRoute product="workspace" />}>
         <Route path="*" element={<ResponsiveWorkspaceLayout />} />
       </Route>
 
