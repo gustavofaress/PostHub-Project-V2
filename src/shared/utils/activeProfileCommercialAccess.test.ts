@@ -6,6 +6,7 @@ import {
   resolveProfileEntitlements,
 } from './profileEntitlements.ts';
 import {
+  canAccessFeatureWithWorkspacePermission,
   canUseActiveProfileFeature,
   resolveActiveProfileCommercialAccess,
   resolveActiveProfileFeatureAccess,
@@ -106,7 +107,7 @@ test('ADMIN with valid profile access and missing entitlement enters admin bypas
   assert.equal(resolveActiveProfileFeatureAccess(access, 'metrics').enabled, true);
 });
 
-test('ADMIN with a resolved entitlement row still follows the materialized profile capabilities', () => {
+test('ADMIN plus FREE resolved enters admin bypass and still preserves the profile row metadata', () => {
   const access = resolveActiveProfileCommercialAccess({
     hasActiveProfile: true,
     entitlementStatus: 'resolved',
@@ -115,10 +116,28 @@ test('ADMIN with a resolved entitlement row still follows the materialized profi
     isAdmin: true,
   });
 
-  assert.equal(access.status, 'resolved');
-  assert.equal(resolveActiveProfileFeatureAccess(access, 'references').enabled, false);
-  assert.equal(resolveActiveProfileFeatureAccess(access, 'metrics').enabled, false);
-  assert.equal(resolveActiveProfileFeatureAccess(access, 'approval').enabled, false);
+  assert.equal(access.status, 'admin_bypass');
+  assert.equal(access.planCode, 'free');
+  assert.equal(access.entitlements?.plan_code, 'free');
+  assert.equal(resolveActiveProfileFeatureAccess(access, 'references').enabled, true);
+  assert.equal(resolveActiveProfileFeatureAccess(access, 'metrics').enabled, true);
+  assert.equal(resolveActiveProfileFeatureAccess(access, 'approval').enabled, true);
+});
+
+test('ADMIN plus PRO resolved keeps premium enabled via admin bypass', () => {
+  const access = resolveActiveProfileCommercialAccess({
+    hasActiveProfile: true,
+    entitlementStatus: 'resolved',
+    entitlements: legacyProResolved,
+    currentPlan: 'start',
+    isAdmin: true,
+  });
+
+  assert.equal(access.status, 'admin_bypass');
+  assert.equal(access.planCode, 'legacy_pro');
+  assert.equal(resolveActiveProfileFeatureAccess(access, 'references').enabled, true);
+  assert.equal(resolveActiveProfileFeatureAccess(access, 'metrics').enabled, true);
+  assert.equal(resolveActiveProfileFeatureAccess(access, 'approval').enabled, true);
 });
 
 test('missing entitlement for non-admin enters legacy compatibility mode', () => {
@@ -150,6 +169,20 @@ test('query error does not fall back to legacy compatibility mode', () => {
   assert.equal(resolveActiveProfileFeatureAccess(access, 'calendar').enabled, true);
 });
 
+test('query error does not release premium for ADMIN before the state resolves', () => {
+  const access = resolveActiveProfileCommercialAccess({
+    hasActiveProfile: true,
+    entitlementStatus: 'error',
+    entitlements: null,
+    currentPlan: 'pro',
+    isAdmin: true,
+  });
+
+  assert.equal(access.status, 'error');
+  assert.equal(resolveActiveProfileFeatureAccess(access, 'references').enabled, false);
+  assert.equal(resolveActiveProfileFeatureAccess(access, 'metrics').enabled, false);
+});
+
 test('loading never releases premium access prematurely', () => {
   const access = resolveActiveProfileCommercialAccess({
     hasActiveProfile: true,
@@ -163,6 +196,20 @@ test('loading never releases premium access prematurely', () => {
   assert.equal(resolveActiveProfileFeatureAccess(access, 'references').enabled, false);
   assert.equal(resolveActiveProfileFeatureAccess(access, 'metrics').enabled, false);
   assert.equal(resolveActiveProfileFeatureAccess(access, 'calendar').enabled, true);
+});
+
+test('loading never releases premium for ADMIN prematurely', () => {
+  const access = resolveActiveProfileCommercialAccess({
+    hasActiveProfile: true,
+    entitlementStatus: 'loading',
+    entitlements: null,
+    currentPlan: 'start',
+    isAdmin: true,
+  });
+
+  assert.equal(access.status, 'loading');
+  assert.equal(resolveActiveProfileFeatureAccess(access, 'references').enabled, false);
+  assert.equal(resolveActiveProfileFeatureAccess(access, 'approval').enabled, false);
 });
 
 test('profile switching keeps access scoped to the active profile', () => {
@@ -185,4 +232,34 @@ test('profile switching keeps access scoped to the active profile', () => {
   assert.equal(resolveActiveProfileFeatureAccess(proAccess, 'metrics').enabled, true);
   assert.equal(resolveActiveProfileFeatureAccess(freeAccess, 'approval').enabled, false);
   assert.equal(resolveActiveProfileFeatureAccess(proAccess, 'approval').enabled, true);
+});
+
+test('commercial allow plus permission deny results in deny', () => {
+  assert.equal(
+    canAccessFeatureWithWorkspacePermission({
+      commercialAllowed: true,
+      permissionAllowed: false,
+    }),
+    false
+  );
+});
+
+test('commercial deny plus permission allow results in deny', () => {
+  assert.equal(
+    canAccessFeatureWithWorkspacePermission({
+      commercialAllowed: false,
+      permissionAllowed: true,
+    }),
+    false
+  );
+});
+
+test('commercial allow plus permission allow results in allow', () => {
+  assert.equal(
+    canAccessFeatureWithWorkspacePermission({
+      commercialAllowed: true,
+      permissionAllowed: true,
+    }),
+    true
+  );
 });

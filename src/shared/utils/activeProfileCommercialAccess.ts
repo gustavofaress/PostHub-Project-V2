@@ -78,6 +78,11 @@ export const getWorkspaceModuleCommercialFeature = (
   moduleId: WorkspaceModule
 ): ProfileFeature | null => WORKSPACE_MODULE_COMMERCIAL_FEATURE_MAP[moduleId] ?? null;
 
+export const canAccessFeatureWithWorkspacePermission = (input: {
+  commercialAllowed: boolean;
+  permissionAllowed: boolean;
+}) => input.commercialAllowed && input.permissionAllowed;
+
 const buildFeatureAccess = (
   status: ActiveProfileCommercialStatus,
   input: ResolveActiveProfileCommercialAccessInput
@@ -143,16 +148,16 @@ export const resolveActiveProfileCommercialAccess = (
     status = 'loading';
   } else if (input.entitlementStatus === 'error') {
     status = 'error';
-  } else if (input.entitlementStatus === 'resolved' && input.entitlements) {
-    status = 'resolved';
   } else if (input.isAdmin) {
     status = 'admin_bypass';
+  } else if (input.entitlementStatus === 'resolved' && input.entitlements) {
+    status = 'resolved';
   }
 
   return {
     status,
     entitlementStatus: input.entitlementStatus,
-    entitlements: status === 'resolved' ? input.entitlements : null,
+    entitlements: input.entitlements ?? null,
     planCode: input.entitlements?.plan_code ?? null,
     hasEntitlementRow: !!input.entitlements,
     isMissingEntitlement: input.entitlementStatus === 'missing',
