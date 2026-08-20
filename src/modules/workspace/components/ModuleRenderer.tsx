@@ -109,6 +109,8 @@ export const ModuleRenderer = () => {
             ? 'Referências é um recurso PRO por perfil'
             : activeModule === 'performance'
             ? 'Performance é um recurso PRO por perfil'
+            : activeModule === 'reports'
+            ? 'Relatórios é um recurso PRO por perfil'
             : 'Aprovação é um recurso PRO por perfil'
         }
         description={
@@ -116,6 +118,8 @@ export const ModuleRenderer = () => {
             ? 'Ative o PRO neste perfil para acessar referências, uploads e materiais de apoio sem mudar o restante do workspace.'
             : activeModule === 'performance'
             ? 'Ative o PRO neste perfil para acompanhar métricas, analytics sociais e histórico de performance dentro da PostHub.'
+            : activeModule === 'reports'
+            ? 'Ative o PRO neste perfil para montar relatórios profissionais, visualizar prévias e exportar PDFs sem mudar o restante do workspace.'
             : 'Ative o PRO neste perfil para abrir o workspace interno de aprovação e gerar novos fluxos de revisão.'
         }
       />

@@ -51,7 +51,7 @@ interface ResolveActiveProfileCommercialAccessInput {
   isAdmin?: boolean;
 }
 
-const BASELINE_FREE_FEATURES = new Set<ProfileFeature>(['calendar', 'kanban']);
+const BASELINE_FREE_FEATURES = new Set<ProfileFeature>(['ideas', 'calendar', 'kanban']);
 
 const LEGACY_COMPATIBILITY_FEATURE_MAP: Record<ProfileFeature, PlanFeature> = {
   ideas: 'ideas',
@@ -71,8 +71,10 @@ export const WORKSPACE_MODULE_COMMERCIAL_FEATURE_MAP: Partial<
 > = {
   approval: 'approval',
   calendar: 'calendar',
+  ideas: 'ideas',
   kanban: 'kanban',
   performance: 'metrics',
+  reports: 'reports',
   references: 'references',
 };
 

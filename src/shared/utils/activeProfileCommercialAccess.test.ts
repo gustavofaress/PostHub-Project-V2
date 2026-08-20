@@ -8,6 +8,7 @@ import {
 import {
   canAccessFeatureWithWorkspacePermission,
   canUseActiveProfileFeature,
+  getWorkspaceModuleCommercialFeature,
   resolveActiveProfileCommercialAccess,
   resolveActiveProfileFeatureAccess,
 } from './activeProfileCommercialAccess.ts';
@@ -17,6 +18,15 @@ const FIXED_ISO = '2026-08-18T20:20:25.000Z';
 const freeResolved = resolveProfileEntitlements(
   buildFreeEntitlements({
     profileId: 'profile-free',
+    effectiveFrom: FIXED_ISO,
+    createdAt: FIXED_ISO,
+    updatedAt: FIXED_ISO,
+  })
+);
+
+const proResolved = resolveProfileEntitlements(
+  buildProEntitlements({
+    profileId: 'profile-pro',
     effectiveFrom: FIXED_ISO,
     createdAt: FIXED_ISO,
     updatedAt: FIXED_ISO,
@@ -53,6 +63,11 @@ test('FREE resolved denies premium features and keeps calendar plus kanban enabl
   assert.equal(canUseActiveProfileFeature(access, 'kanban'), true);
 });
 
+test('workspace modules ideas and reports resolve to the canonical commercial features', () => {
+  assert.equal(getWorkspaceModuleCommercialFeature('ideas'), 'ideas');
+  assert.equal(getWorkspaceModuleCommercialFeature('reports'), 'reports');
+});
+
 test('legacy runtime free still respects a FREE resolved profile entitlement', () => {
   const access = resolveActiveProfileCommercialAccess({
     hasActiveProfile: true,
@@ -63,9 +78,11 @@ test('legacy runtime free still respects a FREE resolved profile entitlement', (
   });
 
   assert.equal(access.status, 'resolved');
+  assert.equal(canUseActiveProfileFeature(access, 'ideas'), true);
   assert.equal(canUseActiveProfileFeature(access, 'references'), false);
   assert.equal(canUseActiveProfileFeature(access, 'metrics'), false);
   assert.equal(canUseActiveProfileFeature(access, 'approval'), false);
+  assert.equal(canUseActiveProfileFeature(access, 'reports'), false);
   assert.equal(canUseActiveProfileFeature(access, 'calendar'), true);
   assert.equal(canUseActiveProfileFeature(access, 'kanban'), true);
 });
@@ -104,6 +121,20 @@ test('legacy runtime free still follows a resolved LEGACY PRO profile capability
   assert.equal(canUseActiveProfileFeature(access, 'reports'), true);
 });
 
+test('resolved NEW PRO entitlements allow ideas and reports even when currentPlan is free', () => {
+  const access = resolveActiveProfileCommercialAccess({
+    hasActiveProfile: true,
+    entitlementStatus: 'resolved',
+    entitlements: proResolved,
+    currentPlan: 'free',
+    isAdmin: false,
+  });
+
+  assert.equal(access.status, 'resolved');
+  assert.equal(canUseActiveProfileFeature(access, 'ideas'), true);
+  assert.equal(canUseActiveProfileFeature(access, 'reports'), true);
+});
+
 test('LEGACY PRO resolved keeps premium features enabled from materialized entitlements', () => {
   const access = resolveActiveProfileCommercialAccess({
     hasActiveProfile: true,
@@ -131,6 +162,7 @@ test('member-only legacy runtime pro does not override a FREE resolved profile',
 
   assert.equal(resolveActiveProfileFeatureAccess(access, 'metrics').enabled, false);
   assert.equal(resolveActiveProfileFeatureAccess(access, 'approval').enabled, false);
+  assert.equal(resolveActiveProfileFeatureAccess(access, 'reports').enabled, false);
 });
 
 test('member-only legacy runtime pro still follows the resolved PRO profile capabilities', () => {
@@ -246,8 +278,10 @@ test('loading never releases premium access prematurely', () => {
   });
 
   assert.equal(access.status, 'loading');
+  assert.equal(resolveActiveProfileFeatureAccess(access, 'ideas').enabled, true);
   assert.equal(resolveActiveProfileFeatureAccess(access, 'references').enabled, false);
   assert.equal(resolveActiveProfileFeatureAccess(access, 'metrics').enabled, false);
+  assert.equal(resolveActiveProfileFeatureAccess(access, 'reports').enabled, false);
   assert.equal(resolveActiveProfileFeatureAccess(access, 'calendar').enabled, true);
 });
 
