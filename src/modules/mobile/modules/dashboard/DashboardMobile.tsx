@@ -5,7 +5,6 @@ import {
   CalendarDays,
   CheckCircle2,
   Clock,
-  FileText,
   Lightbulb,
   MessageSquare,
 } from 'lucide-react';
@@ -63,8 +62,8 @@ export const DashboardMobile = () => {
   const [isLoading, setIsLoading] = React.useState(true);
   const [stats, setStats] = React.useState<StatCard[]>([
     { label: 'Ideias', value: '--', helper: 'ativas', icon: Lightbulb },
-    { label: 'Roteiros', value: '--', helper: 'salvos', icon: FileText },
     { label: 'Agenda', value: '--', helper: 'agendados', icon: CalendarDays },
+    { label: 'Revisões', value: '--', helper: 'pendentes', icon: MessageSquare },
   ]);
   const [pendingApprovals, setPendingApprovals] = React.useState(0);
   const [recentActivity, setRecentActivity] = React.useState<ActivityItem[]>([]);
@@ -79,15 +78,9 @@ export const DashboardMobile = () => {
       setIsLoading(true);
 
       try {
-        const [ideasResult, scriptsResult, calendarResult, approvalsResult] = await Promise.all([
+        const [ideasResult, calendarResult, approvalsResult] = await Promise.all([
           supabase
             .from('ideas')
-            .select('id,title,updated_at', { count: 'exact' })
-            .eq('user_id', user.id)
-            .eq('profile_id', activeProfile.id)
-            .order('updated_at', { ascending: false }),
-          supabase
-            .from('script_drafts')
             .select('id,title,updated_at', { count: 'exact' })
             .eq('user_id', user.id)
             .eq('profile_id', activeProfile.id)
@@ -107,7 +100,6 @@ export const DashboardMobile = () => {
         ]);
 
         if (ideasResult.error) throw ideasResult.error;
-        if (scriptsResult.error) throw scriptsResult.error;
         if (calendarResult.error) throw calendarResult.error;
         if (approvalsResult.error) throw approvalsResult.error;
 
@@ -122,16 +114,18 @@ export const DashboardMobile = () => {
             icon: Lightbulb,
           },
           {
-            label: 'Roteiros',
-            value: String(scriptsResult.count ?? 0),
-            helper: 'salvos',
-            icon: FileText,
-          },
-          {
             label: 'Agenda',
             value: String(calendar.filter((item) => item.scheduled_date).length),
             helper: 'agendados',
             icon: CalendarDays,
+          },
+          {
+            label: 'Revisões',
+            value: String(
+              approvals.filter((item) => ['pending', 'changes_requested'].includes(item.status ?? '')).length
+            ),
+            helper: 'pendentes',
+            icon: MessageSquare,
           },
         ]);
 
@@ -145,12 +139,6 @@ export const DashboardMobile = () => {
             id: `idea-${item.id}`,
             title: item.title,
             type: 'ideia',
-            updated_at: item.updated_at,
-          })),
-          ...(scriptsResult.data ?? []).slice(0, 2).map((item) => ({
-            id: `script-${item.id}`,
-            title: item.title,
-            type: 'roteiro',
             updated_at: item.updated_at,
           })),
           ...calendar.slice(0, 2).map((item) => ({

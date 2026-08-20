@@ -8,7 +8,6 @@ import { IdeasBank } from '../../ideas/IdeasBank';
 import { ApprovalModule } from '../../approval/ApprovalModule';
 import { EditorialCalendar } from '../../calendar/EditorialCalendar';
 import { KanbanBoard } from '../../kanban/KanbanBoard';
-import { ClientOperationsModule } from '../../client-operations/ClientOperationsModule';
 import { Performance } from '../../performance/Performance';
 import { References } from '../../references/References';
 import { Credits } from '../../credits/Credits';
@@ -35,6 +34,8 @@ export const ModuleRenderer = () => {
 
   if (
     activeModule === 'consultant' ||
+    activeModule === 'scripts' ||
+    activeModule === 'clients' ||
     activeModule === 'scheduler'
   ) {
     return <Navigate to="/workspace/dashboard" replace />;
@@ -163,8 +164,6 @@ export const ModuleRenderer = () => {
   switch (activeModule) {
     case 'dashboard':
       return <Dashboard />;
-    case 'scripts':
-      return <Navigate to="/workspace/ideas" replace />;
     case 'ideas':
       return <IdeasBank />;
     case 'approval':
@@ -173,8 +172,6 @@ export const ModuleRenderer = () => {
       return <EditorialCalendar />;
     case 'kanban':
       return <KanbanBoard />;
-    case 'clients':
-      return <ClientOperationsModule />;
     case 'performance':
       return <Performance />;
     case 'reports':

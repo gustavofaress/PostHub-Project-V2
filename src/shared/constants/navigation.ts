@@ -88,6 +88,8 @@ export interface NavGroup {
 }
 
 export const HIDDEN_WORKSPACE_MODULE_IDS: WorkspaceModule[] = [
+  'scripts',
+  'clients',
   'scheduler',
 ];
 

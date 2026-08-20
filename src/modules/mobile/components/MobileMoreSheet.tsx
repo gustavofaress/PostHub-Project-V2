@@ -39,7 +39,7 @@ export const MobileMoreSheet = ({
       items: group.items.filter((item) => {
         if (item.id === 'admin' && !user?.isAdmin) return false;
         if (HIDDEN_MODULE_IDS.has(item.id)) return false;
-        return !['dashboard', 'ideas', 'scripts', 'approval', 'calendar'].includes(item.id);
+        return !['dashboard', 'ideas', 'approval', 'calendar'].includes(item.id);
       }),
     })).filter((group) => group.items.length > 0);
   }, [user?.isAdmin]);

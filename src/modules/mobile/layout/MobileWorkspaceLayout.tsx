@@ -16,7 +16,6 @@ const TITLES: Record<string, { title: string; subtitle?: string }> = {
   approval: { title: 'Aprovação', subtitle: 'Decisões rápidas' },
   calendar: { title: 'Calendário', subtitle: 'Planejamento' },
   kanban: { title: 'Kanban', subtitle: 'Produção' },
-  clients: { title: 'Clientes', subtitle: 'Operação por perfil' },
   reports: { title: 'Relatórios', subtitle: 'Resultados' },
   settings: { title: 'Configurações', subtitle: 'Workspace e equipe' },
 };

@@ -26,7 +26,9 @@ const KNOWN_WORKSPACE_MODULES: WorkspaceModule[] = [
 
 const LEGACY_WORKSPACE_REDIRECTS: Partial<Record<WorkspaceModule | 'onboarding', WorkspaceModule>> = {
   onboarding: 'dashboard',
-  scripts: 'ideas',
+  scripts: 'dashboard',
+  clients: 'dashboard',
+  scheduler: 'dashboard',
 };
 
 const KNOWN_WORKSPACE_MODULE_SET = new Set<WorkspaceModule>(KNOWN_WORKSPACE_MODULES);
@@ -66,10 +68,11 @@ export const resolveWorkspaceRoute = (pathname: string) => {
   const moduleSegment = normalizedPath.split('/')[2] ?? null;
   const activeModule = normalizeWorkspaceModule(moduleSegment);
   const redirectTo =
-    moduleSegment === 'onboarding'
+    moduleSegment === 'onboarding' ||
+    moduleSegment === 'scripts' ||
+    moduleSegment === 'clients' ||
+    moduleSegment === 'scheduler'
       ? '/workspace/dashboard'
-      : moduleSegment === 'scripts'
-      ? '/workspace/ideas'
       : null;
 
   return {

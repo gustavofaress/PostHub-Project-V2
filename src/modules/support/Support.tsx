@@ -56,7 +56,7 @@ const HELP_ARTICLES: HelpArticle[] = [
       {
         question: 'Por que o dashboard pode aparecer vazio?',
         answer:
-          'Se nao houver perfil ativo, conteudo criado ou aprovacoes registradas, o dashboard fica sem volume para consolidar. O ideal e alimentar primeiro Ideias, Roteiros, Calendario e Aprovacao.',
+          'Se nao houver perfil ativo, conteudo criado ou aprovacoes registradas, o dashboard fica sem volume para consolidar. O ideal e alimentar primeiro Ideias, Calendario e Aprovacao.',
       },
     ],
   },
@@ -106,9 +106,9 @@ const HELP_ARTICLES: HelpArticle[] = [
           'As tags ajudam na categorizacao, a prioridade sinaliza urgencia e o status indica a fase da ideia dentro do backlog. Esses campos tambem alimentam os filtros da tela.',
       },
       {
-        question: 'Consigo transformar uma ideia em roteiro?',
+        question: 'Como uma ideia entra no fluxo da operacao?',
         answer:
-          'Sim, o modulo ja tem atalho para abrir o Gerador de Roteiros. Hoje ele leva voce para o modulo de roteiro, onde a estruturacao continua.',
+          'O Banco de Ideias funciona como backlog do perfil ativo. Depois, a continuidade normal da operacao segue pelo Calendario Editorial e pelos demais modulos do workspace.',
       },
     ],
   },
@@ -254,7 +254,7 @@ const HELP_ARTICLES: HelpArticle[] = [
       {
         question: 'De onde saem os dados do relatorio?',
         answer:
-          'Os dados sao agregados a partir dos modulos internos da operacao, principalmente Ideias, Roteiros, Calendario e Aprovacao. O relatorio resume esse movimento em uma visao executiva.',
+          'Os dados sao agregados a partir dos modulos internos da operacao, principalmente Ideias, Calendario e Aprovacao. O relatorio resume esse movimento em uma visao executiva.',
       },
       {
         question: 'Posso personalizar o que entra no PDF?',
@@ -533,7 +533,7 @@ export const Support = () => {
               Nenhum artigo encontrado para essa busca.
             </p>
             <p className="mt-2 text-sm text-text-secondary">
-              Tente buscar pelo nome do modulo, como Calendario, Aprovacao, Roteiros ou Referencias.
+              Tente buscar pelo nome do modulo, como Calendario, Aprovacao, Relatorios ou Referencias.
             </p>
           </Card>
         ) : (

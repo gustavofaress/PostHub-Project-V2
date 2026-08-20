@@ -20,10 +20,18 @@ test('legacy onboarding route redirects to dashboard', () => {
   });
 });
 
-test('legacy scripts route redirects to ideas', () => {
+test('legacy discontinued module routes redirect to dashboard', () => {
   assert.deepEqual(resolveWorkspaceRoute('/workspace/scripts'), {
-    activeModule: 'ideas',
-    redirectTo: '/workspace/ideas',
+    activeModule: 'dashboard',
+    redirectTo: '/workspace/dashboard',
+  });
+  assert.deepEqual(resolveWorkspaceRoute('/workspace/clients'), {
+    activeModule: 'dashboard',
+    redirectTo: '/workspace/dashboard',
+  });
+  assert.deepEqual(resolveWorkspaceRoute('/workspace/scheduler'), {
+    activeModule: 'dashboard',
+    redirectTo: '/workspace/dashboard',
   });
 });
 
