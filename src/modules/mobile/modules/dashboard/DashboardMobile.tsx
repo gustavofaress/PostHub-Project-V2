@@ -9,12 +9,16 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import { useProfile } from '../../../../app/context/ProfileContext';
-import { useAuth } from '../../../../app/context/AuthContext';
 import { useApp } from '../../../../app/context/AppContext';
 import { Badge } from '../../../../shared/components/Badge';
 import { MobilePage } from '../../components/MobilePage';
 import { StickyActionBar } from '../../components/StickyActionBar';
 import { supabase } from '../../../../shared/utils/supabase';
+import { calendarApprovalService } from '../../../calendar/services/calendarApprovalService';
+import {
+  countDashboardPendingItems,
+  type DashboardCalendarRow,
+} from '../../../dashboard/dashboard.helpers';
 
 interface StatCard {
   label: string;
@@ -56,7 +60,6 @@ const formatRelativeDate = (dateString: string) => {
 export const DashboardMobile = () => {
   const navigate = useNavigate();
   const { activeProfile } = useProfile();
-  const { user } = useAuth();
   const { setActiveModule } = useApp();
 
   const [isLoading, setIsLoading] = React.useState(true);
@@ -70,7 +73,7 @@ export const DashboardMobile = () => {
 
   React.useEffect(() => {
     const load = async () => {
-      if (!supabase || !user?.id || !activeProfile?.id) {
+      if (!supabase || !activeProfile?.id) {
         setIsLoading(false);
         return;
       }
@@ -78,33 +81,26 @@ export const DashboardMobile = () => {
       setIsLoading(true);
 
       try {
-        const [ideasResult, calendarResult, approvalsResult] = await Promise.all([
+        const [ideasResult, calendarResult, latestApprovalStatuses] = await Promise.all([
           supabase
             .from('ideas')
             .select('id,title,updated_at', { count: 'exact' })
-            .eq('user_id', user.id)
             .eq('profile_id', activeProfile.id)
             .order('updated_at', { ascending: false }),
           supabase
             .from('editorial_calendar')
             .select('id,title,updated_at,scheduled_date,status', { count: 'exact' })
-            .eq('user_id', user.id)
             .eq('profile_id', activeProfile.id)
             .order('updated_at', { ascending: false }),
-          supabase
-            .from('approval_posts')
-            .select('id,title,updated_at,status', { count: 'exact' })
-            .eq('user_id', user.id)
-            .eq('profile_id', activeProfile.id)
-            .order('updated_at', { ascending: false }),
+          calendarApprovalService.listLatestApprovalStatuses(activeProfile.id),
         ]);
 
         if (ideasResult.error) throw ideasResult.error;
         if (calendarResult.error) throw calendarResult.error;
-        if (approvalsResult.error) throw approvalsResult.error;
 
-        const calendar = calendarResult.data ?? [];
-        const approvals = approvalsResult.data ?? [];
+        const calendar = (calendarResult.data ?? []) as DashboardCalendarRow[];
+        const latestApprovalEntries = Object.values(latestApprovalStatuses);
+        const pendingItemsCount = countDashboardPendingItems(calendar, latestApprovalEntries);
 
         setStats([
           {
@@ -121,18 +117,13 @@ export const DashboardMobile = () => {
           },
           {
             label: 'Revisões',
-            value: String(
-              approvals.filter((item) => ['pending', 'changes_requested'].includes(item.status ?? '')).length
-            ),
+            value: String(pendingItemsCount),
             helper: 'pendentes',
             icon: MessageSquare,
           },
         ]);
 
-        setPendingApprovals(
-          approvals.filter((item) => ['pending', 'changes_requested'].includes(item.status ?? ''))
-            .length
-        );
+        setPendingApprovals(pendingItemsCount);
 
         const activity = [
           ...(ideasResult.data ?? []).slice(0, 2).map((item) => ({
@@ -160,7 +151,7 @@ export const DashboardMobile = () => {
     };
 
     void load();
-  }, [activeProfile?.id, user?.id]);
+  }, [activeProfile?.id]);
 
   const goTo = (module: 'ideas' | 'calendar' | 'approval') => {
     setActiveModule(module);
@@ -185,7 +176,7 @@ export const DashboardMobile = () => {
           <div className="relative mt-5 flex items-center gap-2 rounded-[22px] bg-white/14 px-4 py-3">
             <MessageSquare className="h-5 w-5 shrink-0" />
             <p className="text-[0.98rem] text-white/94">
-              {isLoading ? '...' : `${pendingApprovals} aprovações pedindo atenção`}
+              {isLoading ? '...' : `${pendingApprovals} revisões pedindo atenção`}
             </p>
           </div>
         </section>

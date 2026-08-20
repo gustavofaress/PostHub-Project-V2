@@ -1,4 +1,8 @@
 import type { ApprovalStatus } from '../approval/approval.types';
+import {
+  getEditorialStatusBucket,
+  type EditorialStatusBucket,
+} from '../../shared/utils/editorialStatus';
 
 export interface ReportIdeaRow {
   id: string;
@@ -29,37 +33,11 @@ export interface ReportActivityItem {
   createdAt: string;
 }
 
-export type ReportCalendarStatusBucket =
-  | 'in_production'
-  | 'review'
-  | 'published'
-  | 'unknown';
-
-const IN_PRODUCTION_STATUSES = new Set([
-  'draft',
-  'planned',
-  'rascunho',
-  'em_producao',
-  'agendado',
-]);
-
-const REVIEW_STATUSES = new Set(['review', 'em_revisao']);
-
-const PUBLISHED_STATUSES = new Set(['published', 'publicado', 'concluido']);
-
-const normalizeStatus = (status: string | null | undefined) =>
-  status?.trim().toLowerCase() || '';
+export type ReportCalendarStatusBucket = EditorialStatusBucket;
 
 export const getReportCalendarStatusBucket = (
   status: string | null | undefined
-): ReportCalendarStatusBucket => {
-  const normalizedStatus = normalizeStatus(status);
-
-  if (IN_PRODUCTION_STATUSES.has(normalizedStatus)) return 'in_production';
-  if (REVIEW_STATUSES.has(normalizedStatus)) return 'review';
-  if (PUBLISHED_STATUSES.has(normalizedStatus)) return 'published';
-  return 'unknown';
-};
+): ReportCalendarStatusBucket => getEditorialStatusBucket(status);
 
 export const isReportPendingApprovalStatus = (
   status: ApprovalStatus | null | undefined
