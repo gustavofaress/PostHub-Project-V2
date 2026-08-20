@@ -176,13 +176,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         notificationPreferences: normalizeNotificationPreferences(
           mergedUser.notificationPreferences
         ),
-        currentPlan: mergedUser.currentPlan ?? 'start_7',
+        currentPlan: mergedUser.currentPlan ?? 'free',
         isAdmin: !!mergedUser.isAdmin,
         isAffiliatePartner: !!mergedUser.isAffiliatePartner,
         isWorkspaceMember: !!mergedUser.isWorkspaceMember,
         isMemberOnlyAccount: !!mergedUser.isMemberOnlyAccount,
         trialExpiresAt: mergedUser.trialExpiresAt ?? null,
-        accessStatus: mergedUser.accessStatus ?? 'trial_active',
+        accessStatus: mergedUser.accessStatus ?? 'free',
         onboarding: mapOnboardingState(onboarding),
       };
 
@@ -231,8 +231,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const onboarding = await onboardingService.getByUserId(sessionUser.id);
         return {
           ...baseUser,
-          currentPlan: 'start_7',
-          accessStatus: 'trial_active',
+          currentPlan: 'free',
+          accessStatus: 'free',
           onboarding: mapOnboardingState(onboarding),
         };
       }
@@ -550,13 +550,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         website: null,
         avatarUrl: null,
         notificationPreferences: normalizeNotificationPreferences(),
-        currentPlan: 'start_7',
+        currentPlan: 'free',
         isAdmin: false,
         isAffiliatePartner: false,
         isWorkspaceMember: false,
         isMemberOnlyAccount: false,
         trialExpiresAt: null,
-        accessStatus: 'trial_active',
+        accessStatus: 'free',
         onboarding: null,
       };
       await syncMockUser(mockUser);
@@ -665,13 +665,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         website: null,
         avatarUrl: null,
         notificationPreferences: normalizeNotificationPreferences(),
-        currentPlan: 'start_7',
+        currentPlan: 'free',
         isAdmin: false,
         isAffiliatePartner: false,
         isWorkspaceMember: false,
         isMemberOnlyAccount: false,
         trialExpiresAt: null,
-        accessStatus: 'trial_active',
+        accessStatus: 'free',
         onboarding: null,
       };
       await syncMockUser(mockUser);
