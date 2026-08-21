@@ -5,7 +5,9 @@ import {
   buildFreeEntitlements,
   buildProEntitlements,
   computeSeatState,
+  doesWorkspaceMemberTransitionConsumeSeat,
   hasProfileFeature,
+  isCountedWorkspaceMemberStatus,
   resolveProfileEntitlements,
   resolveProfileFeature,
 } from './profileEntitlements.ts';
@@ -178,4 +180,95 @@ test('computeSeatState handles unlimited PRO seats', () => {
     canInvite: true,
     canReactivate: true,
   });
+});
+
+test('workspace member slot counting only includes invited and active statuses', () => {
+  assert.equal(isCountedWorkspaceMemberStatus('invited'), true);
+  assert.equal(isCountedWorkspaceMemberStatus('active'), true);
+  assert.equal(isCountedWorkspaceMemberStatus('disabled'), false);
+  assert.equal(isCountedWorkspaceMemberStatus(null), false);
+});
+
+test('workspace member transitions only consume a new slot when occupancy increases', () => {
+  assert.equal(
+    doesWorkspaceMemberTransitionConsumeSeat({
+      previousProfileId: null,
+      nextProfileId: 'profile-free',
+      previousStatus: null,
+      nextStatus: 'active',
+    }),
+    true
+  );
+  assert.equal(
+    doesWorkspaceMemberTransitionConsumeSeat({
+      previousProfileId: null,
+      nextProfileId: 'profile-free',
+      previousStatus: null,
+      nextStatus: 'invited',
+    }),
+    true
+  );
+  assert.equal(
+    doesWorkspaceMemberTransitionConsumeSeat({
+      previousProfileId: 'profile-free',
+      nextProfileId: 'profile-free',
+      previousStatus: 'disabled',
+      nextStatus: 'active',
+    }),
+    true
+  );
+  assert.equal(
+    doesWorkspaceMemberTransitionConsumeSeat({
+      previousProfileId: 'profile-free',
+      nextProfileId: 'profile-free',
+      previousStatus: 'disabled',
+      nextStatus: 'invited',
+    }),
+    true
+  );
+  assert.equal(
+    doesWorkspaceMemberTransitionConsumeSeat({
+      previousProfileId: 'profile-free',
+      nextProfileId: 'profile-free',
+      previousStatus: 'invited',
+      nextStatus: 'active',
+    }),
+    false
+  );
+  assert.equal(
+    doesWorkspaceMemberTransitionConsumeSeat({
+      previousProfileId: 'profile-free',
+      nextProfileId: 'profile-free',
+      previousStatus: 'active',
+      nextStatus: 'active',
+    }),
+    false
+  );
+  assert.equal(
+    doesWorkspaceMemberTransitionConsumeSeat({
+      previousProfileId: 'profile-free',
+      nextProfileId: 'profile-free',
+      previousStatus: 'active',
+      nextStatus: 'disabled',
+    }),
+    false
+  );
+  assert.equal(
+    doesWorkspaceMemberTransitionConsumeSeat({
+      previousProfileId: 'profile-free',
+      nextProfileId: 'profile-free',
+      previousStatus: 'active',
+      nextStatus: null,
+    }),
+    false
+  );
+  assert.equal(
+    doesWorkspaceMemberTransitionConsumeSeat({
+      previousProfileId: 'profile-free',
+      nextProfileId: 'profile-other',
+      previousStatus: 'active',
+      nextStatus: 'active',
+    }),
+    true
+  );
 });

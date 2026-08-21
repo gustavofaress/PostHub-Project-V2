@@ -59,6 +59,7 @@ test('FREE resolved denies premium features and keeps calendar plus kanban enabl
   assert.equal(canUseActiveProfileFeature(access, 'metrics'), false);
   assert.equal(canUseActiveProfileFeature(access, 'approval'), false);
   assert.equal(canUseActiveProfileFeature(access, 'reports'), false);
+  assert.equal(canUseActiveProfileFeature(access, 'team'), true);
   assert.equal(canUseActiveProfileFeature(access, 'calendar'), true);
   assert.equal(canUseActiveProfileFeature(access, 'kanban'), true);
 });
@@ -133,6 +134,7 @@ test('resolved NEW PRO entitlements allow ideas and reports even when currentPla
   assert.equal(access.status, 'resolved');
   assert.equal(canUseActiveProfileFeature(access, 'ideas'), true);
   assert.equal(canUseActiveProfileFeature(access, 'reports'), true);
+  assert.equal(canUseActiveProfileFeature(access, 'team'), true);
 });
 
 test('LEGACY PRO resolved keeps premium features enabled from materialized entitlements', () => {
@@ -237,6 +239,7 @@ test('missing entitlement for non-admin enters legacy compatibility mode', () =>
   assert.equal(access.status, 'legacy_fallback');
   assert.equal(resolveActiveProfileFeatureAccess(access, 'references').enabled, true);
   assert.equal(resolveActiveProfileFeatureAccess(access, 'metrics').enabled, true);
+  assert.equal(resolveActiveProfileFeatureAccess(access, 'team').enabled, true);
 });
 
 test('query error does not fall back to legacy compatibility mode', () => {

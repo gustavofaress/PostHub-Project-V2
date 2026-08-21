@@ -1,14 +1,26 @@
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import {
+  computeSeatState,
+  doesWorkspaceMemberTransitionConsumeSeat,
+  isCountedWorkspaceMemberStatus,
   PROFILE_ENTITLEMENTS_SELECT,
   type ProfileEntitlementRecord,
   type ProfileFeature,
   type ResolvedProfileEntitlements,
+  type WorkspaceMemberLimitStatus,
 } from '../../../shared/profile-entitlements.ts';
 import {
   hasProfileFeature,
   resolveProfileEntitlements,
 } from '../../../shared/profile-entitlements.ts';
+
+export {
+  computeSeatState,
+  doesWorkspaceMemberTransitionConsumeSeat,
+  isCountedWorkspaceMemberStatus,
+};
+
+export type { WorkspaceMemberLimitStatus };
 
 export async function getProfileEntitlement(
   adminClient: SupabaseClient,

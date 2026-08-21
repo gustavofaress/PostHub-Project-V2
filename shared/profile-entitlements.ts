@@ -72,6 +72,11 @@ export interface ProfileFeatureResolution {
   enabled: boolean;
 }
 
+export const COUNTED_WORKSPACE_MEMBER_STATUSES = ['invited', 'active'] as const;
+
+export type CountedWorkspaceMemberStatus = (typeof COUNTED_WORKSPACE_MEMBER_STATUSES)[number];
+export type WorkspaceMemberLimitStatus = CountedWorkspaceMemberStatus | 'disabled';
+
 export const PROFILE_ENTITLEMENTS_SELECT = [
   'profile_id',
   'plan_code',
@@ -269,4 +274,32 @@ export const computeSeatState = (input: {
     canInvite: additionalMemberCount < maxAdditionalMembers,
     canReactivate: additionalMemberCount < maxAdditionalMembers,
   };
+};
+
+export const isCountedWorkspaceMemberStatus = (
+  status?: string | null
+): status is CountedWorkspaceMemberStatus => {
+  return status === 'invited' || status === 'active';
+};
+
+export const doesWorkspaceMemberTransitionConsumeSeat = (input: {
+  previousProfileId?: string | null;
+  nextProfileId?: string | null;
+  previousStatus?: string | null;
+  nextStatus?: string | null;
+}) => {
+  if (!isCountedWorkspaceMemberStatus(input.nextStatus)) {
+    return false;
+  }
+
+  const sameProfile =
+    !!input.previousProfileId &&
+    !!input.nextProfileId &&
+    input.previousProfileId === input.nextProfileId;
+
+  if (!sameProfile) {
+    return true;
+  }
+
+  return !isCountedWorkspaceMemberStatus(input.previousStatus);
 };
