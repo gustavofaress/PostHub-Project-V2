@@ -1,10 +1,10 @@
 import type { WorkspaceModule } from '../constants/navigation';
-import { hasLegacyPlanAccess, type PlanFeature } from '../constants/legacyPlanAccess';
 import type {
   CommercialPlanCode,
   ProfileFeature,
   ResolvedProfileEntitlements,
 } from '../../types/profile-entitlements.ts';
+import { resolveProfileCommercialFeatureAccess } from '../../../shared/profile-commercial-access.ts';
 
 export type EntitlementLookupStatus = 'loading' | 'resolved' | 'missing' | 'error';
 
@@ -53,19 +53,6 @@ interface ResolveActiveProfileCommercialAccessInput {
 
 const BASELINE_FREE_FEATURES = new Set<ProfileFeature>(['ideas', 'calendar', 'kanban']);
 
-const LEGACY_COMPATIBILITY_FEATURE_MAP: Record<ProfileFeature, PlanFeature> = {
-  ideas: 'ideas',
-  calendar: 'calendar',
-  kanban: 'kanban',
-  references: 'references',
-  metrics: 'performance',
-  socialAnalytics: 'integrations',
-  approval: 'approval',
-  approvalLinkCreation: 'calendar',
-  reports: 'reports',
-  team: 'team',
-};
-
 export const WORKSPACE_MODULE_COMMERCIAL_FEATURE_MAP: Partial<
   Record<WorkspaceModule, ProfileFeature>
 > = {
@@ -110,30 +97,19 @@ const resolveFeatureAccessForStatus = (
   status: ActiveProfileCommercialStatus,
   input: ResolveActiveProfileCommercialAccessInput
 ): CommercialFeatureAccess => {
-  if (status === 'resolved' && input.entitlements) {
-    return {
+  if (status === 'resolved' || status === 'admin_bypass' || status === 'legacy_fallback') {
+    const resolvedAccess = resolveProfileCommercialFeatureAccess({
       feature,
-      enabled: input.entitlements.features[feature],
-      status,
-      source: 'profile_entitlements',
-    };
-  }
+      entitlements: status === 'resolved' ? input.entitlements : null,
+      currentPlan: input.currentPlan,
+      isAdmin: status === 'admin_bypass',
+    });
 
-  if (status === 'admin_bypass') {
     return {
       feature,
-      enabled: true,
+      enabled: resolvedAccess.enabled,
       status,
-      source: 'admin_bypass',
-    };
-  }
-
-  if (status === 'legacy_fallback') {
-    return {
-      feature,
-      enabled: hasLegacyPlanAccess(input.currentPlan, LEGACY_COMPATIBILITY_FEATURE_MAP[feature], false),
-      status,
-      source: 'legacy_runtime',
+      source: resolvedAccess.source,
     };
   }
 

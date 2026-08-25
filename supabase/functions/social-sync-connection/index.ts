@@ -1,4 +1,6 @@
 import { corsHeaders } from '../_shared/cors.ts';
+import { assertProfileCommercialFeature } from '../_shared/profile-entitlements.ts';
+import { runSocialSyncConnectionFlow } from '../_shared/social/commercial.ts';
 import { assertProfileAccess, requireAuthenticatedUser } from '../_shared/social/security.ts';
 import {
   createSyncError,
@@ -53,11 +55,26 @@ Deno.serve(async (request) => {
       connectionId,
     });
 
-    const result = await syncSocialConnectionAccountMetrics({
-      adminClient: authContext.adminClient,
-      connection,
-      syncType: 'manual_account_metrics',
-      loggerLabel: '[social-sync-connection]',
+    const result = await runSocialSyncConnectionFlow({
+      assertSocialAnalyticsAccess: () =>
+        assertProfileCommercialFeature(authContext.adminClient, {
+          profileId,
+          feature: 'socialAnalytics',
+          actorUserId: authContext.user.id,
+        }).then(() => undefined),
+      assertMetricsAccess: () =>
+        assertProfileCommercialFeature(authContext.adminClient, {
+          profileId,
+          feature: 'metrics',
+          actorUserId: authContext.user.id,
+        }).then(() => undefined),
+      syncConnection: () =>
+        syncSocialConnectionAccountMetrics({
+          adminClient: authContext.adminClient,
+          connection,
+          syncType: 'manual_account_metrics',
+          loggerLabel: '[social-sync-connection]',
+        }),
     });
 
     return jsonResponse(result);
@@ -68,6 +85,7 @@ Deno.serve(async (request) => {
       {
         error: syncError.publicMessage,
         code: syncError.code,
+        feature: (error as Error & { feature?: string }).feature,
       },
       syncError.status
     );

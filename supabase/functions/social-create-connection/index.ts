@@ -1,4 +1,6 @@
 import { corsHeaders } from '../_shared/cors.ts';
+import { assertProfileCommercialFeature } from '../_shared/profile-entitlements.ts';
+import { runSocialCreateConnectionFlow } from '../_shared/social/commercial.ts';
 import { createWindsorAuthorizationLink } from '../_shared/social/providers/windsor.ts';
 import { getSocialPlatformConfig } from '../_shared/social/registry.ts';
 import {
@@ -52,9 +54,16 @@ Deno.serve(async (request) => {
     const { user, userClient, adminClient } = await requireAuthenticatedUser(request);
     await assertProfileAccess(userClient, { profileId });
 
-    const { authorizationUrl, accessToken } = await createWindsorAuthorizationLink(
-      platformConfig.windsorDatasource
-    );
+    const { authorizationUrl, accessToken } = await runSocialCreateConnectionFlow({
+      assertSocialAnalyticsAccess: () =>
+        assertProfileCommercialFeature(adminClient, {
+          profileId,
+          feature: 'socialAnalytics',
+          actorUserId: user.id,
+        }).then(() => undefined),
+      createAuthorizationLink: () =>
+        createWindsorAuthorizationLink(platformConfig.windsorDatasource),
+    });
 
     const now = Date.now();
     const expiresAt = new Date(now + 4 * 24 * 60 * 60 * 1000).toISOString();
@@ -89,10 +98,12 @@ Deno.serve(async (request) => {
       {
         error:
           error instanceof Error
-            ? error.message
+            ? ((error as Error & { publicMessage?: string }).publicMessage ?? error.message)
             : 'Não foi possível iniciar a conexão com a rede social.',
+        code: (error as Error & { code?: string }).code,
+        feature: (error as Error & { feature?: string }).feature,
       },
-      400
+      (error as Error & { status?: number }).status ?? 400
     );
   }
 });
