@@ -1,4 +1,4 @@
-import Stripe from 'npm:stripe@17.7.0';
+import Stripe from 'npm:stripe@20.4.1';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const DEFAULT_APP_URL = 'https://www.posthub.com.br';
@@ -26,7 +26,7 @@ export function getAppBaseUrl() {
 
 export function createStripeClient(secretKey: string) {
   return new Stripe(secretKey, {
-    apiVersion: '2026-02-25.clover' as Stripe.LatestApiVersion,
+    apiVersion: '2026-02-25.clover',
     typescript: true,
   });
 }

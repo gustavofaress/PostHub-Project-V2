@@ -12,6 +12,16 @@ const webhookSource = readFileSync(
   'utf8'
 );
 
+const stripeRuntimeSource = readFileSync(
+  new URL('../../../supabase/functions/_shared/stripe/runtime.ts', import.meta.url),
+  'utf8'
+);
+
+const stripeSharedSource = readFileSync(
+  new URL('../../../shared/profile-stripe-subscriptions.ts', import.meta.url),
+  'utf8'
+);
+
 const migrationSql = readFileSync(
   new URL('../../../supabase/migrations/20260825222618_profile_stripe_subscriptions_foundation.sql', import.meta.url),
   'utf8'
@@ -43,6 +53,21 @@ test('new webhook uses the dedicated profile webhook secret and Stripe signature
   assert.doesNotMatch(webhookSource, /STRIPE_PRICE_EXTRA_PROFILE/);
   assert.doesNotMatch(webhookSource, /loadSubscriptionByEmail/i);
   assert.doesNotMatch(webhookSource, /customer_email/i);
+});
+
+test('new profile billing runtime is aligned with Stripe Clover API surfaces', () => {
+  const newStripeRuntimeSource = `${checkoutSource}\n${webhookSource}\n${stripeRuntimeSource}`;
+
+  assert.doesNotMatch(newStripeRuntimeSource, /npm:stripe@17\.7\.0/);
+  assert.match(newStripeRuntimeSource, /npm:stripe@20\.4\.1/);
+  assert.match(stripeRuntimeSource, /apiVersion:\s*'2026-02-25\.clover'/);
+  assert.doesNotMatch(stripeRuntimeSource, /LatestApiVersion/);
+  assert.doesNotMatch(webhookSource, /invoice\.subscription/);
+  assert.doesNotMatch(newStripeRuntimeSource, /subscription\.current_period_end/);
+  assert.match(stripeSharedSource, /parent\.type === 'subscription_details'/);
+  assert.match(stripeSharedSource, /subscription_details/);
+  assert.match(stripeSharedSource, /profileProItem\.current_period_end/);
+  assert.match(webhookSource, /STRIPE_PRICE_PROFILE_PRO/);
 });
 
 test('profile stripe subscriptions migration is scoped to the new table only', () => {

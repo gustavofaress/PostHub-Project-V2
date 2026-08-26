@@ -1,9 +1,10 @@
-import Stripe from 'npm:stripe@17.7.0';
+import Stripe from 'npm:stripe@20.4.1';
 
 import type { ProfileEntitlementRecord } from '../../../shared/profile-entitlements.ts';
 import {
+  buildProfileStripeSubscriptionSnapshotFromSubscriptionPayload,
+  getSubscriptionIdFromInvoicePayload,
   isProfileProPrice,
-  parseProfileProMetadata,
   type ProfileStripeSubscriptionRecord,
   type ProfileStripeSubscriptionSnapshot,
   type ProfileStripeSubscriptionStatus,
@@ -34,72 +35,16 @@ interface ProfileStripeSubscriptionRow {
   last_stripe_event_created: number | null;
 }
 
-function normalizeProfileStripeSubscriptionStatus(
-  status: string | null | undefined
-): ProfileStripeSubscriptionStatus | null {
-  if (
-    status === 'checkout_pending' ||
-    status === 'incomplete' ||
-    status === 'incomplete_expired' ||
-    status === 'trialing' ||
-    status === 'active' ||
-    status === 'past_due' ||
-    status === 'canceled' ||
-    status === 'unpaid' ||
-    status === 'paused'
-  ) {
-    return status;
-  }
-
-  return null;
-}
-
-function getPrimaryPriceIdFromSubscription(subscription: Stripe.Subscription) {
-  return subscription.items.data.find((item) => typeof item.price?.id === 'string')?.price?.id ?? null;
-}
-
-function toIsoTimestamp(timestamp?: number | null) {
-  if (typeof timestamp !== 'number') {
-    return null;
-  }
-
-  return new Date(timestamp * 1000).toISOString();
-}
-
 function buildSnapshotFromSubscription(
   subscription: Stripe.Subscription,
+  expectedPriceId: string,
   fallbackMetadata?: Record<string, string> | null
 ): ProfileStripeSubscriptionSnapshot | null {
-  const metadata =
-    parseProfileProMetadata(subscription.metadata) ??
-    parseProfileProMetadata(fallbackMetadata ?? undefined);
-
-  if (!metadata) {
-    return null;
-  }
-
-  const status = normalizeProfileStripeSubscriptionStatus(subscription.status);
-  const priceId = getPrimaryPriceIdFromSubscription(subscription);
-
-  if (!status || !priceId) {
-    return null;
-  }
-
-  return {
-    billingReservationId: metadata.billing_reservation_id,
-    checkoutSessionId: null,
-    subscriptionId: subscription.id,
-    profileId: metadata.profile_id,
-    purchaserUserId: metadata.purchaser_user_id,
-    customerId:
-      typeof subscription.customer === 'string'
-        ? subscription.customer
-        : subscription.customer?.id ?? null,
-    priceId,
-    status,
-    currentPeriodEnd: toIsoTimestamp(subscription.current_period_end),
-    cancelAtPeriodEnd: !!subscription.cancel_at_period_end,
-  };
+  return buildProfileStripeSubscriptionSnapshotFromSubscriptionPayload({
+    subscription,
+    expectedPriceId,
+    fallbackMetadata: fallbackMetadata ?? undefined,
+  });
 }
 
 async function retrieveSubscription(
@@ -447,7 +392,11 @@ async function resolveEventSnapshot(
     }
 
     const subscription = await retrieveSubscription(stripe, subscriptionId);
-    const snapshot = buildSnapshotFromSubscription(subscription, session.metadata ?? null);
+    const snapshot = buildSnapshotFromSubscription(
+      subscription,
+      STRIPE_PRICE_PROFILE_PRO,
+      session.metadata ?? null
+    );
     return {
       snapshot: snapshot
         ? {
@@ -461,10 +410,7 @@ async function resolveEventSnapshot(
 
   if (event.type === 'invoice.paid') {
     const invoice = event.data.object as Stripe.Invoice;
-    const subscriptionId =
-      typeof invoice.subscription === 'string'
-        ? invoice.subscription
-        : invoice.subscription?.id ?? null;
+    const subscriptionId = getSubscriptionIdFromInvoicePayload(invoice);
 
     if (!subscriptionId) {
       return { snapshot: null, paymentStatus: invoice.paid ? 'paid' : invoice.status ?? null };
@@ -472,7 +418,7 @@ async function resolveEventSnapshot(
 
     const subscription = await retrieveSubscription(stripe, subscriptionId);
     return {
-      snapshot: buildSnapshotFromSubscription(subscription),
+      snapshot: buildSnapshotFromSubscription(subscription, STRIPE_PRICE_PROFILE_PRO),
       paymentStatus: invoice.paid ? 'paid' : invoice.status ?? null,
     };
   }
@@ -483,7 +429,7 @@ async function resolveEventSnapshot(
   ) {
     const subscription = event.data.object as Stripe.Subscription;
     return {
-      snapshot: buildSnapshotFromSubscription(subscription),
+      snapshot: buildSnapshotFromSubscription(subscription, STRIPE_PRICE_PROFILE_PRO),
       paymentStatus: null,
     };
   }

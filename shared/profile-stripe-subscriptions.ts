@@ -127,6 +127,18 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const getOptionalString = (value: unknown) =>
   typeof value === 'string' && value.trim() ? value.trim() : null;
 
+const getOptionalId = (value: unknown) => {
+  if (typeof value === 'string' && value.trim()) {
+    return value.trim();
+  }
+
+  if (isRecord(value)) {
+    return getOptionalString(value.id);
+  }
+
+  return null;
+};
+
 const normalizeOrigin = (value: string) => {
   try {
     return new URL(value).origin;
@@ -171,6 +183,16 @@ export const parseProfileProMetadata = (metadata: unknown): ProfileProMetadata |
     profile_id: profileId,
     purchaser_user_id: purchaserUserId,
   };
+};
+
+export const normalizeProfileStripeSubscriptionStatus = (
+  status: string | null | undefined
+): ProfileStripeSubscriptionStatus | null => {
+  return PROFILE_STRIPE_SUBSCRIPTION_STATUSES.includes(
+    status as ProfileStripeSubscriptionStatus
+  )
+    ? (status as ProfileStripeSubscriptionStatus)
+    : null;
 };
 
 export const isProfileProPrice = (priceId: string | null | undefined, expectedPriceId: string) =>
@@ -224,6 +246,103 @@ export const hasCheckoutExpired = (
   }
 
   return timestamp <= now.getTime();
+};
+
+const toIsoTimestampFromUnixSeconds = (timestamp: unknown) => {
+  return typeof timestamp === 'number' ? new Date(timestamp * 1000).toISOString() : null;
+};
+
+export const getSubscriptionIdFromInvoicePayload = (invoice: unknown) => {
+  if (!isRecord(invoice)) {
+    return null;
+  }
+
+  const parent = invoice.parent;
+  if (isRecord(parent) && parent.type === 'subscription_details') {
+    const subscriptionDetails = parent.subscription_details;
+    if (isRecord(subscriptionDetails)) {
+      const subscriptionId = getOptionalId(subscriptionDetails.subscription);
+      if (subscriptionId) {
+        return subscriptionId;
+      }
+    }
+  }
+
+  return getOptionalId(invoice.subscription);
+};
+
+export const getProfileProSubscriptionItemFromPayload = (
+  subscription: unknown,
+  expectedPriceId: string
+) => {
+  if (!isRecord(subscription)) {
+    return null;
+  }
+
+  const items = subscription.items;
+  if (!isRecord(items) || !Array.isArray(items.data)) {
+    return null;
+  }
+
+  return (
+    items.data.find((item) => {
+      if (!isRecord(item) || !isRecord(item.price)) {
+        return false;
+      }
+
+      return item.price.id === expectedPriceId;
+    }) ?? null
+  );
+};
+
+export const buildProfileStripeSubscriptionSnapshotFromSubscriptionPayload = (input: {
+  subscription: unknown;
+  expectedPriceId: string;
+  fallbackMetadata?: unknown;
+}): ProfileStripeSubscriptionSnapshot | null => {
+  if (!isRecord(input.subscription)) {
+    return null;
+  }
+
+  const metadata =
+    parseProfileProMetadata(input.subscription.metadata) ??
+    parseProfileProMetadata(input.fallbackMetadata);
+
+  if (!metadata) {
+    return null;
+  }
+
+  const status = normalizeProfileStripeSubscriptionStatus(
+    getOptionalString(input.subscription.status)
+  );
+  const profileProItem = getProfileProSubscriptionItemFromPayload(
+    input.subscription,
+    input.expectedPriceId
+  );
+
+  if (!status || !isRecord(profileProItem) || !isRecord(profileProItem.price)) {
+    return null;
+  }
+
+  const priceId = getOptionalString(profileProItem.price.id);
+  const subscriptionId = getOptionalString(input.subscription.id);
+
+  if (!priceId || !subscriptionId) {
+    return null;
+  }
+
+  return {
+    billingReservationId: metadata.billing_reservation_id,
+    checkoutSessionId: null,
+    subscriptionId,
+    profileId: metadata.profile_id,
+    purchaserUserId: metadata.purchaser_user_id,
+    customerId: getOptionalId(input.subscription.customer),
+    priceId,
+    status,
+    currentPeriodEnd: toIsoTimestampFromUnixSeconds(profileProItem.current_period_end),
+    cancelAtPeriodEnd: input.subscription.cancel_at_period_end === true,
+  };
 };
 
 export const buildProfileProCheckoutSessionParams = (

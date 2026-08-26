@@ -2,8 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  buildProfileStripeSubscriptionSnapshotFromSubscriptionPayload,
   buildProfileProCheckoutSessionParams,
   buildProfileProMetadata,
+  getSubscriptionIdFromInvoicePayload,
   isProfileProPrice,
   parseProfileProMetadata,
   resolveProfileProCheckoutEligibility,
@@ -142,6 +144,119 @@ test('checkout params carry the exact profile metadata into the session and subs
   assert.deepEqual(parseProfileProMetadata(params.metadata), metadata);
 });
 
+test('invoice.paid Clover payload resolves subscription from parent subscription_details', () => {
+  assert.equal(
+    getSubscriptionIdFromInvoicePayload({
+      parent: {
+        type: 'subscription_details',
+        subscription_details: {
+          subscription: 'sub_clover',
+        },
+      },
+    }),
+    'sub_clover'
+  );
+});
+
+test('invoice without a Clover parent subscription is ignored safely', () => {
+  assert.equal(
+    getSubscriptionIdFromInvoicePayload({
+      parent: {
+        type: 'quote_details',
+      },
+    }),
+    null
+  );
+});
+
+test('subscription snapshot uses the matching item current_period_end in Clover payloads', () => {
+  const snapshot = buildProfileStripeSubscriptionSnapshotFromSubscriptionPayload({
+    expectedPriceId: 'price_profile_pro',
+    subscription: {
+      id: 'sub_1',
+      customer: 'cus_1',
+      status: 'active',
+      cancel_at_period_end: false,
+      metadata: buildProfileProMetadata({
+        billingReservationId: 'reservation-1',
+        profileId: 'profile-1',
+        purchaserUserId: 'user-1',
+      }),
+      items: {
+        data: [
+          {
+            price: { id: 'price_profile_pro' },
+            current_period_end: 1800000000,
+          },
+        ],
+      },
+    },
+  });
+
+  assert.equal(snapshot?.currentPeriodEnd, '2027-01-15T08:00:00.000Z');
+  assert.equal(snapshot?.priceId, 'price_profile_pro');
+});
+
+test('subscription snapshot selects the exact PRO item when multiple subscription items exist', () => {
+  const snapshot = buildProfileStripeSubscriptionSnapshotFromSubscriptionPayload({
+    expectedPriceId: 'price_profile_pro',
+    subscription: {
+      id: 'sub_1',
+      customer: 'cus_1',
+      status: 'active',
+      cancel_at_period_end: false,
+      metadata: buildProfileProMetadata({
+        billingReservationId: 'reservation-1',
+        profileId: 'profile-1',
+        purchaserUserId: 'user-1',
+      }),
+      items: {
+        data: [
+          {
+            price: { id: 'price_additional_profile' },
+            current_period_end: 1700000000,
+          },
+          {
+            price: { id: 'price_profile_pro' },
+            current_period_end: 1800000000,
+          },
+        ],
+      },
+    },
+  });
+
+  assert.equal(snapshot?.priceId, 'price_profile_pro');
+  assert.equal(snapshot?.currentPeriodEnd, '2027-01-15T08:00:00.000Z');
+});
+
+test('subscription snapshot fails closed when the expected PRO item is missing', () => {
+  assert.equal(
+    buildProfileStripeSubscriptionSnapshotFromSubscriptionPayload({
+      expectedPriceId: 'price_profile_pro',
+      subscription: {
+        id: 'sub_1',
+        customer: 'cus_1',
+        status: 'active',
+        cancel_at_period_end: false,
+        metadata: buildProfileProMetadata({
+          billingReservationId: 'reservation-1',
+          profileId: 'profile-1',
+          purchaserUserId: 'user-1',
+        }),
+        items: {
+          data: [
+            {
+              price: { id: 'price_additional_profile' },
+              current_period_end: 1800000000,
+            },
+          ],
+        },
+      },
+    }),
+    null
+  );
+});
+
 test('event without profile_pro_v1 billing flow is ignored by metadata parsing', () => {
   assert.equal(
     parseProfileProMetadata({
@@ -273,6 +388,147 @@ test('invoice.paid does not provision PRO for a past_due subscription just becau
   });
 
   assert.equal(action, 'sync_only');
+});
+
+test('invoice.paid provisions PRO only when the retrieved Clover subscription is active with the PRO item', () => {
+  const snapshot = buildProfileStripeSubscriptionSnapshotFromSubscriptionPayload({
+    expectedPriceId: 'price_profile_pro',
+    subscription: {
+      id: 'sub_1',
+      customer: 'cus_1',
+      status: 'active',
+      cancel_at_period_end: false,
+      metadata: buildProfileProMetadata({
+        billingReservationId: 'reservation-1',
+        profileId: 'profile-1',
+        purchaserUserId: 'user-1',
+      }),
+      items: {
+        data: [
+          {
+            price: { id: 'price_profile_pro' },
+            current_period_end: 1800000000,
+          },
+        ],
+      },
+    },
+  });
+
+  assert.ok(snapshot);
+  assert.equal(
+    resolveProfileStripeWebhookAction({
+      eventType: 'invoice.paid',
+      paymentStatus: 'paid',
+      snapshot,
+    }),
+    'provision_pro'
+  );
+});
+
+test('invoice.paid does not provision PRO when Clover subscription is past_due', () => {
+  const snapshot = buildProfileStripeSubscriptionSnapshotFromSubscriptionPayload({
+    expectedPriceId: 'price_profile_pro',
+    subscription: {
+      id: 'sub_1',
+      customer: 'cus_1',
+      status: 'past_due',
+      cancel_at_period_end: false,
+      metadata: buildProfileProMetadata({
+        billingReservationId: 'reservation-1',
+        profileId: 'profile-1',
+        purchaserUserId: 'user-1',
+      }),
+      items: {
+        data: [
+          {
+            price: { id: 'price_profile_pro' },
+            current_period_end: 1800000000,
+          },
+        ],
+      },
+    },
+  });
+
+  assert.ok(snapshot);
+  assert.equal(
+    resolveProfileStripeWebhookAction({
+      eventType: 'invoice.paid',
+      paymentStatus: 'paid',
+      snapshot,
+    }),
+    'sync_only'
+  );
+});
+
+test('subscription.updated past_due carries current_period_end from the matching item', () => {
+  const snapshot = buildProfileStripeSubscriptionSnapshotFromSubscriptionPayload({
+    expectedPriceId: 'price_profile_pro',
+    subscription: {
+      id: 'sub_1',
+      customer: 'cus_1',
+      status: 'past_due',
+      cancel_at_period_end: false,
+      metadata: buildProfileProMetadata({
+        billingReservationId: 'reservation-1',
+        profileId: 'profile-1',
+        purchaserUserId: 'user-1',
+      }),
+      items: {
+        data: [
+          {
+            price: { id: 'price_profile_pro' },
+            current_period_end: 1800000000,
+          },
+        ],
+      },
+    },
+  });
+
+  assert.equal(snapshot?.currentPeriodEnd, '2027-01-15T08:00:00.000Z');
+  assert.equal(
+    resolveProfileStripeWebhookAction({
+      eventType: 'customer.subscription.updated',
+      snapshot: snapshot!,
+      now: new Date('2026-08-26T00:00:00.000Z'),
+    }),
+    'sync_only'
+  );
+});
+
+test('cancel_at_period_end keeps PRO using the matching item paid period', () => {
+  const snapshot = buildProfileStripeSubscriptionSnapshotFromSubscriptionPayload({
+    expectedPriceId: 'price_profile_pro',
+    subscription: {
+      id: 'sub_1',
+      customer: 'cus_1',
+      status: 'active',
+      cancel_at_period_end: true,
+      metadata: buildProfileProMetadata({
+        billingReservationId: 'reservation-1',
+        profileId: 'profile-1',
+        purchaserUserId: 'user-1',
+      }),
+      items: {
+        data: [
+          {
+            price: { id: 'price_profile_pro' },
+            current_period_end: 1800000000,
+          },
+        ],
+      },
+    },
+  });
+
+  assert.equal(snapshot?.cancelAtPeriodEnd, true);
+  assert.equal(snapshot?.currentPeriodEnd, '2027-01-15T08:00:00.000Z');
+  assert.equal(
+    resolveProfileStripeWebhookAction({
+      eventType: 'customer.subscription.updated',
+      snapshot: snapshot!,
+      now: new Date('2026-08-26T00:00:00.000Z'),
+    }),
+    'provision_pro'
+  );
 });
 
 test('customer.subscription.updated with unpaid status triggers downgrade to FREE', () => {

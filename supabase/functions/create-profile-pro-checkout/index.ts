@@ -1,4 +1,4 @@
-import Stripe from 'npm:stripe@17.7.0';
+import Stripe from 'npm:stripe@20.4.1';
 
 import { corsHeaders } from '../_shared/cors.ts';
 import { runCreateProfileProCheckout } from '../_shared/stripe/profile-pro.ts';
