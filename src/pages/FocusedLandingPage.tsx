@@ -340,7 +340,7 @@ export const FocusedLandingPage = () => {
               toda sua operação digital.
             </p>
             <div className="mt-8 flex justify-center">
-              <PrimaryButton to={signupPath}>Teste grátis</PrimaryButton>
+              <PrimaryButton to={signupPath}>Começar grátis</PrimaryButton>
             </div>
           </div>
         </section>
@@ -434,7 +434,7 @@ export const FocusedLandingPage = () => {
           <div className="mx-auto max-w-5xl text-center">
             <BrandLogo variant="full" imgClassName="mx-auto h-10 w-auto object-contain" />
             <h2 className="mx-auto mt-8 max-w-3xl text-4xl font-extrabold leading-tight text-[#050505] sm:text-5xl">
-              Faça o teste grátis e pare de viver no caos da sua criação.
+              Comece grátis e pare de viver no caos da sua criação.
             </h2>
             <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-[#64748B]">
               Organize seu primeiro fluxo, visualize os próximos conteúdos e entregue uma operação
@@ -445,7 +445,7 @@ export const FocusedLandingPage = () => {
               <BrowserMockup image="/performance.png" alt="Dashboard de performance da PostHub" className="relative" />
             </div>
             <div className="mt-10">
-              <PrimaryButton to={signupPath}>Começar teste grátis</PrimaryButton>
+              <PrimaryButton to={signupPath}>Começar grátis</PrimaryButton>
             </div>
           </div>
         </section>
@@ -459,7 +459,7 @@ export const FocusedLandingPage = () => {
               Entrar
             </Link>
             <Link to={signupPath} className="text-[#38B6FF] transition-colors hover:text-[#229ee8]">
-              Teste grátis
+              Começar grátis
             </Link>
           </div>
         </div>
@@ -469,7 +469,7 @@ export const FocusedLandingPage = () => {
         to={signupPath}
         className="fixed inset-x-4 bottom-4 z-40 inline-flex min-h-[52px] items-center justify-center gap-2 rounded-xl bg-[#38B6FF] px-5 text-base font-bold text-white shadow-[0_18px_36px_rgba(56,182,255,0.34)] md:hidden"
       >
-        Teste grátis
+        Começar grátis
         <MousePointerClick className="h-4 w-4" />
       </Link>
     </div>
