@@ -1,15 +1,15 @@
 import * as React from 'react';
 import { ChevronRight, ExternalLink, Pencil, Plus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../app/context/AuthContext';
 import { Profile, canManageProfileName, useProfile } from '../../../app/context/ProfileContext';
 import {
-  buildExtraProfilePaymentLink,
-  EXTRA_PROFILE_CHECKOUT_DESCRIPTION,
-  EXTRA_PROFILE_CHECKOUT_EMAIL_HINT,
-  EXTRA_PROFILE_CHECKOUT_TITLE,
-  EXTRA_PROFILE_PRICE_LABEL,
-  isExtraProfilePaymentLinkConfigured,
-} from '../../../shared/constants/plans';
+  resolveAddProfileAction,
+  resolveAddProfileButtonLabel,
+  resolveAddProfileHelperMessage,
+} from '../../../shared/utils/profileExtraBilling';
+import { useActiveProfileCommercialAccess } from '../../../hooks/useActiveProfileCommercialAccess';
+import { profileExtraBillingService } from '../../../services/profile-extra-billing.service';
 import { Avatar } from '../../../shared/components/Avatar';
 import { Button } from '../../../shared/components/Button';
 import { Input } from '../../../shared/components/Input';
@@ -22,42 +22,58 @@ interface MobileProfileSheetProps {
   onClose: () => void;
 }
 
+const PROFILE_EXTRA_PRICE_LABEL = 'R$47,90/mês';
+
 export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps) => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const {
     activeProfile,
     setActiveProfile,
     profiles,
     availableProfileSlots,
+    profileExtraStatus,
     createProfile,
     updateProfileName,
     reloadProfiles,
     isLoadingProfiles,
   } = useProfile();
+  const commercialAccess = useActiveProfileCommercialAccess();
 
   const [isCreateProfileModalOpen, setIsCreateProfileModalOpen] = React.useState(false);
   const [newProfileName, setNewProfileName] = React.useState('');
   const [profileActionError, setProfileActionError] = React.useState('');
   const [isSubmittingProfile, setIsSubmittingProfile] = React.useState(false);
-  const [extraProfileCheckoutLink, setExtraProfileCheckoutLink] = React.useState('');
+  const [isExtraProfileCheckoutLoading, setIsExtraProfileCheckoutLoading] = React.useState(false);
+  const checkoutInFlightRef = React.useRef(false);
   const [profileBeingEdited, setProfileBeingEdited] = React.useState<Profile | null>(null);
   const [profileNameDraft, setProfileNameDraft] = React.useState('');
   const [editProfileError, setEditProfileError] = React.useState('');
   const [isUpdatingProfileName, setIsUpdatingProfileName] = React.useState(false);
+  const addProfileAction = resolveAddProfileAction({
+    activeProfileId: activeProfile?.id,
+    profileRole: activeProfile?.role,
+    entitlementStatus: activeProfile?.id ? commercialAccess.entitlementStatus : 'missing',
+    planCode: commercialAccess.entitlements?.plan_code ?? null,
+    isAdmin: !!user?.isAdmin,
+    availableProfileSlots,
+    checkoutPending: profileExtraStatus.checkoutPending,
+    isLoadingProfiles,
+    isCheckoutLoading: isExtraProfileCheckoutLoading,
+  });
+  const addProfileButtonLabel = resolveAddProfileButtonLabel(addProfileAction);
 
   const closeCreateProfileModal = React.useCallback(() => {
     if (isSubmittingProfile) return;
     setIsCreateProfileModalOpen(false);
     setNewProfileName('');
     setProfileActionError('');
-    setExtraProfileCheckoutLink('');
   }, [isSubmittingProfile]);
 
   const resetCreateProfileModal = React.useCallback(() => {
     setIsCreateProfileModalOpen(false);
     setNewProfileName('');
     setProfileActionError('');
-    setExtraProfileCheckoutLink('');
   }, []);
 
   const openEditProfileModal = React.useCallback((profile: Profile) => {
@@ -79,36 +95,69 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
   }, [isUpdatingProfileName, resetEditProfileModal]);
 
   const handleAddProfileClick = React.useCallback(async () => {
+    if (checkoutInFlightRef.current) return;
+
     setProfileActionError('');
 
     const accessSnapshot = await reloadProfiles();
-
-    if (accessSnapshot.availableProfileSlots > 0) {
-      setIsCreateProfileModalOpen(true);
-      return;
-    }
-
-    const checkoutLink = buildExtraProfilePaymentLink({
-      userId: user?.id,
-      email: user?.email,
+    const action = resolveAddProfileAction({
+      activeProfileId: activeProfile?.id,
+      profileRole: activeProfile?.role,
+      entitlementStatus: activeProfile?.id ? commercialAccess.entitlementStatus : 'missing',
+      planCode: commercialAccess.entitlements?.plan_code ?? null,
+      isAdmin: !!user?.isAdmin,
+      availableProfileSlots: accessSnapshot.availableProfileSlots,
+      checkoutPending: accessSnapshot.profileExtraStatus.checkoutPending,
     });
 
-    if (!isExtraProfilePaymentLinkConfigured() || !checkoutLink) {
-      setProfileActionError(
-        'O link do Stripe para perfil extra ainda não foi configurado em plans.ts.'
-      );
+    if (action === 'create_profile' || action === 'admin_create') {
       setIsCreateProfileModalOpen(true);
       return;
     }
 
-    setExtraProfileCheckoutLink(checkoutLink);
-    setIsCreateProfileModalOpen(true);
-  }, [reloadProfiles, user?.email, user?.id]);
+    if (action === 'go_to_pricing') {
+      navigate('/pricing');
+      onClose();
+      return;
+    }
 
-  const handleOpenExtraProfileCheckout = React.useCallback(() => {
-    if (!extraProfileCheckoutLink) return;
-    window.location.assign(extraProfileCheckoutLink);
-  }, [extraProfileCheckoutLink]);
+    if (action !== 'start_extra_checkout' || !activeProfile?.id) {
+      setProfileActionError(resolveAddProfileHelperMessage(action));
+      setIsCreateProfileModalOpen(true);
+      return;
+    }
+
+    checkoutInFlightRef.current = true;
+    setIsExtraProfileCheckoutLoading(true);
+
+    try {
+      const result = await profileExtraBillingService.createProfileExtraCheckout(activeProfile.id);
+
+      if (!result.checkoutUrl) {
+        throw new Error('O checkout de perfil adicional não retornou uma URL válida.');
+      }
+
+      window.location.assign(result.checkoutUrl);
+    } catch (error) {
+      checkoutInFlightRef.current = false;
+      setIsExtraProfileCheckoutLoading(false);
+      setProfileActionError(
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : 'Não foi possível iniciar o checkout de perfil adicional.'
+      );
+      setIsCreateProfileModalOpen(true);
+    }
+  }, [
+    activeProfile?.id,
+    activeProfile?.role,
+    commercialAccess.entitlementStatus,
+    commercialAccess.entitlements?.plan_code,
+    navigate,
+    onClose,
+    reloadProfiles,
+    user?.isAdmin,
+  ]);
 
   const handleCreateProfileSubmit = React.useCallback(
     async (event: React.FormEvent<HTMLFormElement>) => {
@@ -265,18 +314,27 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
                 <p className="mt-1 text-sm leading-6 text-slate-500">
                   {availableProfileSlots > 0
                     ? `Você ainda pode criar ${availableProfileSlots} ${availableProfileSlots === 1 ? 'perfil' : 'perfis'} nesta conta.`
-                    : `Cada perfil adicional custa ${EXTRA_PROFILE_PRICE_LABEL} em compra separada da assinatura.`}
+                    : 'Perfis adicionais exigem um profile PRO e uma assinatura separada por perfil.'}
                 </p>
               </div>
             </div>
 
             <Button
               className="mt-4 w-full gap-2"
-              variant={availableProfileSlots > 0 ? 'primary' : 'secondary'}
+              variant={
+                addProfileAction === 'create_profile' || addProfileAction === 'admin_create'
+                  ? 'primary'
+                  : 'secondary'
+              }
               onClick={() => void handleAddProfileClick()}
+              isLoading={isExtraProfileCheckoutLoading}
             >
-              {availableProfileSlots > 0 ? <Plus className="h-4 w-4" /> : <ExternalLink className="h-4 w-4" />}
-              {availableProfileSlots > 0 ? 'Criar novo perfil' : 'Comprar perfil adicional'}
+              {addProfileAction === 'create_profile' || addProfileAction === 'admin_create' ? (
+                <Plus className="h-4 w-4" />
+              ) : (
+                <ExternalLink className="h-4 w-4" />
+              )}
+              {addProfileButtonLabel}
             </Button>
           </section>
         </div>
@@ -285,7 +343,7 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
       <Modal
         isOpen={isCreateProfileModalOpen}
         onClose={closeCreateProfileModal}
-        title={availableProfileSlots > 0 ? 'Criar novo perfil' : 'Comprar perfil adicional'}
+        title={availableProfileSlots > 0 ? 'Criar novo perfil' : 'Perfil adicional'}
       >
         {availableProfileSlots > 0 ? (
           <form className="space-y-4" onSubmit={handleCreateProfileSubmit}>
@@ -319,34 +377,22 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
           <div className="space-y-4">
             <div className="rounded-2xl border border-brand/15 bg-brand/5 px-4 py-4">
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand">
-                Compra avulsa
+                Perfil adicional
               </p>
               <p className="mt-2 text-lg font-semibold text-text-primary">
-                {EXTRA_PROFILE_CHECKOUT_TITLE} • {EXTRA_PROFILE_PRICE_LABEL}
+                1 perfil adicional • {PROFILE_EXTRA_PRICE_LABEL}
               </p>
               <p className="mt-2 text-sm leading-6 text-text-secondary">
-                {EXTRA_PROFILE_CHECKOUT_DESCRIPTION}
+                Perfil adicional é uma assinatura separada. Use um profile PRO como origem para
+                comprar o próximo slot.
               </p>
             </div>
-            {profileActionError ? (
-              <p className="text-sm text-red-500">{profileActionError}</p>
-            ) : (
-              <p className="text-sm leading-6 text-text-secondary">
-                {EXTRA_PROFILE_CHECKOUT_EMAIL_HINT}
-              </p>
-            )}
+            <p className={cn('text-sm leading-6', profileActionError ? 'text-red-500' : 'text-text-secondary')}>
+              {profileActionError || resolveAddProfileHelperMessage(addProfileAction)}
+            </p>
             <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <Button type="button" variant="ghost" onClick={closeCreateProfileModal}>
                 Fechar
-              </Button>
-              <Button
-                type="button"
-                className="gap-2"
-                onClick={handleOpenExtraProfileCheckout}
-                disabled={!extraProfileCheckoutLink}
-              >
-                Ir para o checkout
-                <ExternalLink className="h-4 w-4" />
               </Button>
             </div>
           </div>

@@ -7,6 +7,15 @@ verify_jwt = true
 [functions.stripe-profile-entitlement-webhook]
 verify_jwt = false
 
+[functions.create-profile-extra-checkout]
+verify_jwt = true
+
+[functions.get-profile-extra-status]
+verify_jwt = true
+
+[functions.stripe-profile-extra-webhook]
+verify_jwt = false
+
 [functions.social-sync-connection]
 verify_jwt = true
 
