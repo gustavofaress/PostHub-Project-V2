@@ -1,5 +1,15 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.56.0';
 import { corsHeaders } from '../_shared/cors.ts';
+import {
+  computeSeatState,
+  doesWorkspaceMemberTransitionConsumeSeat,
+  getProfileEntitlement,
+  type WorkspaceMemberLimitStatus,
+} from '../_shared/profile-entitlements.ts';
+import {
+  runExistingAuthSeatReservationFlow,
+  runNewAuthMemberPersistenceFlow,
+} from '../../../shared/workspace-member-seat-reservation.ts';
 
 type MemberRole = 'admin' | 'editor' | 'reviewer';
 
@@ -34,6 +44,36 @@ const buildPassword = () => {
 
 const MEMBER_SELECT =
   'id, user_id, email, full_name, role, status, permissions, created_at, invite_sent_at';
+const MEMBER_LIMIT_REACHED_CODE = 'MEMBER_LIMIT_REACHED';
+
+class WorkspaceMemberLimitError extends Error {
+  code = MEMBER_LIMIT_REACHED_CODE;
+  status = 409;
+  maxAdditionalMembers: number;
+
+  constructor(maxAdditionalMembers: number) {
+    super('Limite de membros deste workspace atingido.');
+    this.name = 'WorkspaceMemberLimitError';
+    this.maxAdditionalMembers = maxAdditionalMembers;
+  }
+}
+
+const buildMemberLimitResponse = (maxAdditionalMembers: number) =>
+  json(
+    {
+      error: 'Limite de membros deste workspace atingido.',
+      code: MEMBER_LIMIT_REACHED_CODE,
+      maxAdditionalMembers,
+    },
+    409
+  );
+
+const isMemberLimitReachedError = (error: unknown) => {
+  const detail = ((error as { details?: string } | null)?.details ?? '').toUpperCase();
+  const message = ((error as { message?: string } | null)?.message ?? '').toUpperCase();
+
+  return detail.includes(MEMBER_LIMIT_REACHED_CODE) || message.includes(MEMBER_LIMIT_REACHED_CODE);
+};
 
 const isMissingDatabaseObjectError = (error: unknown) => {
   const code = (error as { code?: string } | null)?.code;
@@ -45,6 +85,27 @@ const isMissingDatabaseObjectError = (error: unknown) => {
     message.includes('does not exist') ||
     message.includes('schema cache')
   );
+};
+
+interface PreparedMemberAuthUser {
+  userId: string;
+  createdNewUser: boolean;
+}
+
+const buildMemberAuthUserMetadata = ({
+  email,
+  fullName,
+}: {
+  email: string;
+  fullName: string | null;
+}) => {
+  const memberDisplayName = fullName?.trim() || email.split('@')[0] || 'Membro';
+
+  return {
+    full_name: memberDisplayName,
+    initial_profile_name: memberDisplayName,
+    workspace_member: true,
+  };
 };
 
 const findAuthUserByEmail = async ({
@@ -271,6 +332,139 @@ const canReuseExistingAuthUser = async (input: {
   return !(await shouldPreserveStandaloneAuthUser(input));
 };
 
+const getCountedWorkspaceMemberCount = async ({
+  serviceClient,
+  profileId,
+}: {
+  serviceClient: ReturnType<typeof createClient>;
+  profileId: string;
+}) => {
+  const { count, error } = await serviceClient
+    .from('workspace_members')
+    .select('id', { count: 'exact', head: true })
+    .eq('profile_id', profileId)
+    .in('status', ['invited', 'active']);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return count ?? 0;
+};
+
+const assertWorkspaceMemberCapacity = async ({
+  serviceClient,
+  profileId,
+  maxAdditionalMembers,
+  previousStatus,
+  nextStatus,
+}: {
+  serviceClient: ReturnType<typeof createClient>;
+  profileId: string;
+  maxAdditionalMembers: number | null | undefined;
+  previousStatus?: WorkspaceMemberLimitStatus | null;
+  nextStatus?: WorkspaceMemberLimitStatus | null;
+}) => {
+  if (maxAdditionalMembers === undefined || maxAdditionalMembers === null) {
+    return;
+  }
+
+  const consumesSeat = doesWorkspaceMemberTransitionConsumeSeat({
+    previousProfileId: previousStatus ? profileId : null,
+    nextProfileId: profileId,
+    previousStatus,
+    nextStatus,
+  });
+
+  if (!consumesSeat) {
+    return;
+  }
+
+  const currentCount = await getCountedWorkspaceMemberCount({
+    serviceClient,
+    profileId,
+  });
+  const seatState = computeSeatState({
+    additionalMemberCount: currentCount,
+    maxAdditionalMembers,
+  });
+
+  if (!seatState.canInvite) {
+    throw new WorkspaceMemberLimitError(maxAdditionalMembers);
+  }
+};
+
+const updateExistingMemberAuthUser = async ({
+  serviceClient,
+  authUserId,
+  email,
+  password,
+  fullName,
+}: {
+  serviceClient: ReturnType<typeof createClient>;
+  authUserId: string;
+  email: string;
+  password: string;
+  fullName: string | null;
+}): Promise<PreparedMemberAuthUser> => {
+  const { data, error } = await serviceClient.auth.admin.updateUserById(authUserId, {
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: buildMemberAuthUserMetadata({
+      email,
+      fullName,
+    }),
+  });
+
+  if (error || !data.user?.id) {
+    throw new Error(error?.message || 'Não foi possível atualizar o acesso do membro existente.');
+  }
+
+  return {
+    userId: data.user.id,
+    createdNewUser: false,
+  };
+};
+
+const resolveReusableExistingAuthUserId = async ({
+  serviceClient,
+  existingAuthUserId,
+  email,
+}: {
+  serviceClient: ReturnType<typeof createClient>;
+  existingAuthUserId: string | null;
+  email: string;
+}) => {
+  if (existingAuthUserId) {
+    return existingAuthUserId;
+  }
+
+  const existingAuthUser = await findAuthUserByEmail({
+    serviceClient,
+    email,
+  });
+
+  if (!existingAuthUser?.id) {
+    return null;
+  }
+
+  if (
+    await canReuseExistingAuthUser({
+      serviceClient,
+      authUserId: existingAuthUser.id,
+      email,
+      userMetadata: existingAuthUser.user_metadata,
+    })
+  ) {
+    return existingAuthUser.id;
+  }
+
+  throw new Error(
+    'Esse email já está cadastrado em outra conta. Use outro email para o membro ou reutilize o acesso existente.'
+  );
+};
+
 const ensureMemberAuthUser = async ({
   serviceClient,
   existingAuthUserId,
@@ -283,55 +477,21 @@ const ensureMemberAuthUser = async ({
   email: string;
   password: string;
   fullName: string | null;
-}) => {
-  const memberDisplayName = fullName?.trim() || email.split('@')[0] || 'Membro';
-  const userMetadata = {
-    full_name: memberDisplayName,
-    initial_profile_name: memberDisplayName,
-    workspace_member: true,
-  };
-
-  const upsertAuthUser = async (authUserId: string) => {
-    const { data, error } = await serviceClient.auth.admin.updateUserById(authUserId, {
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: userMetadata,
-    });
-
-    if (error || !data.user?.id) {
-      throw new Error(
-        error?.message || 'Não foi possível atualizar o acesso do membro existente.'
-      );
-    }
-
-    return data.user.id;
-  };
-
-  if (existingAuthUserId) {
-    return upsertAuthUser(existingAuthUserId);
-  }
-
-  const existingAuthUser = await findAuthUserByEmail({
+}): Promise<PreparedMemberAuthUser> => {
+  const reusableAuthUserId = await resolveReusableExistingAuthUserId({
     serviceClient,
+    existingAuthUserId,
     email,
   });
 
-  if (existingAuthUser?.id) {
-    if (
-      await canReuseExistingAuthUser({
-        serviceClient,
-        authUserId: existingAuthUser.id,
-        email,
-        userMetadata: existingAuthUser.user_metadata,
-      })
-    ) {
-      return upsertAuthUser(existingAuthUser.id);
-    }
-
-    throw new Error(
-      'Esse email já está cadastrado em outra conta. Use outro email para o membro ou reutilize o acesso existente.'
-    );
+  if (reusableAuthUserId) {
+    return updateExistingMemberAuthUser({
+      serviceClient,
+      authUserId: reusableAuthUserId,
+      email,
+      password,
+      fullName,
+    });
   }
 
   await cleanupOrphanedAuthArtifactsByEmail({
@@ -343,7 +503,10 @@ const ensureMemberAuthUser = async ({
     email,
     password,
     email_confirm: true,
-    user_metadata: userMetadata,
+    user_metadata: buildMemberAuthUserMetadata({
+      email,
+      fullName,
+    }),
   });
 
   let { data, error } = await createMemberUser();
@@ -375,7 +538,13 @@ const ensureMemberAuthUser = async ({
           userMetadata: registeredAuthUser.user_metadata,
         }))
       ) {
-        return upsertAuthUser(registeredAuthUser.id);
+        return updateExistingMemberAuthUser({
+          serviceClient,
+          authUserId: registeredAuthUser.id,
+          email,
+          password,
+          fullName,
+        });
       }
 
       throw new Error(
@@ -388,7 +557,10 @@ const ensureMemberAuthUser = async ({
     );
   }
 
-  return data.user.id;
+  return {
+    userId: data.user.id,
+    createdNewUser: true,
+  };
 };
 
 const getWorkspaceMemberById = async ({
@@ -542,21 +714,26 @@ Deno.serve(async (request) => {
       return json({ error: 'Workspace não encontrado.' }, 404);
     }
 
-    const { data: ownerRecord, error: ownerError } = await serviceClient
-      .from('usuarios')
-      .select('current_plan, is_admin')
-      .eq('id', profile.user_id)
-      .maybeSingle();
+    const entitlements = await getProfileEntitlement(serviceClient, profileId);
+    const maxAdditionalMembers = entitlements?.max_additional_members;
 
-    if (ownerError) {
-      return json({ error: ownerError.message }, 400);
-    }
+    if (!entitlements) {
+      const { data: ownerRecord, error: ownerError } = await serviceClient
+        .from('usuarios')
+        .select('current_plan, is_admin')
+        .eq('id', profile.user_id)
+        .maybeSingle();
 
-    const isOwnerPro =
-      !!ownerRecord?.is_admin || (ownerRecord?.current_plan || '').toLowerCase() === 'pro';
+      if (ownerError) {
+        return json({ error: ownerError.message }, 400);
+      }
 
-    if (!isOwnerPro) {
-      return json({ error: 'Somente workspaces do plano PRO podem adicionar membros.' }, 403);
+      const isOwnerPro =
+        !!ownerRecord?.is_admin || (ownerRecord?.current_plan || '').toLowerCase() === 'pro';
+
+      if (!isOwnerPro) {
+        return json({ error: 'Somente workspaces do plano PRO podem adicionar membros.' }, 403);
+      }
     }
 
     if (mode === 'resend') {
@@ -615,6 +792,121 @@ Deno.serve(async (request) => {
       const nextPermissions = payload.permissions ?? currentMember.permissions ?? [];
       const inviteSentAt =
         nextStatus === 'invited' ? new Date().toISOString() : currentMember.invite_sent_at;
+      const consumesSeat = doesWorkspaceMemberTransitionConsumeSeat({
+        previousProfileId: profileId,
+        nextProfileId: profileId,
+        previousStatus: currentMember.status as WorkspaceMemberLimitStatus,
+        nextStatus,
+      });
+
+      try {
+        await assertWorkspaceMemberCapacity({
+          serviceClient,
+          profileId,
+          maxAdditionalMembers,
+          previousStatus: currentMember.status as WorkspaceMemberLimitStatus,
+          nextStatus,
+        });
+      } catch (error) {
+        if (error instanceof WorkspaceMemberLimitError) {
+          return buildMemberLimitResponse(error.maxAdditionalMembers);
+        }
+
+        return json(
+          { error: error instanceof Error ? error.message : 'Erro ao validar a capacidade do workspace.' },
+          400
+        );
+      }
+
+      if (consumesSeat && currentMember.user_id) {
+        try {
+          const updatedMember = await runExistingAuthSeatReservationFlow({
+            reserveSeat: async () => {
+              const reservationStatus: WorkspaceMemberLimitStatus =
+                nextStatus === 'active' ? 'invited' : nextStatus;
+              const { error: reservationError } = await serviceClient
+                .from('workspace_members')
+                .update({
+                  status: reservationStatus,
+                })
+                .eq('id', payload.memberId)
+                .eq('profile_id', profileId);
+
+              if (reservationError) {
+                if (
+                  isMemberLimitReachedError(reservationError) &&
+                  typeof maxAdditionalMembers === 'number'
+                ) {
+                  throw new WorkspaceMemberLimitError(maxAdditionalMembers);
+                }
+
+                throw new Error(reservationError.message);
+              }
+
+              return {
+                previousStatus: currentMember.status,
+              };
+            },
+            updateAuthUser: async () => {
+              const { error: authUpdateError } = await serviceClient.auth.admin.updateUserById(
+                currentMember.user_id as string,
+                {
+                  user_metadata: {
+                    full_name: nextFullName,
+                    workspace_member: true,
+                  },
+                }
+              );
+
+              if (authUpdateError) {
+                throw new Error(authUpdateError.message);
+              }
+            },
+            rollbackReservation: async () => {
+              const { error: rollbackError } = await serviceClient
+                .from('workspace_members')
+                .update({
+                  status: currentMember.status,
+                })
+                .eq('id', payload.memberId)
+                .eq('profile_id', profileId);
+
+              if (rollbackError) {
+                throw new Error(rollbackError.message);
+              }
+            },
+            finalizeMembership: async () => {
+              const { data: finalizedMember, error: finalizeError } = await serviceClient
+                .from('workspace_members')
+                .update({
+                  full_name: nextFullName,
+                  role: nextRole,
+                  status: nextStatus,
+                  permissions: nextPermissions,
+                  invite_sent_at: inviteSentAt,
+                })
+                .eq('id', payload.memberId)
+                .eq('profile_id', profileId)
+                .select(MEMBER_SELECT)
+                .single();
+
+              if (finalizeError) {
+                throw new Error(finalizeError.message);
+              }
+
+              return finalizedMember;
+            },
+          });
+
+          return json({ member: updatedMember });
+        } catch (error) {
+          if (error instanceof WorkspaceMemberLimitError) {
+            return buildMemberLimitResponse(error.maxAdditionalMembers);
+          }
+
+          return json({ error: error instanceof Error ? error.message : 'Erro ao atualizar membro.' }, 400);
+        }
+      }
 
       if (currentMember.user_id) {
         const { error: authUpdateError } = await serviceClient.auth.admin.updateUserById(
@@ -647,6 +939,10 @@ Deno.serve(async (request) => {
         .single();
 
       if (updateError) {
+        if (isMemberLimitReachedError(updateError) && typeof maxAdditionalMembers === 'number') {
+          return buildMemberLimitResponse(maxAdditionalMembers);
+        }
+
         return json({ error: updateError.message }, 400);
       }
 
@@ -721,7 +1017,7 @@ Deno.serve(async (request) => {
 
     const { data: existingMember, error: existingMemberError } = await serviceClient
       .from('workspace_members')
-      .select('id, user_id')
+      .select('id, user_id, status, invite_sent_at')
       .eq('profile_id', profileId)
       .eq('email', email)
       .maybeSingle();
@@ -730,21 +1026,296 @@ Deno.serve(async (request) => {
       return json({ error: existingMemberError.message }, 400);
     }
 
-    let authUserId: string | null = null;
+    try {
+      await assertWorkspaceMemberCapacity({
+        serviceClient,
+        profileId,
+        maxAdditionalMembers,
+        previousStatus: (existingMember?.status as WorkspaceMemberLimitStatus | null | undefined) ?? null,
+        nextStatus: 'active',
+      });
+    } catch (error) {
+      if (error instanceof WorkspaceMemberLimitError) {
+        return buildMemberLimitResponse(error.maxAdditionalMembers);
+      }
+
+      return json(
+        { error: error instanceof Error ? error.message : 'Erro ao validar a capacidade do workspace.' },
+        400
+      );
+    }
+
+    let reusableExistingAuthUserId: string | null = null;
 
     try {
-      authUserId = await ensureMemberAuthUser({
+      reusableExistingAuthUserId = await resolveReusableExistingAuthUserId({
         serviceClient,
         existingAuthUserId: existingMember?.user_id ?? null,
         email,
-        password: generatedPassword,
-        fullName,
-      });
-      await cleanupOrphanedAuthArtifactsByUserId({
-        serviceClient,
-        userId: authUserId,
       });
     } catch (error) {
+      return json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : 'Não foi possível reutilizar o acesso existente do membro.',
+        },
+        400
+      );
+    }
+
+    const consumesSeat = doesWorkspaceMemberTransitionConsumeSeat({
+      previousProfileId: existingMember?.status ? profileId : null,
+      nextProfileId: profileId,
+      previousStatus: (existingMember?.status as WorkspaceMemberLimitStatus | null | undefined) ?? null,
+      nextStatus: 'active',
+    });
+    const inviteSentAt = new Date().toISOString();
+
+    if (reusableExistingAuthUserId && consumesSeat) {
+      try {
+        const member = await runExistingAuthSeatReservationFlow({
+          reserveSeat: async () => {
+            if (existingMember?.id) {
+              const { data: reservedMember, error: reservationError } = await serviceClient
+                .from('workspace_members')
+                .update({
+                  user_id: reusableExistingAuthUserId,
+                  status: 'invited',
+                  invite_sent_at: inviteSentAt,
+                })
+                .eq('id', existingMember.id)
+                .eq('profile_id', profileId)
+                .select('id')
+                .single();
+
+              if (reservationError) {
+                if (
+                  isMemberLimitReachedError(reservationError) &&
+                  typeof maxAdditionalMembers === 'number'
+                ) {
+                  throw new WorkspaceMemberLimitError(maxAdditionalMembers);
+                }
+
+                throw new Error(reservationError.message);
+              }
+
+              return {
+                kind: 'existing' as const,
+                memberId: reservedMember.id,
+                previousStatus: existingMember.status,
+                previousUserId: existingMember.user_id,
+                previousInviteSentAt: existingMember.invite_sent_at,
+              };
+            }
+
+            const { data: reservedMember, error: reservationError } = await serviceClient
+              .from('workspace_members')
+              .insert({
+                profile_id: profileId,
+                user_id: reusableExistingAuthUserId,
+                email,
+                full_name: fullName,
+                role,
+                status: 'invited',
+                permissions,
+                invite_sent_at: inviteSentAt,
+              })
+              .select('id')
+              .single();
+
+            if (reservationError) {
+              if (
+                isMemberLimitReachedError(reservationError) &&
+                typeof maxAdditionalMembers === 'number'
+              ) {
+                throw new WorkspaceMemberLimitError(maxAdditionalMembers);
+              }
+
+              throw new Error(reservationError.message);
+            }
+
+            return {
+              kind: 'new' as const,
+              memberId: reservedMember.id,
+            };
+          },
+          updateAuthUser: async () => {
+            const preparedAuthUser = await updateExistingMemberAuthUser({
+              serviceClient,
+              authUserId: reusableExistingAuthUserId as string,
+              email,
+              password: generatedPassword,
+              fullName,
+            });
+
+            await cleanupOrphanedAuthArtifactsByUserId({
+              serviceClient,
+              userId: preparedAuthUser.userId,
+            });
+          },
+          rollbackReservation: async (reservation) => {
+            if (reservation.kind === 'new') {
+              const { error: rollbackError } = await serviceClient
+                .from('workspace_members')
+                .delete()
+                .eq('id', reservation.memberId)
+                .eq('profile_id', profileId);
+
+              if (rollbackError) {
+                throw new Error(rollbackError.message);
+              }
+
+              return;
+            }
+
+            const { error: rollbackError } = await serviceClient
+              .from('workspace_members')
+              .update({
+                user_id: reservation.previousUserId,
+                status: reservation.previousStatus,
+                invite_sent_at: reservation.previousInviteSentAt,
+              })
+              .eq('id', reservation.memberId)
+              .eq('profile_id', profileId);
+
+            if (rollbackError) {
+              throw new Error(rollbackError.message);
+            }
+          },
+          finalizeMembership: async (reservation) => {
+            const { data: finalizedMember, error: finalizeError } = await serviceClient
+              .from('workspace_members')
+              .update({
+                user_id: reusableExistingAuthUserId,
+                email,
+                full_name: fullName,
+                role,
+                status: 'active',
+                permissions,
+                invite_sent_at: inviteSentAt,
+              })
+              .eq('id', reservation.memberId)
+              .eq('profile_id', profileId)
+              .select(MEMBER_SELECT)
+              .single();
+
+            if (finalizeError) {
+              throw new Error(finalizeError.message);
+            }
+
+            return finalizedMember;
+          },
+        });
+
+        const origin =
+          payload.loginUrl ||
+          Deno.env.get('APP_URL') ||
+          Deno.env.get('POSTHUB_APP_URL') ||
+          request.headers.get('origin') ||
+          '';
+
+        return json({
+          member,
+          generatedPassword,
+          loginUrl: origin || `/member-login?email=${encodeURIComponent(email)}`,
+        });
+      } catch (error) {
+        if (error instanceof WorkspaceMemberLimitError) {
+          return buildMemberLimitResponse(error.maxAdditionalMembers);
+        }
+
+        return json(
+          {
+            error:
+              error instanceof Error
+                ? error.message
+                : 'Não foi possível preparar o acesso do membro no Auth.',
+          },
+          400
+        );
+      }
+    }
+
+    try {
+      const member = await runNewAuthMemberPersistenceFlow({
+        prepareAuthUser: async () => {
+          const nextPreparedAuthUser = await ensureMemberAuthUser({
+            serviceClient,
+            existingAuthUserId: reusableExistingAuthUserId ?? existingMember?.user_id ?? null,
+            email,
+            password: generatedPassword,
+            fullName,
+          });
+
+          await cleanupOrphanedAuthArtifactsByUserId({
+            serviceClient,
+            userId: nextPreparedAuthUser.userId,
+          });
+
+          return nextPreparedAuthUser;
+        },
+        persistMembership: async (nextPreparedAuthUser) => {
+          const memberPayload = {
+            profile_id: profileId,
+            user_id: nextPreparedAuthUser.userId,
+            email,
+            full_name: fullName,
+            role,
+            status: 'active',
+            permissions,
+            invite_sent_at: inviteSentAt,
+          };
+
+          const memberQuery = existingMember?.id
+            ? serviceClient
+                .from('workspace_members')
+                .update(memberPayload)
+                .eq('id', existingMember.id)
+                .eq('profile_id', profileId)
+            : serviceClient.from('workspace_members').insert(memberPayload);
+
+          const { data: member, error: memberError } = await memberQuery
+            .select(MEMBER_SELECT)
+            .single();
+
+          if (memberError) {
+            throw memberError;
+          }
+
+          return member;
+        },
+        cleanupPreparedAuth: async (nextPreparedAuthUser) => {
+          if (!nextPreparedAuthUser.createdNewUser) {
+            return;
+          }
+
+          await serviceClient.auth.admin.deleteUser(nextPreparedAuthUser.userId).catch(() => undefined);
+          await cleanupOrphanedAuthArtifactsByUserId({
+            serviceClient,
+            userId: nextPreparedAuthUser.userId,
+          }).catch(() => undefined);
+        },
+      });
+
+      const origin =
+        payload.loginUrl ||
+        Deno.env.get('APP_URL') ||
+        Deno.env.get('POSTHUB_APP_URL') ||
+        request.headers.get('origin') ||
+        '';
+
+      return json({
+        member,
+        generatedPassword,
+        loginUrl: origin || `/member-login?email=${encodeURIComponent(email)}`,
+      });
+    } catch (error) {
+      if (isMemberLimitReachedError(error) && typeof maxAdditionalMembers === 'number') {
+        return buildMemberLimitResponse(maxAdditionalMembers);
+      }
+
       return json(
         {
           error:
@@ -755,46 +1326,6 @@ Deno.serve(async (request) => {
         400
       );
     }
-
-    const memberPayload = {
-      profile_id: profileId,
-      user_id: authUserId,
-      email,
-      full_name: fullName,
-      role,
-      status: 'active',
-      permissions,
-      invite_sent_at: new Date().toISOString(),
-    };
-
-    const memberQuery = existingMember?.id
-      ? serviceClient
-          .from('workspace_members')
-          .update(memberPayload)
-          .eq('id', existingMember.id)
-          .eq('profile_id', profileId)
-      : serviceClient.from('workspace_members').insert(memberPayload);
-
-    const { data: member, error: memberError } = await memberQuery
-        .select(MEMBER_SELECT)
-        .single();
-
-    if (memberError) {
-      return json({ error: memberError.message }, 400);
-    }
-
-    const origin =
-      payload.loginUrl ||
-      Deno.env.get('APP_URL') ||
-      Deno.env.get('POSTHUB_APP_URL') ||
-      request.headers.get('origin') ||
-      '';
-
-    return json({
-      member,
-      generatedPassword,
-      loginUrl: origin || `/member-login?email=${encodeURIComponent(email)}`,
-    });
   } catch (error) {
     console.error('[invite-workspace-member] unexpected error', error);
     return json(

@@ -25,7 +25,6 @@ import { useAuth } from '../../app/context/AuthContext';
 import { useProfile } from '../../app/context/ProfileContext';
 import { useSearchParams } from 'react-router-dom';
 import { LockedModuleState } from '../../shared/components/LockedModuleState';
-import { hasAccess } from '../../shared/constants/plans';
 import {
   DEFAULT_MEMBER_PERMISSIONS,
   type TeamMember,
@@ -34,11 +33,16 @@ import {
   type TeamMemberStatus,
   type TeamPermissionId,
 } from '../../shared/constants/workspaceMembers';
+import { useActiveProfileCommercialAccess } from '../../hooks/useActiveProfileCommercialAccess';
 import { useWorkspaceMembers } from '../../hooks/useWorkspaceMembers';
 import { useWorkspacePermissions } from '../../hooks/useWorkspacePermissions';
 import { MemberAssignmentField } from '../../shared/components/MemberAssignmentField';
 import { workspaceMembersService, type InviteWorkspaceMemberResult } from '../../services/workspace-members.service';
 import { workspaceCollaborationService } from '../../services/workspace-collaboration.service';
+import {
+  computeSeatState,
+  doesWorkspaceMemberTransitionConsumeSeat,
+} from '../../shared/utils/profileEntitlements';
 import type {
   WorkspaceDemandItem,
   WorkspaceTaskAssignment,
@@ -74,10 +78,11 @@ export const SettingsArea = () => {
   const { user } = useAuth();
   const { activeProfile } = useProfile();
   const [searchParams, setSearchParams] = useSearchParams();
+  const commercialAccess = useActiveProfileCommercialAccess();
   const { activeMembers, members, isLoadingMembers, reloadMembers } = useWorkspaceMembers();
   const { canManageMembers } = useWorkspacePermissions();
-
-  const canUseTeamMembers = hasAccess(user?.currentPlan, 'team', user?.isAdmin);
+  const teamFeatureAccess = commercialAccess.resolveFeatureAccess('team');
+  const canUseTeamMembers = teamFeatureAccess.enabled;
 
   const [activeTab, setActiveTab] = React.useState<SettingsTab>(
     searchParams.get('tab') === 'demands' ? 'demands' : 'members'
@@ -110,6 +115,57 @@ export const SettingsArea = () => {
   const [demandMemberIds, setDemandMemberIds] = React.useState<string[]>([]);
   const [isSavingDemand, setIsSavingDemand] = React.useState(false);
   const isEditingMember = !!editingMember;
+  const seatState = React.useMemo(() => {
+    if (!commercialAccess.entitlements) {
+      return null;
+    }
+
+    return computeSeatState({
+      additionalMemberCount: activeMembers.length,
+      maxAdditionalMembers: commercialAccess.entitlements.max_additional_members,
+    });
+  }, [activeMembers.length, commercialAccess.entitlements]);
+  const isCommercialLoading = commercialAccess.isLoading;
+  const isCommercialError = commercialAccess.isError;
+  const isResolvedSeatLimit = !!seatState && !seatState.isUnlimited;
+  const blockedBySeatLimit = !!seatState && !seatState.canInvite;
+  const seatLimitMessage = React.useMemo(() => {
+    if (!seatState || seatState.isUnlimited) {
+      return null;
+    }
+
+    if (seatState.isOverLimit) {
+      return `Este workspace está acima do limite atual de ${seatState.maxAdditionalMembers} membro(s) adicional(is). Desative ou remova acessos antes de adicionar ou reativar alguém.`;
+    }
+
+    if (seatState.isAtLimit) {
+      return `Este workspace atingiu ${seatState.maxAdditionalMembers} de ${seatState.maxAdditionalMembers} membro(s) adicional(is). Convites pendentes também ocupam vaga.`;
+    }
+
+    return `Este workspace usa ${seatState.additionalMemberCount} de ${seatState.maxAdditionalMembers} vaga(s) adicional(is). O owner não conta no limite.`;
+  }, [seatState]);
+  const wouldConsumeSeatOnSave = React.useMemo(() => {
+    if (!seatState) {
+      return false;
+    }
+
+    if (!editingMember) {
+      return true;
+    }
+
+    return doesWorkspaceMemberTransitionConsumeSeat({
+      previousProfileId: activeProfile?.id ?? null,
+      nextProfileId: activeProfile?.id ?? null,
+      previousStatus: editingMember.status,
+      nextStatus: memberStatus,
+    });
+  }, [activeProfile?.id, editingMember, memberStatus, seatState]);
+  const isMemberActionBlockedBySeatLimit =
+    !!seatState &&
+    !seatState.isUnlimited &&
+    wouldConsumeSeatOnSave &&
+    !(editingMember ? seatState.canReactivate : seatState.canInvite);
+  const disableAddMemberAction = isLoadingMembers || isCommercialLoading || blockedBySeatLimit;
 
   const resetMemberForm = React.useCallback(() => {
     setEditingMember(null);
@@ -128,6 +184,13 @@ export const SettingsArea = () => {
   }, [resetMemberForm]);
 
   const openMemberModal = () => {
+    if (disableAddMemberAction) {
+      if (seatLimitMessage) {
+        setAlertMessage(seatLimitMessage);
+      }
+      return;
+    }
+
     resetMemberForm();
     setIsMemberModalOpen(true);
   };
@@ -210,6 +273,11 @@ export const SettingsArea = () => {
       return;
     }
 
+    if (isMemberActionBlockedBySeatLimit && seatLimitMessage) {
+      setAlertMessage(seatLimitMessage);
+      return;
+    }
+
     setIsSavingMember(true);
     setAlertMessage(null);
 
@@ -242,6 +310,11 @@ export const SettingsArea = () => {
       await reloadMembers();
     } catch (error: any) {
       console.error('[SettingsArea] Failed to save member:', error);
+      if (error?.code === 'MEMBER_LIMIT_REACHED' && seatLimitMessage) {
+        setAlertMessage(seatLimitMessage);
+        return;
+      }
+
       setAlertMessage(
         error?.message || (editingMember ? 'Não foi possível atualizar o membro.' : 'Não foi possível criar o membro.')
       );
@@ -361,12 +434,28 @@ export const SettingsArea = () => {
     }
   };
 
+  if (isCommercialLoading) {
+    return (
+      <Card className="p-4 text-sm text-text-secondary">
+        Validando limite comercial do workspace...
+      </Card>
+    );
+  }
+
+  if (isCommercialError) {
+    return (
+      <Card className="border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+        Não foi possível validar o limite comercial deste workspace agora. Recarregue a página e tente novamente.
+      </Card>
+    );
+  }
+
   if (!canUseTeamMembers) {
     return (
       <LockedModuleState
         feature="team"
-        title="Organização de demandas é exclusiva do plano PRO"
-        description="Ative o PRO para criar membros ilimitados, controlar acessos por módulo e distribuir as demandas da operação."
+        title="Este workspace ainda não pode adicionar membros"
+        description="Ative um workspace elegível para liberar membros adicionais, controlar acessos por módulo e distribuir as demandas da operação."
       />
     );
   }
@@ -399,9 +488,26 @@ export const SettingsArea = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <Badge variant="brand">Plano PRO</Badge>
-          <Badge>Membros ilimitados</Badge>
-          <Button className="gap-2" onClick={openMemberModal}>
+          {seatState ? (
+            seatState.isUnlimited ? (
+              <>
+                <Badge variant="brand">Membros ilimitados</Badge>
+                <Badge>{activeMembers.length} membro(s) adicional(is)</Badge>
+              </>
+            ) : (
+              <>
+                <Badge variant="brand">
+                  {activeMembers.length}/{seatState.maxAdditionalMembers} membro(s) adicional(is)
+                </Badge>
+                <Badge>{seatState.remainingAdditionalMembers} vaga(s) restante(s)</Badge>
+              </>
+            )
+          ) : commercialAccess.isLegacyFallback ? (
+            <Badge variant="brand">Compatibilidade legada</Badge>
+          ) : commercialAccess.isAdminBypass ? (
+            <Badge variant="brand">Admin</Badge>
+          ) : null}
+          <Button className="gap-2" onClick={openMemberModal} disabled={disableAddMemberAction}>
             <Plus className="h-4 w-4" />
             Adicionar membro
           </Button>
@@ -412,11 +518,26 @@ export const SettingsArea = () => {
         <Card className="border-brand/20 bg-brand/5 p-4 text-sm text-brand">{alertMessage}</Card>
       ) : null}
 
+      {seatLimitMessage ? (
+        <Card
+          className={`p-4 text-sm ${
+            blockedBySeatLimit
+              ? 'border-amber-200 bg-amber-50 text-amber-900'
+              : 'border-brand/20 bg-brand/5 text-brand'
+          }`}
+        >
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <p>{seatLimitMessage}</p>
+          </div>
+        </Card>
+      ) : null}
+
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-text-secondary">Membros ativos</p>
+              <p className="text-sm text-text-secondary">Membros adicionais</p>
               <p className="mt-2 text-3xl font-bold text-text-primary">{activeMembers.length}</p>
             </div>
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand/10 text-brand">
@@ -473,11 +594,22 @@ export const SettingsArea = () => {
               </CardDescription>
             </div>
 
-            <Button variant="secondary" className="gap-2" onClick={openMemberModal}>
+            <Button
+              variant="secondary"
+              className="gap-2"
+              onClick={openMemberModal}
+              disabled={disableAddMemberAction}
+            >
               <Plus className="h-4 w-4" />
               Novo membro
             </Button>
           </div>
+
+          {!seatState?.isUnlimited && isResolvedSeatLimit ? (
+            <p className="mb-4 text-xs text-text-secondary">
+              Convites pendentes e membros ativos ocupam vaga. O owner do profile não entra nessa contagem.
+            </p>
+          ) : null}
 
           <div className="space-y-4">
             <div className="rounded-2xl border border-brand/10 bg-brand/[0.04] p-4">
@@ -836,6 +968,15 @@ export const SettingsArea = () => {
             </Card>
           ) : null}
 
+          {isMemberActionBlockedBySeatLimit && seatLimitMessage ? (
+            <Card className="border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <p>{seatLimitMessage}</p>
+              </div>
+            </Card>
+          ) : null}
+
           <div className="flex flex-col-reverse gap-3 border-t border-gray-100 pt-5 sm:flex-row sm:justify-between">
             <Button type="button" variant="secondary" onClick={closeMemberModal}>
               Fechar
@@ -856,7 +997,7 @@ export const SettingsArea = () => {
               >
                 {isEditingMember ? 'Restaurar dados' : 'Limpar'}
               </Button>
-              <Button type="submit" isLoading={isSavingMember}>
+              <Button type="submit" isLoading={isSavingMember} disabled={isMemberActionBlockedBySeatLimit}>
                 {isEditingMember ? 'Salvar alterações' : 'Criar membro'}
               </Button>
             </div>

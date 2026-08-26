@@ -35,32 +35,6 @@ interface HelpArticle {
 
 const HELP_ARTICLES: HelpArticle[] = [
   {
-    id: 'onboarding',
-    title: 'Onboarding e Setup Inicial',
-    category: 'Primeiros passos',
-    status: 'Disponivel agora',
-    summary:
-      'O onboarding coleta o contexto da sua operacao e libera um checklist inicial para voce criar ideia, estruturar conteudo, levar para o calendario e finalizar a configuracao do workspace.',
-    keywords: ['setup', 'inicio', 'primeiro acesso', 'quiz', 'checklist'],
-    questions: [
-      {
-        question: 'Para que serve o quiz inicial?',
-        answer:
-          'O quiz registra modelo de trabalho, tamanho da operacao e processo atual. Essas respostas ficam vinculadas ao usuario e ajudam a personalizar a mensagem inicial e o contexto da conta.',
-      },
-      {
-        question: 'O que eu preciso fazer para concluir o setup?',
-        answer:
-          'O fluxo sugerido hoje e: criar a primeira ideia, abrir o gerador de roteiros, organizar no calendario e depois ir para o dashboard. Ao finalizar, o sistema marca o setup como concluido.',
-      },
-      {
-        question: 'Se eu fechar o onboarding, perco minhas respostas?',
-        answer:
-          'Nao. Quando o quiz e salvo, as respostas ficam registradas na conta. O modulo deixa de abrir como primeira etapa obrigatoria, mas os dados continuam disponiveis em Conta.',
-      },
-    ],
-  },
-  {
     id: 'dashboard',
     title: 'Dashboard',
     category: 'Visao geral',
@@ -82,7 +56,7 @@ const HELP_ARTICLES: HelpArticle[] = [
       {
         question: 'Por que o dashboard pode aparecer vazio?',
         answer:
-          'Se nao houver perfil ativo, conteudo criado ou aprovacoes registradas, o dashboard fica sem volume para consolidar. O ideal e alimentar primeiro Ideias, Roteiros, Calendario e Aprovacao.',
+          'Se nao houver perfil ativo, conteudo criado ou aprovacoes registradas, o dashboard fica sem volume para consolidar. O ideal e alimentar primeiro Ideias, Calendario e Aprovacao.',
       },
     ],
   },
@@ -132,9 +106,9 @@ const HELP_ARTICLES: HelpArticle[] = [
           'As tags ajudam na categorizacao, a prioridade sinaliza urgencia e o status indica a fase da ideia dentro do backlog. Esses campos tambem alimentam os filtros da tela.',
       },
       {
-        question: 'Consigo transformar uma ideia em roteiro?',
+        question: 'Como uma ideia entra no fluxo da operacao?',
         answer:
-          'Sim, o modulo ja tem atalho para abrir o Gerador de Roteiros. Hoje ele leva voce para o modulo de roteiro, onde a estruturacao continua.',
+          'O Banco de Ideias funciona como backlog do perfil ativo. Depois, a continuidade normal da operacao segue pelo Calendario Editorial e pelos demais modulos do workspace.',
       },
     ],
   },
@@ -280,7 +254,7 @@ const HELP_ARTICLES: HelpArticle[] = [
       {
         question: 'De onde saem os dados do relatorio?',
         answer:
-          'Os dados sao agregados a partir dos modulos internos da operacao, principalmente Ideias, Roteiros, Calendario e Aprovacao. O relatorio resume esse movimento em uma visao executiva.',
+          'Os dados sao agregados a partir dos modulos internos da operacao, principalmente Ideias, Calendario e Aprovacao. O relatorio resume esse movimento em uma visao executiva.',
       },
       {
         question: 'Posso personalizar o que entra no PDF?',
@@ -559,7 +533,7 @@ export const Support = () => {
               Nenhum artigo encontrado para essa busca.
             </p>
             <p className="mt-2 text-sm text-text-secondary">
-              Tente buscar pelo nome do modulo, como Calendario, Aprovacao, Roteiros ou Referencias.
+              Tente buscar pelo nome do modulo, como Calendario, Aprovacao, Relatorios ou Referencias.
             </p>
           </Card>
         ) : (

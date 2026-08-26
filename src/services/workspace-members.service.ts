@@ -83,7 +83,7 @@ const buildMemberLoginUrl = (email: string) => {
   return buildAppUrl(`/member-login?email=${encodeURIComponent(email.trim().toLowerCase())}`);
 };
 
-const resolveFunctionErrorMessage = async (error: unknown, fallback: string) => {
+const buildWorkspaceMembersError = async (error: unknown, fallback: string) => {
   const normalizeMessage = (message: string) => {
     const normalizedMessage = message.trim();
     const loweredMessage = normalizedMessage.toLowerCase();
@@ -98,27 +98,51 @@ const resolveFunctionErrorMessage = async (error: unknown, fallback: string) => 
     return normalizedMessage;
   };
 
+  let code: string | undefined;
+  let status: number | undefined;
+  let message = fallback;
+
   if (
     typeof error === 'object' &&
     error !== null &&
     'context' in error &&
     error.context instanceof Response
   ) {
+    status = error.context.status;
+
     try {
       const payload = await error.context.clone().json();
       if (typeof payload?.error === 'string' && payload.error.trim()) {
-        return normalizeMessage(payload.error);
+        message = normalizeMessage(payload.error);
+      }
+      if (typeof payload?.code === 'string' && payload.code.trim()) {
+        code = payload.code.trim();
       }
     } catch {
       // Ignore JSON parsing errors and fall back to the generic message below.
     }
   }
 
-  if (error instanceof Error && error.message.trim()) {
-    return normalizeMessage(error.message);
+  if (
+    message === fallback &&
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof error.message === 'string' &&
+    error.message.trim()
+  ) {
+    message = normalizeMessage(error.message);
+  } else if (message === fallback && error instanceof Error && error.message.trim()) {
+    message = normalizeMessage(error.message);
   }
 
-  return fallback;
+  const resolvedError = new Error(message) as Error & {
+    code?: string;
+    status?: number;
+  };
+  resolvedError.code = code;
+  resolvedError.status = status;
+  return resolvedError;
 };
 
 export const workspaceMembersService = {
@@ -136,7 +160,7 @@ export const workspaceMembersService = {
       .order('created_at', { ascending: false });
 
     if (error) {
-      throw new Error(await resolveFunctionErrorMessage(error, 'Não foi possível carregar os membros.'));
+      throw await buildWorkspaceMembersError(error, 'Não foi possível carregar os membros.');
     }
 
     return ((data ?? []) as WorkspaceMemberRow[]).map(normalizeMember);
@@ -181,7 +205,7 @@ export const workspaceMembersService = {
     });
 
     if (error) {
-      throw new Error(await resolveFunctionErrorMessage(error, 'Não foi possível criar o membro.'));
+      throw await buildWorkspaceMembersError(error, 'Não foi possível criar o membro.');
     }
 
     return {
@@ -217,7 +241,7 @@ export const workspaceMembersService = {
     });
 
     if (error) {
-      throw new Error(await resolveFunctionErrorMessage(error, 'Não foi possível reenviar o convite.'));
+      throw await buildWorkspaceMembersError(error, 'Não foi possível reenviar o convite.');
     }
 
     return normalizeMember(data.member as WorkspaceMemberRow);
@@ -271,7 +295,7 @@ export const workspaceMembersService = {
     });
 
     if (error) {
-      throw new Error(await resolveFunctionErrorMessage(error, 'Não foi possível atualizar o membro.'));
+      throw await buildWorkspaceMembersError(error, 'Não foi possível atualizar o membro.');
     }
 
     return normalizeMember(data.member as WorkspaceMemberRow);
@@ -329,7 +353,7 @@ export const workspaceMembersService = {
     });
 
     if (error) {
-      throw new Error(await resolveFunctionErrorMessage(error, 'Não foi possível excluir o membro.'));
+      throw await buildWorkspaceMembersError(error, 'Não foi possível excluir o membro.');
     }
   },
 

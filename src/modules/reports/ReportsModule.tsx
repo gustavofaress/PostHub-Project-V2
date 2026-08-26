@@ -2,65 +2,35 @@ import * as React from 'react';
 import jsPDF from 'jspdf';
 import {
   Lightbulb,
-  FileText,
   CalendarDays,
   MessageSquare,
   Clock,
   AlertCircle,
   CheckCircle2,
-  Activity,
   Download,
   Eye,
   Settings2,
   ChevronDown,
 } from 'lucide-react';
 import { useProfile } from '../../app/context/ProfileContext';
-import { useAuth } from '../../app/context/AuthContext';
 import { supabase } from '../../shared/utils/supabase';
 import { Button } from '../../shared/components/Button';
 import { Input } from '../../shared/components/Input';
 import { useIsMobile } from '../mobile/hooks/useIsMobile';
+import { calendarApprovalService } from '../calendar/services/calendarApprovalService';
+import {
+  buildReportActivityFeed,
+  buildReportContentStatus,
+  countReportPendingItems,
+  type ReportActivityItem,
+  type ReportCalendarRow,
+  type ReportIdeaRow,
+} from './reports.helpers';
 
 interface StatCard {
   label: string;
   value: string;
   icon: React.ComponentType<{ className?: string }>;
-}
-
-interface DashboardActivityItem {
-  id: string;
-  type: string;
-  title: string;
-  time: string;
-  status: 'success' | 'info' | 'warning';
-  createdAt: string;
-}
-
-interface IdeaRow {
-  id: string;
-  title: string;
-  updated_at: string;
-}
-
-interface ScriptDraftRow {
-  id: string;
-  title: string;
-  updated_at: string;
-}
-
-interface EditorialCalendarRow {
-  id: string;
-  title: string;
-  status: string | null;
-  updated_at: string;
-  scheduled_date?: string | null;
-}
-
-interface ApprovalPostRow {
-  id: string;
-  title: string;
-  status: string | null;
-  updated_at: string;
 }
 
 type PeriodOption = '7d' | '30d' | 'this_month' | 'last_month' | 'custom';
@@ -82,7 +52,6 @@ function formatDate(dateString: string): string {
 export const ReportsModule = () => {
   const isMobile = useIsMobile();
   const { activeProfile } = useProfile();
-  const { user } = useAuth();
 
   const reportPreviewRef = React.useRef<HTMLDivElement | null>(null);
 
@@ -128,12 +97,11 @@ export const ReportsModule = () => {
 
   const [stats, setStats] = React.useState<StatCard[]>([
     { label: 'Ideias', value: '--', icon: Lightbulb },
-    { label: 'Roteiros', value: '--', icon: FileText },
     { label: 'Posts Agendados', value: '--', icon: CalendarDays },
     { label: 'Pendentes', value: '--', icon: MessageSquare },
   ]);
 
-  const [recentActivity, setRecentActivity] = React.useState<DashboardActivityItem[]>([]);
+  const [recentActivity, setRecentActivity] = React.useState<ReportActivityItem[]>([]);
   const [contentStatus, setContentStatus] = React.useState({
     inProduction: 0,
     pendingReview: 0,
@@ -141,7 +109,7 @@ export const ReportsModule = () => {
   });
 
   const loadReport = React.useCallback(async () => {
-    if (!user?.id || !activeProfile?.id) {
+    if (!activeProfile?.id || !supabase) {
       setIsLoading(false);
       return;
     }
@@ -150,63 +118,37 @@ export const ReportsModule = () => {
     setErrorMessage(null);
 
     try {
-      const [ideasResult, scriptsResult, calendarResult, approvalsResult] = await Promise.all([
+      const [ideasResult, calendarResult, latestApprovalStatuses] = await Promise.all([
         supabase
           .from('ideas')
           .select('id,title,updated_at', { count: 'exact' })
-          .eq('user_id', user.id)
-          .eq('profile_id', activeProfile.id)
-          .order('updated_at', { ascending: false }),
-
-        supabase
-          .from('script_drafts')
-          .select('id,title,updated_at', { count: 'exact' })
-          .eq('user_id', user.id)
           .eq('profile_id', activeProfile.id)
           .order('updated_at', { ascending: false }),
 
         supabase
           .from('editorial_calendar')
           .select('id,title,status,updated_at,scheduled_date', { count: 'exact' })
-          .eq('user_id', user.id)
           .eq('profile_id', activeProfile.id)
           .order('updated_at', { ascending: false }),
 
-        supabase
-          .from('approval_posts')
-          .select('id,title,status,updated_at', { count: 'exact' })
-          .eq('user_id', user.id)
-          .eq('profile_id', activeProfile.id)
-          .order('updated_at', { ascending: false }),
+        calendarApprovalService.listLatestApprovalStatuses(activeProfile.id),
       ]);
 
       if (ideasResult.error) throw ideasResult.error;
-      if (scriptsResult.error) throw scriptsResult.error;
       if (calendarResult.error) throw calendarResult.error;
-      if (approvalsResult.error) throw approvalsResult.error;
 
-      const ideas = (ideasResult.data ?? []) as IdeaRow[];
-      const scripts = (scriptsResult.data ?? []) as ScriptDraftRow[];
-      const calendar = (calendarResult.data ?? []) as EditorialCalendarRow[];
-      const approvals = (approvalsResult.data ?? []) as ApprovalPostRow[];
+      const ideas = (ideasResult.data ?? []) as ReportIdeaRow[];
+      const calendar = (calendarResult.data ?? []) as ReportCalendarRow[];
+      const latestApprovalEntries = Object.values(latestApprovalStatuses);
 
       const scheduledPostsCount = calendar.filter((item) => item.scheduled_date).length;
-      const pendingReviewsCount =
-        calendar.filter((item) => item.status === 'Review').length +
-        approvals.filter(
-          (item) => item.status === 'changes_requested' || item.status === 'pending'
-        ).length;
+      const pendingReviewsCount = countReportPendingItems(calendar, latestApprovalEntries);
 
       setStats([
         {
           label: 'Ideias',
           value: String(ideasResult.count ?? ideas.length),
           icon: Lightbulb,
-        },
-        {
-          label: 'Roteiros',
-          value: String(scriptsResult.count ?? scripts.length),
-          icon: FileText,
         },
         {
           label: 'Posts Agendados',
@@ -220,83 +162,22 @@ export const ReportsModule = () => {
         },
       ]);
 
-      setContentStatus({
-        inProduction: calendar.filter((item) =>
-          ['Draft', 'Planned'].includes(item.status || '')
-        ).length,
-        pendingReview: calendar.filter((item) => item.status === 'Review').length,
-        published: calendar.filter((item) => item.status === 'Published').length,
-      });
-
-      const activity: DashboardActivityItem[] = [];
-
-      ideas.slice(0, 5).forEach((item) => {
-        activity.push({
-          id: `idea-${item.id}`,
-          type: 'Ideia',
-          title: `Nova ideia: "${item.title}"`,
-          time: formatDate(item.updated_at),
-          status: 'info',
-          createdAt: item.updated_at,
-        });
-      });
-
-      scripts.slice(0, 5).forEach((item) => {
-        activity.push({
-          id: `script-${item.id}`,
-          type: 'Roteiro',
-          title: `Roteiro atualizado: "${item.title}"`,
-          time: formatDate(item.updated_at),
-          status: 'info',
-          createdAt: item.updated_at,
-        });
-      });
-
-      calendar.slice(0, 5).forEach((item) => {
-        activity.push({
-          id: `calendar-${item.id}`,
-          type: 'Post',
-          title:
-            item.status === 'Published'
-              ? `${item.title} foi publicado`
-              : `${item.title} atualizado`,
-          time: formatDate(item.updated_at),
-          status:
-            item.status === 'Published'
-              ? 'success'
-              : item.status === 'Review'
-              ? 'warning'
-              : 'info',
-          createdAt: item.updated_at,
-        });
-      });
-
-      approvals.slice(0, 5).forEach((item) => {
-        activity.push({
-          id: `approval-${item.id}`,
-          type: 'Revisão',
-          title:
-            item.status === 'changes_requested'
-              ? `Alterações solicitadas: "${item.title}"`
-              : `Aprovação atualizada: "${item.title}"`,
-          time: formatDate(item.updated_at),
-          status: item.status === 'changes_requested' ? 'warning' : 'success',
-          createdAt: item.updated_at,
-        });
-      });
-
-      activity.sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      setContentStatus(buildReportContentStatus(calendar));
+      setRecentActivity(
+        buildReportActivityFeed({
+          ideas,
+          calendar,
+          latestApprovals: latestApprovalEntries,
+          formatTimestamp: formatDate,
+        })
       );
-
-      setRecentActivity(activity.slice(0, 10));
     } catch (error) {
       console.error('[ReportsModule] Error loading report:', error);
       setErrorMessage('Não foi possível carregar os dados do relatório.');
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id, activeProfile?.id]);
+  }, [activeProfile?.id]);
 
   React.useEffect(() => {
     void loadReport();
@@ -458,7 +339,7 @@ export const ReportsModule = () => {
         addSectionTitle('Insights Executivos');
 
         addWrappedText(
-          `A operação de conteúdo para ${reportConfig.clientName} está ativa com um pipeline saudável. Temos ${stats[0].value} ideias no backlog e ${stats[1].value} roteiros em andamento.`,
+          `A operação de conteúdo para ${reportConfig.clientName} está ativa com um pipeline saudável. Temos ${stats[0].value} ideias no backlog e ${stats[1].value} posts agendados no calendário.`,
           margin,
           contentWidth,
           6,
@@ -466,7 +347,7 @@ export const ReportsModule = () => {
         );
         y += 3;
         addWrappedText(
-          `Atualmente, há ${contentStatus.inProduction} itens em produção e ${contentStatus.pendingReview} aguardando revisão. Com ${stats[2].value} posts agendados, o calendário de publicações está bem mantido para o próximo período.`,
+          `Atualmente, há ${contentStatus.inProduction} itens em produção e ${contentStatus.pendingReview} aguardando revisão. O relatório também identifica ${stats[2].value} itens pendentes que ainda precisam de atenção no fluxo de entrega.`,
           margin,
           contentWidth,
           6,
@@ -474,7 +355,7 @@ export const ReportsModule = () => {
         );
         y += 3;
         addWrappedText(
-          'Para manter o ritmo, recomendamos focar em mover os itens atualmente em revisão para o status de publicado e converter mais ideias em roteiros acionáveis.',
+          'Para manter o ritmo, recomendamos focar em mover os itens atualmente em revisão para o status de publicado e transformar ideias priorizadas em entregas planejadas.',
           margin,
           contentWidth,
           6,
@@ -812,15 +693,16 @@ export const ReportsModule = () => {
                 <p>
                   A operação de conteúdo para <strong>{reportConfig.clientName}</strong> segue com{' '}
                   <strong>{stats[0].value} ideias</strong> no backlog e{' '}
-                  <strong>{stats[1].value} roteiros</strong> em andamento.
+                  <strong>{stats[1].value} posts agendados</strong> no calendário.
                 </p>
                 <p>
                   Hoje existem <strong>{contentStatus.inProduction} itens em produção</strong> e{' '}
-                  <strong>{contentStatus.pendingReview} aguardando revisão</strong>.
+                  <strong>{contentStatus.pendingReview} aguardando revisão</strong>, com{' '}
+                  <strong>{stats[2].value} pendências</strong> acompanhadas pelo relatório.
                 </p>
                 <p>
-                  O foco do próximo ciclo pode ser acelerar os itens em revisão e transformar mais
-                  ideias em entregas publicáveis.
+                  O foco do próximo ciclo pode ser acelerar os itens em revisão e transformar
+                  ideias priorizadas em entregas publicáveis.
                 </p>
               </div>
             </section>
@@ -1066,7 +948,7 @@ export const ReportsModule = () => {
                   KPIs Gerais
                 </h2>
 
-                <div className="grid grid-cols-4 gap-6">
+                <div className={cn('grid gap-6', stats.length === 3 ? 'grid-cols-3' : 'grid-cols-4')}>
                   {stats.map((stat) => (
                     <div
                       key={stat.label}
@@ -1150,21 +1032,22 @@ export const ReportsModule = () => {
                           A operação de conteúdo para{' '}
                           <strong>{reportConfig.clientName}</strong> está ativa com um
                           pipeline saudável. Temos <strong>{stats[0].value} ideias</strong> no
-                          backlog e <strong>{stats[1].value} roteiros</strong> em andamento.
+                          backlog e <strong>{stats[1].value} posts agendados</strong> no
+                          calendário.
                         </p>
 
                         <p className="mt-4 text-lg leading-relaxed text-gray-700">
                           Atualmente, há{' '}
                           <strong>{contentStatus.inProduction} itens em produção</strong> e{' '}
-                          <strong>{contentStatus.pendingReview} aguardando revisão</strong>. Com{' '}
-                          <strong>{stats[2].value} posts agendados</strong>, o calendário de
-                          publicações está bem mantido para o próximo período.
+                          <strong>{contentStatus.pendingReview} aguardando revisão</strong>. O
+                          relatório também aponta <strong>{stats[2].value} pendências</strong> que
+                          ainda precisam de atenção.
                         </p>
 
                         <p className="mt-4 text-lg leading-relaxed text-gray-700">
                           Para manter o ritmo, recomendamos focar em mover os itens
-                          atualmente em revisão para o status de publicado e converter mais
-                          ideias em roteiros acionáveis.
+                          atualmente em revisão para o status de publicado e transformar
+                          ideias priorizadas em entregas publicáveis.
                         </p>
                       </div>
                     </div>

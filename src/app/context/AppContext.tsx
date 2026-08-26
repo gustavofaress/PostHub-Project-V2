@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { WorkspaceModule } from '../../shared/constants/navigation';
+import { normalizeWorkspaceModule, resolveWorkspaceRoute } from '../../shared/utils/workspaceRouting';
 
 interface AppContextType {
   activeModule: WorkspaceModule;
@@ -12,31 +13,30 @@ const AppContext = React.createContext<AppContextType | undefined>(undefined);
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
-
-  // Derive active module from URL
-  const pathParts = location.pathname.split('/');
-  const currentPathModule = pathParts[2] as WorkspaceModule | undefined;
-  const currentModule = currentPathModule === 'scripts' ? 'ideas' : currentPathModule || 'dashboard';
-
-  const [activeModule, setLocalActiveModule] = React.useState<WorkspaceModule>(currentModule);
+  const routeState = resolveWorkspaceRoute(location.pathname);
+  const [activeModule, setLocalActiveModule] = React.useState<WorkspaceModule>(
+    routeState.activeModule
+  );
 
   // Keep state in sync with URL
   React.useEffect(() => {
-    if (location.pathname === '/workspace' || location.pathname === '/workspace/') {
-      navigate('/workspace/dashboard', { replace: true });
-    } else if (location.pathname.startsWith('/workspace/scripts')) {
-      setLocalActiveModule('ideas');
-      navigate('/workspace/ideas', { replace: true });
-    } else if (pathParts[1] === 'workspace' && pathParts[2]) {
-      setLocalActiveModule(pathParts[2] as WorkspaceModule);
+    const nextRouteState = resolveWorkspaceRoute(location.pathname);
+
+    setLocalActiveModule(nextRouteState.activeModule);
+
+    if (nextRouteState.redirectTo) {
+      navigate(nextRouteState.redirectTo, { replace: true });
     }
   }, [location.pathname, navigate]);
 
   const setActiveModule = (module: WorkspaceModule) => {
-    setLocalActiveModule(module);
+    const normalizedModule = normalizeWorkspaceModule(module);
+
+    setLocalActiveModule(normalizedModule);
+
     // Only navigate if the current path doesn't already start with the module path
-    if (!location.pathname.startsWith(`/workspace/${module}`)) {
-      navigate(`/workspace/${module}`);
+    if (!location.pathname.startsWith(`/workspace/${normalizedModule}`)) {
+      navigate(`/workspace/${normalizedModule}`);
     }
   };
 

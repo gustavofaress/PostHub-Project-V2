@@ -4,10 +4,17 @@ import { supabase } from '../../shared/utils/supabase';
 import { onboardingService } from '../../services/onboarding.service';
 import { userService } from '../../services/user.service';
 import { trialAccessService } from '../../services/trial-access.service';
-import { normalizePlan } from '../../shared/constants/plans';
 import { memberAuthStorage } from '../../modules/settings/memberAuth.storage';
 import { buildAppUrl } from '../../shared/utils/appUrl';
 import { normalizeInternalRedirectPath } from '../../shared/utils/authPaths';
+import {
+  resolveLegacyUserAccessStatus,
+  type UserAccessStatus,
+} from '../../shared/utils/legacyUserAccess';
+import {
+  canAccessRequestedProductAfterLogin,
+  resolvePostAuthDestination,
+} from '../../shared/utils/protectedRouteAccess';
 import {
   accountSettingsService,
   normalizeNotificationPreferences,
@@ -25,15 +32,6 @@ interface UserOnboardingState {
   guided_steps_completed?: string[];
   guided_flow_completed_at?: string | null;
 }
-
-type UserAccessStatus =
-  | 'trial_active'
-  | 'trial_expired'
-  | 'paid'
-  | 'pro'
-  | 'blocked'
-  | 'missing'
-  | 'unknown';
 
 interface User {
   id: string;
@@ -82,11 +80,6 @@ interface AuthContextType {
 }
 
 const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
-
-const isTrialStillActive = (trialExpiresAt?: string | null) => {
-  if (!trialExpiresAt) return false;
-  return new Date(trialExpiresAt).getTime() > Date.now();
-};
 
 const getLocalIsoDate = (value = new Date()) => {
   const year = value.getFullYear();
@@ -183,13 +176,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         notificationPreferences: normalizeNotificationPreferences(
           mergedUser.notificationPreferences
         ),
-        currentPlan: mergedUser.currentPlan ?? 'start_7',
+        currentPlan: mergedUser.currentPlan ?? 'free',
         isAdmin: !!mergedUser.isAdmin,
         isAffiliatePartner: !!mergedUser.isAffiliatePartner,
         isWorkspaceMember: !!mergedUser.isWorkspaceMember,
         isMemberOnlyAccount: !!mergedUser.isMemberOnlyAccount,
         trialExpiresAt: mergedUser.trialExpiresAt ?? null,
-        accessStatus: mergedUser.accessStatus ?? 'trial_active',
+        accessStatus: mergedUser.accessStatus ?? 'free',
         onboarding: mapOnboardingState(onboarding),
       };
 
@@ -226,31 +219,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       currentPlan?: string | null;
       isAdmin?: boolean;
       trialExpiresAt?: string | null;
-    }): UserAccessStatus => {
-      const { currentPlan, isAdmin, trialExpiresAt } = params;
-
-      if (isAdmin) return 'pro';
-
-      const normalizedPlan = (currentPlan || '').toLowerCase().trim();
-
-      if (!normalizedPlan) return 'missing';
-      if (normalizedPlan === 'pro') return 'pro';
-      if (normalizePlan(normalizedPlan)) return 'paid';
-
-      if (
-        normalizedPlan === 'start_7' ||
-        normalizedPlan === 'teste' ||
-        normalizedPlan === 'trial'
-      ) {
-        return isTrialStillActive(trialExpiresAt) ? 'trial_active' : 'trial_expired';
-      }
-
-      if (normalizedPlan === 'blocked' || normalizedPlan === 'bloqueado') {
-        return 'blocked';
-      }
-
-      return 'unknown';
-    },
+    }): UserAccessStatus => resolveLegacyUserAccessStatus(params),
     []
   );
 
@@ -262,8 +231,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const onboarding = await onboardingService.getByUserId(sessionUser.id);
         return {
           ...baseUser,
-          currentPlan: 'start_7',
-          accessStatus: 'trial_active',
+          currentPlan: 'free',
+          accessStatus: 'free',
           onboarding: mapOnboardingState(onboarding),
         };
       }
@@ -406,13 +375,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [getAccessStatus, mapOnboardingState, mapSessionUser]
   );
 
-  const getPostLoginRoute = React.useCallback((appUser: User) => {
-    if (appUser.isAdmin) return '/workspace/admin';
-    if (appUser.accessStatus === 'pro') return '/workspace/dashboard';
-    if (appUser.accessStatus === 'paid') return '/workspace/dashboard';
-    if (appUser.accessStatus === 'trial_active') return '/workspace/onboarding';
-    return '/login';
-  }, []);
+  const getPostLoginRoute = React.useCallback(
+    (appUser: User, redirectTo?: string | null) =>
+      resolvePostAuthDestination({
+        redirectTo,
+        isAdmin: !!appUser.isAdmin,
+      }),
+    []
+  );
 
   const refreshUser = React.useCallback(async () => {
     if (!supabase) {
@@ -580,17 +550,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         website: null,
         avatarUrl: null,
         notificationPreferences: normalizeNotificationPreferences(),
-        currentPlan: 'start_7',
+        currentPlan: 'free',
         isAdmin: false,
         isAffiliatePartner: false,
         isWorkspaceMember: false,
         isMemberOnlyAccount: false,
         trialExpiresAt: null,
-        accessStatus: 'trial_active',
+        accessStatus: 'free',
         onboarding: null,
       };
       await syncMockUser(mockUser);
-      navigate(safeRedirectTo ?? '/workspace/onboarding');
+      navigate(getPostLoginRoute(mockUser, safeRedirectTo));
       return;
     }
 
@@ -607,7 +577,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { error: otpError } = await supabase.auth.signInWithOtp({
           email,
           options: {
-            emailRedirectTo: buildAppUrl(safeRedirectTo ?? '/workspace/dashboard'),
+            emailRedirectTo: buildAppUrl(
+              resolvePostAuthDestination({ redirectTo: safeRedirectTo })
+            ),
           },
         });
         authError = otpError;
@@ -641,14 +613,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(appUser);
 
       if (
-        appUser.accessStatus === 'trial_expired' ||
-        appUser.accessStatus === 'blocked' ||
-        appUser.accessStatus === 'missing'
+        safeRedirectTo &&
+        !canAccessRequestedProductAfterLogin({
+          redirectTo: safeRedirectTo,
+          accessStatus: appUser.accessStatus,
+        })
       ) {
-        throw new Error('Seu teste grátis expirou ou sua conta está bloqueada.');
+        throw new Error('Seu acesso atual não libera este produto.');
       }
 
-      navigate(safeRedirectTo ?? getPostLoginRoute(appUser));
+      navigate(getPostLoginRoute(appUser, safeRedirectTo));
     } catch (error: any) {
       console.error('Login error:', error);
       console.error('Login error message:', error?.message);
@@ -691,17 +665,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         website: null,
         avatarUrl: null,
         notificationPreferences: normalizeNotificationPreferences(),
-        currentPlan: 'start_7',
+        currentPlan: 'free',
         isAdmin: false,
         isAffiliatePartner: false,
         isWorkspaceMember: false,
         isMemberOnlyAccount: false,
         trialExpiresAt: null,
-        accessStatus: 'trial_active',
+        accessStatus: 'free',
         onboarding: null,
       };
       await syncMockUser(mockUser);
-      navigate(safeRedirectTo ?? '/workspace/onboarding');
+      navigate(getPostLoginRoute(mockUser, safeRedirectTo));
       return {
         requiresEmailConfirmation: false,
         email: sanitizedEmail,
@@ -725,7 +699,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               full_name: sanitizedName,
               initial_profile_name: sanitizedProfileName,
             },
-            emailRedirectTo: buildAppUrl(safeRedirectTo ?? '/workspace/onboarding'),
+            emailRedirectTo: buildAppUrl(
+              resolvePostAuthDestination({ redirectTo: safeRedirectTo })
+            ),
           },
         });
         authError = signUpError;
@@ -739,7 +715,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               full_name: sanitizedName,
               initial_profile_name: sanitizedProfileName,
             },
-            emailRedirectTo: buildAppUrl(safeRedirectTo ?? '/workspace/onboarding'),
+            emailRedirectTo: buildAppUrl(
+              resolvePostAuthDestination({ redirectTo: safeRedirectTo })
+            ),
           },
         });
         authError = otpError;
@@ -782,15 +760,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setUser(appUser);
 
-      if (
-        appUser.accessStatus === 'trial_expired' ||
-        appUser.accessStatus === 'blocked' ||
-        appUser.accessStatus === 'missing'
-      ) {
-        throw new Error('Sua conta foi criada, mas o acesso não foi liberado corretamente.');
-      }
-
-      navigate(safeRedirectTo ?? '/workspace/onboarding');
+      navigate(getPostLoginRoute(appUser, safeRedirectTo));
       return {
         requiresEmailConfirmation: false,
         email: appUser.email || sanitizedEmail,

@@ -21,7 +21,6 @@ import { Tabs } from '../../shared/components/Tabs';
 import { useProfile } from '../../app/context/ProfileContext';
 import { useAuth } from '../../app/context/AuthContext';
 import { supabase } from '../../shared/utils/supabase';
-import { useTrialGuidedFlow } from '../onboarding/hooks/useTrialGuidedFlow';
 import { useWorkspaceMembers } from '../../hooks/useWorkspaceMembers';
 import { useIsMobile } from '../mobile/hooks/useIsMobile';
 import { MemberAssignmentField } from '../../shared/components/MemberAssignmentField';
@@ -110,7 +109,6 @@ export const KanbanBoard = () => {
   const { activeProfile } = useProfile();
   const { user } = useAuth();
   const { activeMembers } = useWorkspaceMembers();
-  const guidedFlow = useTrialGuidedFlow();
 
   const [columns, setColumns] = React.useState<KanbanColumn[]>([]);
   const [cards, setCards] = React.useState<KanbanCard[]>([]);
@@ -132,26 +130,6 @@ export const KanbanBoard = () => {
   const [editingColumnId, setEditingColumnId] = React.useState<string | null>(null);
   const [editingColumnName, setEditingColumnName] = React.useState('');
   const [isSavingColumn, setIsSavingColumn] = React.useState(false);
-
-  const tourMovableCardId = React.useMemo(() => {
-    if (guidedFlow.currentTourStepId !== 'kanban-move' || columns.length < 2) {
-      return null;
-    }
-
-    const firstColumnId = columns[0]?.id;
-    const cardInFirstColumn = cards.find((card) => card.columnId === firstColumnId);
-
-    if (cardInFirstColumn) {
-      return cardInFirstColumn.id;
-    }
-
-    return (
-      cards.find((card) => {
-        const columnIndex = columns.findIndex((column) => column.id === card.columnId);
-        return columnIndex >= 0 && columnIndex < columns.length - 1;
-      })?.id ?? null
-    );
-  }, [cards, columns, guidedFlow.currentTourStepId]);
 
   const loadBoard = React.useCallback(async () => {
     if (!supabase || !user?.id || !activeProfile?.id) {
@@ -391,10 +369,6 @@ export const KanbanBoard = () => {
       setCards((prev) =>
         prev.map((card) => (card.id === taskId ? updatedCard : card))
       );
-
-      if (guidedFlow.currentTourStepId === 'kanban-move') {
-        await guidedFlow.advanceAfterRequiredAction();
-      }
     } catch (error: any) {
       console.error('[KanbanBoard] Error moving task:', error);
       setCards(previousCards);
@@ -639,10 +613,6 @@ export const KanbanBoard = () => {
       setCards((prevCards) =>
         prevCards.map((card) => (card.id === cardId ? updatedCard : card))
       );
-
-      if (guidedFlow.currentTourStepId === 'kanban-move') {
-        await guidedFlow.advanceAfterRequiredAction();
-      }
     } catch (error: any) {
       console.error('[KanbanBoard] Error dropping task:', error);
       setCards(previousCards);
@@ -798,7 +768,6 @@ export const KanbanBoard = () => {
                       padding="sm"
                       className="group hover:border-brand transition-all cursor-grab active:cursor-grabbing"
                       draggable
-                      data-tour-id={task.id === tourMovableCardId ? 'kanban-tour-card' : undefined}
                       onDragStart={(e: React.DragEvent) => handleDragStart(e, task.id)}
                     >
                       <div className="flex items-start justify-between mb-2">

@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import { useProfile } from '../../app/context/ProfileContext';
 import { useSocialConnections } from '../../hooks/useSocialConnections';
+import { useWorkspacePermissions } from '../../hooks/useWorkspacePermissions';
+import { useActiveProfileCommercialAccess } from '../../hooks/useActiveProfileCommercialAccess';
 import { Card, CardDescription, CardTitle } from '../../shared/components/Card';
 import { Button } from '../../shared/components/Button';
 import { Badge } from '../../shared/components/Badge';
@@ -25,6 +27,8 @@ const WINDSOR_POLL_TIMEOUT_MS = 2 * 60 * 1000;
 
 export const Integrations = () => {
   const { activeProfile } = useProfile();
+  const { canAccess, isLoadingPermissions } = useWorkspacePermissions();
+  const commercialAccess = useActiveProfileCommercialAccess();
   const {
     connections,
     isLoadingConnections,
@@ -81,6 +85,42 @@ export const Integrations = () => {
     if (currentAttemptId) return 'authorizing';
     return 'idle';
   }, [currentAttemptId, instagramConnection, pendingAccounts.length]);
+  const socialAnalyticsFeatureAccess = commercialAccess.resolveFeatureAccess('socialAnalytics');
+  const hasPerformancePermission =
+    activeProfile?.role === 'owner' ? true : !isLoadingPermissions && canAccess('performance');
+  const canStartSocialAnalyticsActions =
+    socialAnalyticsFeatureAccess.enabled && hasPerformancePermission;
+  const canDisconnectSocialAnalytics = hasPerformancePermission;
+  const socialAnalyticsGuardMessage = React.useMemo(() => {
+    if (socialAnalyticsFeatureAccess.status === 'loading') {
+      return 'Estamos verificando o acesso comercial deste perfil para liberar analytics social.';
+    }
+
+    if (isLoadingPermissions && activeProfile?.role !== 'owner') {
+      return 'Estamos verificando as permissões deste workspace para liberar analytics social.';
+    }
+
+    if (socialAnalyticsFeatureAccess.status === 'error') {
+      return 'Não foi possível verificar o acesso comercial deste perfil agora. Tente novamente.';
+    }
+
+    if (!hasPerformancePermission) {
+      return 'Seu papel atual não libera métricas e integrações de performance neste workspace.';
+    }
+
+    if (!socialAnalyticsFeatureAccess.enabled) {
+      return 'As integrações de analytics social ficam disponíveis apenas no PRO do perfil ativo.';
+    }
+
+    return null;
+  }, [
+    activeProfile?.role,
+    hasPerformancePermission,
+    isLoadingPermissions,
+    socialAnalyticsFeatureAccess.enabled,
+    socialAnalyticsFeatureAccess.status,
+  ]);
+  const showSocialAnalyticsNotice = !!socialAnalyticsGuardMessage;
 
   const clearAttemptState = React.useCallback(() => {
     setCurrentAttemptId(null);
@@ -95,6 +135,14 @@ export const Integrations = () => {
   const handleConnectInstagram = React.useCallback(async () => {
     if (!activeProfile?.id) {
       setErrorMessage('Selecione um perfil antes de conectar o Instagram.');
+      return;
+    }
+
+    if (!canStartSocialAnalyticsActions) {
+      setErrorMessage(
+        socialAnalyticsGuardMessage ||
+          'As integrações de analytics social não estão disponíveis para este perfil agora.'
+      );
       return;
     }
 
@@ -122,9 +170,19 @@ export const Integrations = () => {
     } finally {
       setIsCreatingConnection(false);
     }
-  }, [activeProfile?.id]);
+  }, [activeProfile?.id, canStartSocialAnalyticsActions, socialAnalyticsGuardMessage]);
 
   const handleCheckConnection = React.useCallback(async (mode: 'manual' | 'poll' = 'manual') => {
+    if (!canStartSocialAnalyticsActions) {
+      if (mode === 'manual') {
+        setErrorMessage(
+          socialAnalyticsGuardMessage ||
+            'As integrações de analytics social não estão disponíveis para este perfil agora.'
+        );
+      }
+      return null;
+    }
+
     if (!currentAttemptId) {
       if (mode === 'manual') {
         setErrorMessage('Gere um novo link para continuar a conexão.');
@@ -181,10 +239,24 @@ export const Integrations = () => {
     } finally {
       setIsCheckingConnection(false);
     }
-  }, [clearAttemptState, currentAttemptId, pendingAccounts.length, reloadConnections, selectedExternalAccountId]);
+  }, [
+    canStartSocialAnalyticsActions,
+    clearAttemptState,
+    currentAttemptId,
+    pendingAccounts.length,
+    reloadConnections,
+    selectedExternalAccountId,
+    socialAnalyticsGuardMessage,
+  ]);
 
   React.useEffect(() => {
-    if (!currentAttemptId || pendingAccounts.length > 0 || instagramConnection || hasAutoPollingTimedOut) {
+    if (
+      !canStartSocialAnalyticsActions ||
+      !currentAttemptId ||
+      pendingAccounts.length > 0 ||
+      instagramConnection ||
+      hasAutoPollingTimedOut
+    ) {
       return;
     }
 
@@ -218,6 +290,7 @@ export const Integrations = () => {
 
     return () => window.clearTimeout(timeoutId);
   }, [
+    canStartSocialAnalyticsActions,
     currentAttemptId,
     pendingAccounts.length,
     instagramConnection,
@@ -229,6 +302,11 @@ export const Integrations = () => {
 
   const handleDisconnectInstagram = React.useCallback(async () => {
     if (!instagramConnection) {
+      return;
+    }
+
+    if (!canDisconnectSocialAnalytics) {
+      setErrorMessage('Seu papel atual não pode desconectar integrações deste workspace.');
       return;
     }
 
@@ -246,11 +324,19 @@ export const Integrations = () => {
     } finally {
       setIsDisconnectingConnection(false);
     }
-  }, [instagramConnection, reloadConnections]);
+  }, [canDisconnectSocialAnalytics, instagramConnection, reloadConnections]);
 
   const handleSyncInstagramMetrics = React.useCallback(async () => {
     if (!activeProfile?.id || !instagramConnection) {
       setErrorMessage('Selecione um perfil com Instagram conectado antes de sincronizar.');
+      return;
+    }
+
+    if (!canStartSocialAnalyticsActions) {
+      setErrorMessage(
+        socialAnalyticsGuardMessage ||
+          'As métricas sociais não estão disponíveis para este perfil agora.'
+      );
       return;
     }
 
@@ -292,7 +378,13 @@ export const Integrations = () => {
     } finally {
       setIsSyncingConnection(false);
     }
-  }, [activeProfile?.id, instagramConnection, reloadConnections]);
+  }, [
+    activeProfile?.id,
+    canStartSocialAnalyticsActions,
+    instagramConnection,
+    reloadConnections,
+    socialAnalyticsGuardMessage,
+  ]);
 
   return (
     <div className="space-y-8">
@@ -349,6 +441,36 @@ export const Integrations = () => {
 
                 {platform.id === 'instagram' ? (
                   <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+                    {showSocialAnalyticsNotice ? (
+                      <Card
+                        className={
+                          socialAnalyticsFeatureAccess.status === 'error'
+                            ? 'mb-4 border-red-200 bg-red-50 p-4 text-red-700'
+                            : socialAnalyticsFeatureAccess.status === 'loading'
+                            ? 'mb-4 border-slate-200 bg-white p-4 text-slate-600'
+                            : isLoadingPermissions && activeProfile?.role !== 'owner'
+                            ? 'mb-4 border-slate-200 bg-white p-4 text-slate-600'
+                            : !hasPerformancePermission
+                            ? 'mb-4 border-amber-200 bg-amber-50 p-4 text-amber-700'
+                            : 'mb-4 border-brand/20 bg-brand/5 p-4 text-brand'
+                        }
+                      >
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <p className="text-sm font-medium">{socialAnalyticsGuardMessage}</p>
+                          {socialAnalyticsFeatureAccess.status === 'error' ? (
+                            <Button
+                              variant="secondary"
+                              className="gap-2"
+                              onClick={() => void commercialAccess.refetch()}
+                            >
+                              <RefreshCcw className="h-4 w-4" />
+                              Tentar novamente
+                            </Button>
+                          ) : null}
+                        </div>
+                      </Card>
+                    ) : null}
+
                     {instagramUiState === 'connected' && instagramConnection ? (
                       <div className="space-y-4">
                         <div className="flex items-center gap-2 text-green-700">
@@ -378,7 +500,11 @@ export const Integrations = () => {
                             variant="outline"
                             onClick={() => void handleSyncInstagramMetrics()}
                             isLoading={isSyncingConnection}
-                            disabled={isSyncingConnection || isDisconnectingConnection}
+                            disabled={
+                              !canStartSocialAnalyticsActions ||
+                              isSyncingConnection ||
+                              isDisconnectingConnection
+                            }
                             className="gap-2"
                           >
                             <RefreshCcw className="h-4 w-4" />
@@ -388,6 +514,7 @@ export const Integrations = () => {
                             variant="ghost"
                             onClick={() => void handleDisconnectInstagram()}
                             isLoading={isDisconnectingConnection}
+                            disabled={!canDisconnectSocialAnalytics || isSyncingConnection}
                           >
                             Desconectar
                           </Button>
@@ -432,7 +559,7 @@ export const Integrations = () => {
                           <Button
                             onClick={() => void handleCheckConnection()}
                             isLoading={isCheckingConnection}
-                            disabled={!selectedExternalAccountId}
+                            disabled={!selectedExternalAccountId || !canStartSocialAnalyticsActions}
                           >
                             Conectar esta conta
                           </Button>
@@ -440,6 +567,7 @@ export const Integrations = () => {
                             variant="outline"
                             onClick={() => void handleConnectInstagram()}
                             isLoading={isCreatingConnection}
+                            disabled={!canStartSocialAnalyticsActions || isCheckingConnection}
                           >
                             Gerar novo link
                           </Button>
@@ -474,6 +602,7 @@ export const Integrations = () => {
                           <Button
                             onClick={() => void handleCheckConnection()}
                             isLoading={isCheckingConnection}
+                            disabled={!canStartSocialAnalyticsActions}
                           >
                             Verificar conexão
                           </Button>
@@ -481,6 +610,7 @@ export const Integrations = () => {
                             variant="outline"
                             onClick={() => void handleConnectInstagram()}
                             isLoading={isCreatingConnection}
+                            disabled={!canStartSocialAnalyticsActions || isCheckingConnection}
                           >
                             Gerar novo link
                           </Button>
@@ -498,6 +628,7 @@ export const Integrations = () => {
                         <Button
                           onClick={() => void handleConnectInstagram()}
                           isLoading={isCreatingConnection}
+                          disabled={!canStartSocialAnalyticsActions}
                           className="gap-2"
                         >
                           <ExternalLink className="h-4 w-4" />

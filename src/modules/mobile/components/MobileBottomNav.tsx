@@ -6,6 +6,10 @@ import { WorkspaceModule } from '../../../shared/constants/navigation';
 import { useApp } from '../../../app/context/AppContext';
 import { useAuth } from '../../../app/context/AuthContext';
 import { hasAccess } from '../../../shared/constants/plans';
+import { useWorkspacePermissions } from '../../../hooks/useWorkspacePermissions';
+import { WORKSPACE_MODULE_PERMISSION_MAP } from '../../../shared/constants/workspaceAccess';
+import { useActiveProfileCommercialAccess } from '../../../hooks/useActiveProfileCommercialAccess';
+import { getWorkspaceModuleCommercialFeature } from '../../../shared/utils/activeProfileCommercialAccess.ts';
 
 interface MobileBottomNavProps {
   onOpenMore: () => void;
@@ -29,6 +33,8 @@ export const MobileBottomNav = ({ onOpenMore }: MobileBottomNavProps) => {
   const navigate = useNavigate();
   const { setActiveModule } = useApp();
   const { user } = useAuth();
+  const { canAccess, canManageMembers } = useWorkspacePermissions();
+  const commercialAccess = useActiveProfileCommercialAccess();
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-transparent pb-[calc(0.65rem+env(safe-area-inset-bottom))] pt-3 md:hidden">
@@ -36,8 +42,24 @@ export const MobileBottomNav = ({ onOpenMore }: MobileBottomNavProps) => {
         <div className="mobile-surface grid grid-cols-5 gap-1 rounded-[28px] px-2 py-2">
           {ITEMS.map((item) => {
             const isActive = item.path ? location.pathname.startsWith(item.path) : false;
+            const commercialFeature =
+              item.id !== 'more' ? getWorkspaceModuleCommercialFeature(item.id) : null;
+            const commercialFeatureAccess = commercialFeature
+              ? commercialAccess.resolveFeatureAccess(commercialFeature)
+              : null;
+            const workspacePermissionDenied =
+              item.id !== 'more' &&
+              !!user?.isWorkspaceMember &&
+              (item.id === 'settings'
+                ? !canManageMembers
+                : WORKSPACE_MODULE_PERMISSION_MAP[item.id]
+                ? !canAccess(WORKSPACE_MODULE_PERMISSION_MAP[item.id]!)
+                : false);
             const isLocked =
-              item.id !== 'more' && !hasAccess(user?.currentPlan, item.id, user?.isAdmin);
+              item.id !== 'more' &&
+              (commercialFeatureAccess
+                ? !commercialFeatureAccess.enabled || workspacePermissionDenied
+                : !hasAccess(user?.currentPlan, item.id, user?.isAdmin) || workspacePermissionDenied);
 
             return (
               <button

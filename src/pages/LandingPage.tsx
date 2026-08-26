@@ -19,9 +19,8 @@ import {
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Button } from '../shared/components/Button';
-import { buildPlanPaymentLink, type PlanId } from '../shared/constants/plans';
-import { trackMetaEvent } from '../services/meta-conversions.service';
 import { affiliateAttributionService } from '../services/affiliate-attribution.service';
+import { buildAuthPath } from '../shared/utils/authPaths';
 
 type LandingModule = {
   id: string;
@@ -69,7 +68,7 @@ const heroSignals: Array<{
 const heroMetrics = [
   { value: '5 modulos', label: 'integrados em um fluxo unico' },
   { value: '4 etapas', label: 'para sair do caos e operar com clareza' },
-  { value: '7 dias', label: 'de teste gratis para explorar a plataforma' },
+  { value: 'R$ 0', label: 'para começar a organizar sua operação' },
 ];
 
 const workflowPills = ['Ideias', 'Calendario', 'Kanban', 'Aprovacao', 'Membros'];
@@ -173,51 +172,44 @@ const modules: LandingModule[] = [
 ];
 
 const pricingPlans: Array<{
-  id: PlanId;
+  id: 'free' | 'pro';
   name: string;
   price: string;
-  value: number;
+  priceDetail: string;
   description: string;
   benefits: string[];
+  ctaLabel: string;
   highlighted?: boolean;
 }> = [
   {
-    id: 'start',
-    name: 'Start',
-    price: 'R$57',
-    value: 57,
-    description: 'Para organizar o essencial sem depender de planilhas soltas.',
+    id: 'free',
+    name: 'FREE',
+    price: 'R$ 0',
+    priceDetail: 'para sempre',
+    description: 'Para quem quer organizar a produção de conteúdo sem custo.',
     benefits: [
-      'Planeje seus conteudos com mais clareza',
-      'Acompanhe cada entrega do rascunho a publicacao',
-      'Guarde boas ideias antes que elas se percam',
+      'Dashboard, Banco de Ideias e Calendário Editorial',
+      'Kanban Editorial e configurações básicas',
+      '1 perfil incluído',
+      'Owner + até 2 membros adicionais',
     ],
-  },
-  {
-    id: 'growth',
-    name: 'Growth',
-    price: 'R$117',
-    value: 117,
-    description: 'Para transformar rotina em processo e mostrar mais contexto ao cliente.',
-    benefits: [
-      'Use referencias para criar com mais direcao',
-      'Monte relatorios simples para fechar ciclos',
-      'Ganhe mais visibilidade sem aumentar o ruido',
-    ],
+    ctaLabel: 'Começar grátis',
   },
   {
     id: 'pro',
-    name: 'Pro',
-    price: 'R$147,90',
-    value: 147.9,
-    description: 'Para operar como uma equipe profissional, com aprovacao, IA e colaboracao.',
+    name: 'PRO',
+    price: 'R$ 47,90',
+    priceDetail: 'por perfil/mês',
+    description: 'Para transformar a produção de conteúdo em uma operação completa.',
     highlighted: true,
     benefits: [
-      'Envie conteudos para aprovacao com um clique',
-      'Transforme ideias em roteiros prontos para gravar',
-      'Traga sua equipe para o fluxo sem perder controle',
-      'Conecte a operacao para reduzir tarefas manuais',
+      'Tudo do FREE',
+      'Referências, Aprovação e links públicos para clientes',
+      'Performance, métricas, Social Analytics e relatórios',
+      'Membros adicionais ilimitados',
+      'Perfis adicionais por R$ 47,90/mês cada',
     ],
+    ctaLabel: 'Começar com PRO',
   },
 ];
 
@@ -379,6 +371,10 @@ export const LandingPage = () => {
   const affiliateCode = affiliateAttributionService.getSnapshot().affiliateCode;
   const signupPath = affiliateAttributionService.buildPath('/signup', affiliateCode);
   const loginPath = affiliateAttributionService.buildPath('/login', affiliateCode);
+  const proSignupPath = buildAuthPath('/signup', {
+    affiliateCode,
+    redirectTo: '/pricing',
+  });
 
   React.useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -391,20 +387,6 @@ export const LandingPage = () => {
     modules.find((module) => module.id === activeModuleId) ?? modules[0];
 
   const ActiveIcon = activeModule.icon;
-
-  const handleCheckoutClick = (plan: (typeof pricingPlans)[number]) => {
-    trackMetaEvent({
-      eventName: 'InitiateCheckout',
-      customData: {
-        content_category: 'subscription',
-        content_ids: [plan.id],
-        content_name: `${plan.name} plan`,
-        contents: [{ id: plan.id, quantity: 1 }],
-        currency: 'BRL',
-        value: plan.value,
-      },
-    });
-  };
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#030711] text-white selection:bg-[#38B6FF] selection:text-white">
@@ -455,7 +437,7 @@ export const LandingPage = () => {
             </Link>
             <Link to={signupPath}>
               <Button className="rounded-full px-6 text-sm font-semibold shadow-[0_18px_34px_rgba(56,182,255,0.28)]">
-                Testar gratis
+                Começar grátis
               </Button>
             </Link>
           </div>
@@ -502,7 +484,7 @@ export const LandingPage = () => {
                 </Link>
                 <Link to={signupPath} onClick={() => setMobileMenuOpen(false)}>
                   <Button className="mt-2 w-full rounded-2xl text-sm font-semibold">
-                    Testar gratis
+                    Começar grátis
                   </Button>
                 </Link>
               </div>
@@ -554,7 +536,7 @@ export const LandingPage = () => {
                     size="lg"
                     className="flex w-full items-center justify-center gap-2 rounded-full px-8 shadow-[0_20px_40px_rgba(56,182,255,0.3)] sm:w-auto"
                   >
-                    Comecar teste gratis
+                    Começar grátis
                     <ArrowRight className="h-4 w-4" />
                   </Button>
                 </Link>
@@ -570,9 +552,7 @@ export const LandingPage = () => {
                 </a>
               </div>
 
-              <p className="mt-5 text-sm text-white/42">
-                Teste gratis por 7 dias. Depois, continue no plano completo por R$ 147,90/mes.
-              </p>
+              <p className="mt-5 text-sm text-white/42">Comece grátis, sem cartão.</p>
             </motion.div>
           </div>
 
@@ -700,7 +680,7 @@ export const LandingPage = () => {
                     <div className="mt-10 flex flex-col gap-3 sm:flex-row">
                       <Link to={signupPath}>
                         <Button className="w-full rounded-full px-7 text-sm font-semibold sm:w-auto">
-                          Testar o fluxo completo
+                          Começar grátis
                         </Button>
                       </Link>
                       <a href="#preco" className="w-full sm:w-auto">
@@ -791,15 +771,15 @@ export const LandingPage = () => {
                 Planos PostHub
               </div>
               <h2 className="mt-6 text-4xl font-semibold tracking-[-0.03em] text-white md:text-5xl">
-                Escolha o plano para profissionalizar sua operacao de conteudo.
+                Comece grátis. Evolua quando sua operação crescer.
               </h2>
               <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-white/60">
-                Comece com o essencial, avance com mais clareza e desbloqueie no PRO o fluxo
-                completo para aprovar, criar com IA e trabalhar em equipe.
+                O plano é vinculado a cada perfil. Quando a operação pedir mais colaboração,
+                aprovação, referências, performance e relatórios, evolua para o PRO.
               </p>
             </div>
 
-            <div className="mt-14 grid gap-6 lg:grid-cols-3">
+            <div className="mx-auto mt-14 grid max-w-5xl gap-6 lg:grid-cols-2">
               {pricingPlans.map((plan) => (
                 <div
                   key={plan.id}
@@ -811,7 +791,7 @@ export const LandingPage = () => {
                 >
                   {plan.highlighted ? (
                     <div className="absolute right-6 top-6 rounded-full bg-[#38B6FF] px-3 py-1 text-[0.68rem] font-bold uppercase tracking-[0.14em] text-white">
-                      Mais usado
+                      Mais completo
                     </div>
                   ) : null}
 
@@ -823,7 +803,7 @@ export const LandingPage = () => {
                       <span className="text-5xl font-semibold tracking-[-0.04em] text-white">
                         {plan.price}
                       </span>
-                      <span className="pb-2 text-sm text-white/45">/ mes</span>
+                      <span className="pb-2 text-sm text-white/45">{plan.priceDetail}</span>
                     </div>
                     <p className="mt-5 min-h-[88px] text-sm leading-7 text-white/62">
                       {plan.description}
@@ -841,25 +821,24 @@ export const LandingPage = () => {
                     ))}
                   </div>
 
-                  <a
-                    href={buildPlanPaymentLink(plan.id, { affiliateCode })}
-                    rel="noreferrer"
-                    onClick={() => handleCheckoutClick(plan)}
+                  <Link
+                    to={plan.id === 'free' ? signupPath : proSignupPath}
                     className={`inline-flex w-full items-center justify-center gap-2 rounded-full px-5 py-3.5 text-sm font-semibold transition-all ${
                       plan.highlighted
                         ? 'bg-[#38B6FF] text-white shadow-[0_18px_35px_rgba(56,182,255,0.24)] hover:bg-[#2da1e6]'
                         : 'border border-white/10 bg-white/5 text-white hover:bg-white/10'
                     }`}
                   >
-                    Comecar agora
+                    {plan.ctaLabel}
                     <ArrowRight className="h-4 w-4" />
-                  </a>
+                  </Link>
                 </div>
               ))}
             </div>
 
             <p className="mx-auto mt-8 max-w-2xl text-center text-sm leading-6 text-white/42">
-              O modulo de performance esta em preparacao e sera liberado no PRO quando estiver pronto para uso.
+              O PRO inclui um perfil por assinatura. Perfis adicionais podem ser contratados
+              separadamente por R$ 47,90/mês cada.
             </p>
           </div>
         </section>
@@ -900,7 +879,7 @@ export const LandingPage = () => {
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <Link to={signupPath}>
                     <Button className="w-full rounded-full px-7 text-sm font-semibold shadow-[0_18px_35px_rgba(56,182,255,0.24)] sm:w-auto">
-                      Comecar teste gratis
+                      Começar grátis
                     </Button>
                   </Link>
                   <Link to={loginPath}>

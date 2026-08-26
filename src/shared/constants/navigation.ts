@@ -15,7 +15,6 @@ import {
   Share2,
   HelpCircle,
   CreditCard,
-  Rocket,
   TrendingUp,
   ShieldAlert,
 } from 'lucide-react';
@@ -89,6 +88,8 @@ export interface NavGroup {
 }
 
 export const HIDDEN_WORKSPACE_MODULE_IDS: WorkspaceModule[] = [
+  'scripts',
+  'clients',
   'scheduler',
 ];
 
@@ -96,19 +97,6 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Visão Geral',
     items: [
-      {
-        id: 'onboarding',
-        label: 'Guia de Configuração',
-        description: 'Configure seu workspace e conecte seus canais sociais.',
-        icon: Rocket,
-        path: '/workspace/onboarding',
-        subItems: [
-          { label: 'Tutorial de Boas-Vindas', path: '/workspace/onboarding' },
-          { label: 'Conectar Contas', path: '/workspace/onboarding?tab=accounts' },
-          { label: 'Convidar Equipe', path: '/workspace/onboarding?tab=team' },
-          { label: 'Configurar Marca', path: '/workspace/onboarding?tab=brand' },
-        ],
-      },
       {
         id: 'dashboard',
         label: 'Visão Geral do Workspace',
@@ -295,7 +283,7 @@ export const NAV_GROUPS: NavGroup[] = [
         subItems: [
           { label: 'Saldo Atual', path: '/workspace/credits' },
           { label: 'Histórico de Uso', path: '/workspace/credits?tab=history' },
-          { label: 'Fazer Upgrade', path: '/workspace/credits?tab=upgrade' },
+          { label: 'Fazer Upgrade', path: '/pricing' },
         ],
       },
       {

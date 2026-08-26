@@ -1,4 +1,6 @@
 import { corsHeaders } from '../_shared/cors.ts';
+import { assertProfileCommercialFeature } from '../_shared/profile-entitlements.ts';
+import { runSocialCheckConnectionFlow } from '../_shared/social/commercial.ts';
 import {
   listWindsorLinkedAccounts,
   sanitizeLinkedAccount,
@@ -198,6 +200,11 @@ Deno.serve(async (request) => {
     const { user, userClient, adminClient } = await requireAuthenticatedUser(request);
     const attempt = await loadAttempt(adminClient, attemptId);
     await assertProfileAccess(userClient, { profileId: attempt.profile_id });
+    await assertProfileCommercialFeature(adminClient, {
+      profileId: attempt.profile_id,
+      feature: 'socialAnalytics',
+      actorUserId: user.id,
+    });
 
     try {
       const platformConfig = getSocialPlatformConfig(attempt.platform);
@@ -229,8 +236,11 @@ Deno.serve(async (request) => {
       const {
         accounts: linkedAccounts,
         diagnostic: linkedAccountsDiagnostic,
-      } = await listWindsorLinkedAccounts({
-        accessToken: authorizationAccessToken,
+      } = await runSocialCheckConnectionFlow({
+        assertSocialAnalyticsAccess: async () => undefined,
+        listLinkedAccounts: () => listWindsorLinkedAccounts({
+          accessToken: authorizationAccessToken,
+        }),
       });
 
       if (linkedAccounts.length === 0) {
@@ -415,10 +425,12 @@ Deno.serve(async (request) => {
       {
         error:
           error instanceof Error
-            ? error.message
+            ? ((error as Error & { publicMessage?: string }).publicMessage ?? error.message)
             : 'Não foi possível verificar a conexão com a rede social.',
+        code: (error as Error & { code?: string }).code,
+        feature: (error as Error & { feature?: string }).feature,
       },
-      400
+      (error as Error & { status?: number }).status ?? 400
     );
   }
 });

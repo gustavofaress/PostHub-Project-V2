@@ -9,6 +9,7 @@ export const WORKSPACE_MODULE_PERMISSION_MAP: Partial<
   approval: 'approval',
   calendar: 'calendar',
   kanban: 'kanban',
+  performance: 'performance',
   references: 'references',
   scheduler: 'scheduler',
   reports: 'reports',

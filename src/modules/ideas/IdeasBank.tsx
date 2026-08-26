@@ -22,7 +22,6 @@ import { Tabs } from '../../shared/components/Tabs';
 import { useProfile } from '../../app/context/ProfileContext';
 import { useAuth } from '../../app/context/AuthContext';
 import { supabase } from '../../shared/utils/supabase';
-import { useTrialGuidedFlow } from '../onboarding/hooks/useTrialGuidedFlow';
 import { useWorkspaceMembers } from '../../hooks/useWorkspaceMembers';
 import { MemberAssignmentField } from '../../shared/components/MemberAssignmentField';
 import { TaskCommentsPanel } from '../../shared/components/TaskCommentsPanel';
@@ -60,7 +59,6 @@ export const IdeasBank = () => {
   const { activeProfile } = useProfile();
   const { user } = useAuth();
   const { activeMembers } = useWorkspaceMembers();
-  useTrialGuidedFlow();
 
   const [ideas, setIdeas] = React.useState<Idea[]>([]);
   const [isLoadingIdeas, setIsLoadingIdeas] = React.useState(false);

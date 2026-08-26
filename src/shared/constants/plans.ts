@@ -1,7 +1,13 @@
-import type { WorkspaceModule } from './navigation';
-
-export type PlanId = 'start' | 'growth' | 'pro';
-export type PlanFeature = WorkspaceModule | 'team';
+import {
+  getMinimumPlanForFeature,
+  getPlanLabel,
+  hasLegacyPlanAccess,
+  isPaidPlanId,
+  normalizePlan,
+  type PlanFeature,
+  type PaidPlanId,
+  PLAN_FEATURES,
+} from './legacyPlanAccess';
 
 interface StripeCheckoutContext {
   userId?: string | null;
@@ -18,13 +24,13 @@ export const EXTRA_PROFILE_CHECKOUT_DESCRIPTION =
 export const EXTRA_PROFILE_CHECKOUT_EMAIL_HINT =
   'Use o mesmo email da conta no checkout para o credito cair corretamente no seu acesso.';
 
-export const STRIPE_PRICE_IDS: Record<PlanId, string> = {
+export const STRIPE_PRICE_IDS: Record<PaidPlanId, string> = {
   start: 'price_1TJcfiLE0cyETHYjbu7xfPYL',
   growth: 'price_1TJcfsLE0cyETHYjv9JSmfN7',
   pro: 'price_1TD3N0LE0cyETHYj74Y6NFpn',
 };
 
-export const STRIPE_PAYMENT_LINKS: Record<PlanId, string> = {
+export const STRIPE_PAYMENT_LINKS: Record<PaidPlanId, string> = {
   start: 'https://buy.stripe.com/5kQcN6dqjc6P9VZ0OOdMI04',
   growth: 'https://buy.stripe.com/dRmfZifyreeX0lp8hgdMI05',
   pro: 'https://buy.stripe.com/8x200k0DxdaT6JN0OOdMI03',
@@ -79,7 +85,7 @@ const appendCheckoutContext = (baseLink: string, context?: StripeCheckoutContext
   }
 };
 
-export const buildPlanPaymentLink = (planId: PlanId, context?: StripeCheckoutContext) =>
+export const buildPlanPaymentLink = (planId: PaidPlanId, context?: StripeCheckoutContext) =>
   appendCheckoutContext(STRIPE_PAYMENT_LINKS[planId], context);
 
 export const buildExtraProfilePaymentLink = (context?: StripeCheckoutContext) =>
@@ -96,71 +102,7 @@ export const isMetricHubPaymentLinkConfigured = () =>
   !!STRIPE_STANDALONE_PAYMENT_LINKS.metricHub &&
   !STRIPE_STANDALONE_PAYMENT_LINKS.metricHub.includes(METRIC_HUB_PAYMENT_LINK_PLACEHOLDER);
 
-const ALWAYS_OPEN_FEATURES: PlanFeature[] = [
-  'onboarding',
-  'dashboard',
-  'integrations',
-  'performance',
-  'settings',
-  'account',
-  'credits',
-  'support',
-  'admin',
-];
+export type { PaidPlanId, PlanFeature, PlanId } from './legacyPlanAccess';
+export { PLAN_FEATURES, getMinimumPlanForFeature, getPlanLabel, isPaidPlanId, normalizePlan };
 
-export const PLAN_FEATURES: Record<PlanId, PlanFeature[]> = {
-  start: ['calendar', 'kanban', 'ideas', 'clients'],
-  growth: ['calendar', 'kanban', 'ideas', 'clients', 'references', 'reports'],
-  pro: [
-    'calendar',
-    'kanban',
-    'ideas',
-    'clients',
-    'references',
-    'reports',
-    'scripts',
-    'approval',
-    'integrations',
-    'team',
-  ],
-};
-
-export const normalizePlan = (plan?: string | null): PlanId | null => {
-  const normalizedPlan = (plan || '').toLowerCase().trim();
-
-  if (normalizedPlan === 'start' || normalizedPlan === 'growth' || normalizedPlan === 'pro') {
-    return normalizedPlan;
-  }
-
-  return null;
-};
-
-const isTrialPlan = (plan?: string | null) => {
-  const normalizedPlan = (plan || '').toLowerCase().trim();
-  return normalizedPlan === 'start_7' || normalizedPlan === 'teste' || normalizedPlan === 'trial';
-};
-
-export const hasAccess = (
-  plan: string | null | undefined,
-  feature: PlanFeature,
-  isAdmin = false
-) => {
-  if (isAdmin) return true;
-  if (isTrialPlan(plan)) return true;
-  if (ALWAYS_OPEN_FEATURES.includes(feature)) return true;
-
-  const normalizedPlan = normalizePlan(plan);
-  if (!normalizedPlan) return false;
-
-  return PLAN_FEATURES[normalizedPlan].includes(feature);
-};
-
-export const getMinimumPlanForFeature = (feature: PlanFeature): PlanId | null => {
-  if (feature === 'performance') return 'pro';
-
-  if (PLAN_FEATURES.start.includes(feature)) return 'start';
-  if (PLAN_FEATURES.growth.includes(feature)) return 'growth';
-  if (PLAN_FEATURES.pro.includes(feature)) return 'pro';
-
-  return null;
-};
+export const hasAccess = hasLegacyPlanAccess;

@@ -12,19 +12,27 @@ import {
   AlertCircle,
   Activity,
   Lightbulb,
-  FileText,
   CalendarDays,
 } from 'lucide-react';
 import { Card, CardTitle } from '../../shared/components/Card';
 import { Badge } from '../../shared/components/Badge';
 import { Button } from '../../shared/components/Button';
 import { EmptyState } from '../../shared/components/EmptyState';
+import { ProfileBillingReturnNotice } from '../../shared/components/ProfileBillingReturnNotice';
 import { useApp } from '../../app/context/AppContext';
 import { useProfile } from '../../app/context/ProfileContext';
-import { useAuth } from '../../app/context/AuthContext';
 import { supabase } from '../../shared/utils/supabase';
+import { calendarApprovalService } from '../calendar/services/calendarApprovalService';
+import {
+  buildDashboardContentStatus,
+  buildDashboardDesktopActivityFeed,
+  countDashboardPendingItems,
+  type DashboardActivityItem,
+  type DashboardCalendarRow,
+  type DashboardIdeaRow,
+} from './dashboard.helpers';
 
-type WorkspaceModule = 'ideas' | 'calendar' | 'scripts';
+type WorkspaceModule = 'ideas' | 'calendar' | 'approval';
 
 interface StatCard {
   label: string;
@@ -32,42 +40,6 @@ interface StatCard {
   change: string;
   trend: 'up' | 'down';
   icon: React.ComponentType<{ className?: string }>;
-}
-
-interface DashboardActivityItem {
-  id: string;
-  type: string;
-  title: string;
-  time: string;
-  status: 'success' | 'info' | 'warning';
-  createdAt: string;
-}
-
-interface IdeaRow {
-  id: string;
-  title: string;
-  updated_at: string;
-}
-
-interface ScriptDraftRow {
-  id: string;
-  title: string;
-  updated_at: string;
-}
-
-interface EditorialCalendarRow {
-  id: string;
-  title: string;
-  status: string | null;
-  updated_at: string;
-  scheduled_date?: string | null;
-}
-
-interface ApprovalPostRow {
-  id: string;
-  title: string;
-  status: string | null;
-  updated_at: string;
 }
 
 function cn(...inputs: any[]) {
@@ -101,7 +73,6 @@ function formatRelativeDate(dateString: string): string {
 export const Dashboard = () => {
   const { setActiveModule } = useApp();
   const { activeProfile } = useProfile();
-  const { user } = useAuth();
   const navigate = useNavigate();
 
   const [isLoading, setIsLoading] = React.useState(true);
@@ -109,7 +80,6 @@ export const Dashboard = () => {
 
   const [stats, setStats] = React.useState<StatCard[]>([
     { label: 'Ideias', value: '--', change: 'sistema', trend: 'up', icon: Lightbulb },
-    { label: 'Roteiros', value: '--', change: 'sistema', trend: 'up', icon: FileText },
     { label: 'Posts Agendados', value: '--', change: 'sistema', trend: 'up', icon: CalendarDays },
     { label: 'Revisões Pendentes', value: '--', change: 'sistema', trend: 'up', icon: MessageSquare },
   ]);
@@ -127,7 +97,7 @@ export const Dashboard = () => {
   };
 
   const loadDashboard = React.useCallback(async () => {
-    if (!user?.id || !activeProfile?.id) {
+    if (!supabase || !activeProfile?.id) {
       setIsLoading(false);
       return;
     }
@@ -138,57 +108,33 @@ export const Dashboard = () => {
     try {
       const [
         ideasResult,
-        scriptsResult,
         calendarResult,
-        approvalsResult,
+        latestApprovalStatuses,
       ] = await Promise.all([
         supabase
           .from('ideas')
           .select('id,title,updated_at', { count: 'exact' })
-          .eq('user_id', user.id)
-          .eq('profile_id', activeProfile.id)
-          .order('updated_at', { ascending: false }),
-
-        supabase
-          .from('script_drafts')
-          .select('id,title,updated_at', { count: 'exact' })
-          .eq('user_id', user.id)
           .eq('profile_id', activeProfile.id)
           .order('updated_at', { ascending: false }),
 
         supabase
           .from('editorial_calendar')
           .select('id,title,status,updated_at,scheduled_date', { count: 'exact' })
-          .eq('user_id', user.id)
           .eq('profile_id', activeProfile.id)
           .order('updated_at', { ascending: false }),
 
-        supabase
-          .from('approval_posts')
-          .select('id,title,status,updated_at', { count: 'exact' })
-          .eq('user_id', user.id)
-          .eq('profile_id', activeProfile.id)
-          .order('updated_at', { ascending: false }),
+        calendarApprovalService.listLatestApprovalStatuses(activeProfile.id),
       ]);
 
       if (ideasResult.error) throw ideasResult.error;
-      if (scriptsResult.error) throw scriptsResult.error;
       if (calendarResult.error) throw calendarResult.error;
-      if (approvalsResult.error) throw approvalsResult.error;
 
-      const ideas = (ideasResult.data ?? []) as IdeaRow[];
-      const scripts = (scriptsResult.data ?? []) as ScriptDraftRow[];
-      const calendar = (calendarResult.data ?? []) as EditorialCalendarRow[];
-      const approvals = (approvalsResult.data ?? []) as ApprovalPostRow[];
+      const ideas = (ideasResult.data ?? []) as DashboardIdeaRow[];
+      const calendar = (calendarResult.data ?? []) as DashboardCalendarRow[];
+      const latestApprovalEntries = Object.values(latestApprovalStatuses);
 
       const scheduledPostsCount = calendar.filter((item) => item.scheduled_date).length;
-      const pendingReviewsCount =
-        calendar.filter((item) => item.status === 'Review').length +
-        approvals.filter(
-          (item) =>
-            item.status === 'changes_requested' ||
-            item.status === 'pending'
-        ).length;
+      const pendingReviewsCount = countDashboardPendingItems(calendar, latestApprovalEntries);
 
       setStats([
         {
@@ -197,13 +143,6 @@ export const Dashboard = () => {
           change: 'ativas',
           trend: 'up',
           icon: Lightbulb,
-        },
-        {
-          label: 'Roteiros',
-          value: String(scriptsResult.count ?? scripts.length),
-          change: 'salvos',
-          trend: 'up',
-          icon: FileText,
         },
         {
           label: 'Posts Agendados',
@@ -221,83 +160,22 @@ export const Dashboard = () => {
         },
       ]);
 
-      setContentStatus({
-        inProduction: calendar.filter((item) =>
-          ['Draft', 'Planned'].includes(item.status || '')
-        ).length,
-        pendingReview: calendar.filter((item) => item.status === 'Review').length,
-        published: calendar.filter((item) => item.status === 'Published').length,
-      });
-
-      const activity: DashboardActivityItem[] = [];
-
-      ideas.slice(0, 3).forEach((item) => {
-        activity.push({
-          id: `idea-${item.id}`,
-          type: 'ideia',
-          title: `Nova ideia adicionada: "${item.title}"`,
-          time: formatRelativeDate(item.updated_at),
-          status: 'info',
-          createdAt: item.updated_at,
-        });
-      });
-
-      scripts.slice(0, 3).forEach((item) => {
-        activity.push({
-          id: `script-${item.id}`,
-          type: 'roteiro',
-          title: `Roteiro atualizado: "${item.title}"`,
-          time: formatRelativeDate(item.updated_at),
-          status: 'info',
-          createdAt: item.updated_at,
-        });
-      });
-
-      calendar.slice(0, 4).forEach((item) => {
-        activity.push({
-          id: `calendar-${item.id}`,
-          type: 'post',
-          title:
-            item.status === 'Published'
-              ? `${item.title} foi publicado`
-              : `${item.title} atualizado no calendário`,
-          time: formatRelativeDate(item.updated_at),
-          status:
-            item.status === 'Published'
-              ? 'success'
-              : item.status === 'Review'
-              ? 'warning'
-              : 'info',
-          createdAt: item.updated_at,
-        });
-      });
-
-      approvals.slice(0, 3).forEach((item) => {
-        activity.push({
-          id: `approval-${item.id}`,
-          type: 'revisão',
-          title:
-            item.status === 'changes_requested'
-              ? `Alterações solicitadas para "${item.title}"`
-              : `Aprovação atualizada: "${item.title}"`,
-          time: formatRelativeDate(item.updated_at),
-          status: item.status === 'changes_requested' ? 'warning' : 'success',
-          createdAt: item.updated_at,
-        });
-      });
-
-      activity.sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      setContentStatus(buildDashboardContentStatus(calendar));
+      setRecentActivity(
+        buildDashboardDesktopActivityFeed({
+          ideas,
+          calendar,
+          latestApprovals: latestApprovalEntries,
+          formatTimestamp: formatRelativeDate,
+        })
       );
-
-      setRecentActivity(activity.slice(0, 6));
     } catch (error) {
       console.error('[Dashboard] Error loading dashboard:', error);
       setErrorMessage('Não foi possível carregar os dados do dashboard.');
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id, activeProfile?.id]);
+  }, [activeProfile?.id]);
 
   React.useEffect(() => {
     void loadDashboard();
@@ -324,7 +202,9 @@ export const Dashboard = () => {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <ProfileBillingReturnNotice />
+
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
         {stats.map((stat) => (
           <Card key={stat.label} className="flex flex-col justify-between">
             <div className="flex items-start justify-between">
@@ -369,7 +249,7 @@ export const Dashboard = () => {
           ) : recentActivity.length === 0 ? (
             <EmptyState
               title="Nenhuma atividade recente"
-              description="Conforme você criar ideias, roteiros, posts e aprovações, a atividade aparecerá aqui."
+              description="Conforme você criar ideias, posts e aprovações, a atividade aparecerá aqui."
               icon={Activity}
             />
           ) : (
@@ -383,6 +263,8 @@ export const Dashboard = () => {
                         ? 'bg-green-500'
                         : activity.status === 'warning'
                         ? 'bg-yellow-500'
+                        : activity.status === 'error'
+                        ? 'bg-red-500'
                         : 'bg-brand'
                     )}
                   />
@@ -441,15 +323,15 @@ export const Dashboard = () => {
           <Card className="bg-brand text-white border-none">
             <h3 className="text-lg font-bold mb-2">Dica Pro</h3>
             <p className="text-sm text-white/80 mb-4">
-              Mantenha seu fluxo em movimento: transforme ideias em roteiros, roteiros em posts agendados e posts agendados em conteúdo publicado.
+              Mantenha seu fluxo em movimento: organize ideias, ajuste a agenda editorial e destrave revisões pendentes sem perder o contexto do perfil ativo.
             </p>
             <Button
               variant="secondary"
               size="sm"
               className="w-full bg-white text-brand hover:bg-white/90"
-              onClick={() => handleNavigate('scripts')}
+              onClick={() => handleNavigate('calendar')}
             >
-              Testar Agora
+              Abrir Calendário
             </Button>
           </Card>
         </div>

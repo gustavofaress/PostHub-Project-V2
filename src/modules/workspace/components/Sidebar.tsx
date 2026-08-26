@@ -9,15 +9,16 @@ import {
 import { cn } from '../../../shared/utils/cn';
 import { useAuth } from '../../../app/context/AuthContext';
 import { hasAccess } from '../../../shared/constants/plans';
-import { useTrialGuidedFlow } from '../../onboarding/hooks/useTrialGuidedFlow';
 import { useWorkspacePermissions } from '../../../hooks/useWorkspacePermissions';
 import { WORKSPACE_MODULE_PERMISSION_MAP } from '../../../shared/constants/workspaceAccess';
+import { useActiveProfileCommercialAccess } from '../../../hooks/useActiveProfileCommercialAccess';
+import { getWorkspaceModuleCommercialFeature } from '../../../shared/utils/activeProfileCommercialAccess.ts';
 
 export const Sidebar = () => {
   const location = useLocation();
   const { logout, user } = useAuth();
-  const { isActive: isGuidedFlowActive } = useTrialGuidedFlow();
   const { canAccess, canManageMembers } = useWorkspacePermissions();
+  const commercialAccess = useActiveProfileCommercialAccess();
   const currentPathWithSearch = `${location.pathname}${location.search}`;
 
   const [hoveredItem, setHoveredItem] = React.useState<{ item: NavItem; rect: DOMRect } | null>(
@@ -42,10 +43,6 @@ export const Sidebar = () => {
           items = items.filter(() => !!user?.isAdmin);
         }
 
-        if (user?.isMemberOnlyAccount) {
-          items = items.filter((item) => item.id !== 'onboarding');
-        }
-
         items = items.filter((item) => canOpenWorkspaceModule(item.id));
 
         return {
@@ -57,14 +54,12 @@ export const Sidebar = () => {
   }, [canAccess, canManageMembers, user?.isAdmin, user?.isWorkspaceMember]);
 
   const handleMouseEnter = (item: NavItem, e: React.MouseEvent) => {
-    if (isGuidedFlowActive) return;
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     const rect = e.currentTarget.getBoundingClientRect();
     setHoveredItem({ item, rect });
   };
 
   const handleMouseLeave = () => {
-    if (isGuidedFlowActive) return;
     timeoutRef.current = setTimeout(() => {
       setHoveredItem(null);
     }, 150);
@@ -110,6 +105,10 @@ export const Sidebar = () => {
               {group.items.map((item) => {
                 const isActive = location.pathname.startsWith(item.path);
                 const isApproval = item.id === 'approval';
+                const commercialFeature = getWorkspaceModuleCommercialFeature(item.id);
+                const commercialFeatureAccess = commercialFeature
+                  ? commercialAccess.resolveFeatureAccess(commercialFeature)
+                  : null;
                 const workspacePermissionDenied =
                   !!user?.isWorkspaceMember &&
                   (item.id === 'settings'
@@ -118,7 +117,9 @@ export const Sidebar = () => {
                     ? !canAccess(WORKSPACE_MODULE_PERMISSION_MAP[item.id]!)
                     : false);
                 const isLocked =
-                  !hasAccess(user?.currentPlan, item.id, user?.isAdmin) || workspacePermissionDenied;
+                  commercialFeatureAccess
+                    ? !commercialFeatureAccess.enabled || workspacePermissionDenied
+                    : !hasAccess(user?.currentPlan, item.id, user?.isAdmin) || workspacePermissionDenied;
 
                 return (
                   <div key={item.id} className="flex w-full flex-col">
@@ -188,8 +189,7 @@ export const Sidebar = () => {
         </div>
       </aside>
 
-      {!isGuidedFlowActive &&
-        hoveredItem &&
+      {hoveredItem &&
         (() => {
           const isBottomHalf = hoveredItem.rect.top > window.innerHeight / 2;
           const availableHeight = isBottomHalf
@@ -230,11 +230,54 @@ export const Sidebar = () => {
                   {hoveredItem.item.description}
                 </p>
 
-                {!hasAccess(user?.currentPlan, hoveredItem.item.id, user?.isAdmin) ? (
-                  <div className="mb-4 rounded-lg border border-brand/20 bg-brand/5 px-3 py-2 text-xs font-medium text-brand">
-                    Disponível no plano PRO
-                  </div>
-                ) : null}
+                {(() => {
+                  const commercialFeature = getWorkspaceModuleCommercialFeature(hoveredItem.item.id);
+                  const commercialFeatureAccess = commercialFeature
+                    ? commercialAccess.resolveFeatureAccess(commercialFeature)
+                    : null;
+                  const workspacePermissionDenied =
+                    !!user?.isWorkspaceMember &&
+                    (hoveredItem.item.id === 'settings'
+                      ? !canManageMembers
+                      : WORKSPACE_MODULE_PERMISSION_MAP[hoveredItem.item.id]
+                      ? !canAccess(WORKSPACE_MODULE_PERMISSION_MAP[hoveredItem.item.id]!)
+                      : false);
+
+                  if (workspacePermissionDenied) {
+                    return (
+                      <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
+                        Seu papel atual não libera este módulo neste workspace.
+                      </div>
+                    );
+                  }
+
+                  if (commercialFeatureAccess && !commercialFeatureAccess.enabled) {
+                    const message =
+                      commercialFeatureAccess.status === 'loading'
+                        ? 'Verificando o acesso comercial deste perfil.'
+                        : commercialFeatureAccess.status === 'error'
+                        ? 'Não foi possível verificar o acesso comercial deste perfil.'
+                        : commercialFeatureAccess.status === 'legacy_fallback'
+                        ? 'Disponível no plano PRO'
+                        : 'Disponível no PRO do perfil ativo.';
+
+                    return (
+                      <div className="mb-4 rounded-lg border border-brand/20 bg-brand/5 px-3 py-2 text-xs font-medium text-brand">
+                        {message}
+                      </div>
+                    );
+                  }
+
+                  if (!commercialFeatureAccess && !hasAccess(user?.currentPlan, hoveredItem.item.id, user?.isAdmin)) {
+                    return (
+                      <div className="mb-4 rounded-lg border border-brand/20 bg-brand/5 px-3 py-2 text-xs font-medium text-brand">
+                        Disponível no plano PRO
+                      </div>
+                    );
+                  }
+
+                  return null;
+                })()}
 
                 {hoveredItem.item.subItems?.length ? (
                   <div className="space-y-2">

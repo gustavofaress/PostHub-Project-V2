@@ -20,16 +20,18 @@ import {
   EXTRA_PROFILE_CHECKOUT_DESCRIPTION,
   EXTRA_PROFILE_CHECKOUT_TITLE,
   EXTRA_PROFILE_PRICE_LABEL,
+  getPlanLabel,
+  isPaidPlanId,
   normalizePlan,
   STRIPE_PRICE_IDS,
-  type PlanId,
+  type PaidPlanId,
 } from '../../shared/constants/plans';
 import { trackMetaEvent } from '../../services/meta-conversions.service';
 import { cn } from '../../shared/utils/cn';
 import { affiliateAttributionService } from '../../services/affiliate-attribution.service';
 
 interface BillingPlan {
-  id: PlanId;
+  id: PaidPlanId;
   name: string;
   price: string;
   value: number;
@@ -114,15 +116,9 @@ const TRANSACTIONS: Transaction[] = [
   },
 ];
 
-const PLAN_LABELS: Record<PlanId, string> = {
-  start: 'Start',
-  growth: 'Growth',
-  pro: 'Pro',
-};
-
 const formatCurrentPlan = (plan?: string | null) => {
-  const normalizedPlan = normalizePlan(plan);
-  if (normalizedPlan) return PLAN_LABELS[normalizedPlan];
+  const normalizedLabel = getPlanLabel(plan);
+  if (normalizedLabel) return normalizedLabel;
 
   const normalizedText = (plan || '').toLowerCase().trim();
   if (normalizedText === 'start_7' || normalizedText === 'teste' || normalizedText === 'trial') {
@@ -144,7 +140,7 @@ export const Credits = () => {
   const currentPlan = normalizePlan(user?.currentPlan);
   const currentPlanLabel = formatCurrentPlan(user?.currentPlan);
   const affiliateCode = affiliateAttributionService.getSnapshot().affiliateCode;
-  const activePlan = currentPlan
+  const activePlan = currentPlan && isPaidPlanId(currentPlan)
     ? BILLING_PLANS.find((plan) => plan.id === currentPlan) ?? BILLING_PLANS[0]
     : null;
 

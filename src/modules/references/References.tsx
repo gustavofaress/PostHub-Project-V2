@@ -33,7 +33,6 @@ import { Badge } from '../../shared/components/Badge';
 import { Tabs } from '../../shared/components/Tabs';
 import { Modal } from '../../shared/components/Modal';
 import { cn } from '../../shared/utils/cn';
-import { useTrialGuidedFlow } from '../onboarding/hooks/useTrialGuidedFlow';
 import {
   renderCompressedVideo,
   TARGET_VIDEO_UPLOAD_SIZE,
@@ -228,7 +227,6 @@ export const References = () => {
   const { user } = useAuth();
   const { activeMembers } = useWorkspaceMembers();
   const profileId = activeProfile?.id;
-  useTrialGuidedFlow();
 
   const [references, setReferences] = React.useState<ReferenceItem[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);

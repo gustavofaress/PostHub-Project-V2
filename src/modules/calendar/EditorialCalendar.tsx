@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
+  Loader2,
   Plus,
   Filter,
   Image as ImageIcon,
@@ -13,6 +14,7 @@ import {
   Link2,
   MonitorPlay,
   Play,
+  RefreshCcw,
   X,
 } from 'lucide-react';
 import {
@@ -38,8 +40,9 @@ import { Tabs } from '../../shared/components/Tabs';
 import { useProfile } from '../../app/context/ProfileContext';
 import { useAuth } from '../../app/context/AuthContext';
 import { supabase } from '../../shared/utils/supabase';
-import { useTrialGuidedFlow } from '../onboarding/hooks/useTrialGuidedFlow';
 import { useWorkspaceMembers } from '../../hooks/useWorkspaceMembers';
+import { useWorkspacePermissions } from '../../hooks/useWorkspacePermissions';
+import { useActiveProfileCommercialAccess } from '../../hooks/useActiveProfileCommercialAccess';
 import { MemberAssignmentField } from '../../shared/components/MemberAssignmentField';
 import { TaskCommentsPanel } from '../../shared/components/TaskCommentsPanel';
 import { workspaceCollaborationService } from '../../services/workspace-collaboration.service';
@@ -70,6 +73,7 @@ import {
   type EditorialCalendarApprovalRow,
   type LatestCalendarApprovalStatus,
 } from './calendarApproval.types';
+import { LockedModuleState } from '../../shared/components/LockedModuleState';
 
 interface CalendarPost {
   id: string;
@@ -175,8 +179,9 @@ export const EditorialCalendar = () => {
   const { activeProfile } = useProfile();
   const { user } = useAuth();
   const { activeMembers } = useWorkspaceMembers();
+  const { canManageMembers, isLoadingPermissions } = useWorkspacePermissions();
+  const commercialAccess = useActiveProfileCommercialAccess();
   const isMobile = useIsMobile();
-  const guidedFlow = useTrialGuidedFlow();
 
   const [currentDate, setCurrentDate] = React.useState(new Date());
   const [posts, setPosts] = React.useState<CalendarPost[]>([]);
@@ -258,6 +263,21 @@ export const EditorialCalendar = () => {
   const monthLabel = React.useMemo(() => formatCalendarMonth(currentDate), [currentDate]);
   const monthYearLabel = React.useMemo(() => formatCalendarMonthYear(currentDate), [currentDate]);
   const currentYearLabel = React.useMemo(() => format(currentDate, 'yyyy', { locale: ptBR }), [currentDate]);
+  const approvalLinkFeatureAccess = commercialAccess.resolveFeatureAccess('approvalLinkCreation');
+  const isApprovalPermissionLoading =
+    activeProfile?.role !== 'owner' && !!activeProfile?.id && isLoadingPermissions;
+  const canUseApprovalLinkPermission =
+    activeProfile?.role === 'owner' ? true : !isLoadingPermissions && canManageMembers;
+  const canGenerateApprovalLink =
+    approvalLinkFeatureAccess.enabled && canUseApprovalLinkPermission;
+  const isApprovalLinkCommercialLoading = approvalLinkFeatureAccess.status === 'loading';
+  const isApprovalLinkCommercialError = approvalLinkFeatureAccess.status === 'error';
+  const isApprovalLinkCommerciallyLocked =
+    !approvalLinkFeatureAccess.enabled && approvalLinkFeatureAccess.status === 'resolved';
+  const isApprovalLinkLegacyLocked =
+    !approvalLinkFeatureAccess.enabled && approvalLinkFeatureAccess.status === 'legacy_fallback';
+  const isApprovalLinkPermissionLocked =
+    approvalLinkFeatureAccess.enabled && !canUseApprovalLinkPermission && !isApprovalPermissionLoading;
 
   const nextMonth = () => setCurrentDate(addMonths(currentDate, 1));
   const prevMonth = () => setCurrentDate(subMonths(currentDate, 1));
@@ -479,6 +499,35 @@ export const EditorialCalendar = () => {
   };
 
   const handleGenerateApprovalLink = async () => {
+    if (approvalLinkFeatureAccess.status === 'loading') {
+      setErrorMessage('Estamos verificando o acesso comercial deste perfil antes de gerar o link.');
+      return;
+    }
+
+    if (approvalLinkFeatureAccess.status === 'error') {
+      setErrorMessage('Não foi possível verificar o plano deste perfil agora. Tente novamente.');
+      return;
+    }
+
+    if (!approvalLinkFeatureAccess.enabled) {
+      setErrorMessage(
+        approvalLinkFeatureAccess.status === 'legacy_fallback'
+          ? 'Seu acesso atual ainda não libera a geração de links de aprovação.'
+          : 'Este perfil precisa do PRO para gerar novos links públicos de aprovação.'
+      );
+      return;
+    }
+
+    if (isApprovalPermissionLoading) {
+      setErrorMessage('Estamos verificando suas permissões neste workspace antes de gerar o link.');
+      return;
+    }
+
+    if (!canUseApprovalLinkPermission) {
+      setErrorMessage('Seu papel atual não pode gerar links de aprovação neste workspace.');
+      return;
+    }
+
     if (!activeProfile?.id) {
       setErrorMessage('Selecione um perfil antes de solicitar aprovação.');
       return;
@@ -727,10 +776,6 @@ export const EditorialCalendar = () => {
 
       setIsModalOpen(false);
       resetModalForm();
-
-      if (!editingPostId && guidedFlow.currentTourStepId === 'calendar-save') {
-        await guidedFlow.advanceAfterRequiredAction();
-      }
     } catch (error: any) {
       console.error('[EditorialCalendar] Error saving post:', error);
       setErrorMessage(error?.message || 'Não foi possível salvar o post.');
@@ -1518,159 +1563,214 @@ export const EditorialCalendar = () => {
         title="Solicitar Aprovação"
         className="max-w-3xl"
       >
-        <div className="space-y-5">
-          <Card className="border-slate-200 bg-slate-50/70">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                  Aprovação via calendário
-                </p>
-                <h3 className="mt-1 text-lg font-bold text-slate-900">
-                  Gere um link público para revisar um período inteiro
-                </h3>
-                <p className="mt-1 text-sm text-slate-600">
-                  O cliente verá os posts do `editorial_calendar` e abrirá cada item com o mockup completo do módulo de aprovação.
-                </p>
-              </div>
-
-              <div className="rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-center">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                  Posts no período
-                </p>
-                <p className="mt-2 text-3xl font-bold text-brand">{approvalRangePosts.length}</p>
-              </div>
+        {isApprovalLinkCommercialLoading || isApprovalPermissionLoading ? (
+          <Card className="flex min-h-[220px] flex-col items-center justify-center gap-4 border-dashed border-slate-200 bg-white text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-brand" />
+            <div className="space-y-2">
+              <h3 className="text-xl font-bold text-slate-900">
+                Verificando acesso para aprovação
+              </h3>
+              <p className="max-w-xl text-sm leading-6 text-slate-600">
+                Estamos conferindo o plano do perfil e as permissões do seu papel antes de gerar um novo link público.
+              </p>
             </div>
           </Card>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-text-primary">Data inicial</label>
-              <input
-                type="date"
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
-                value={approvalStartDate}
-                onChange={(event) => setApprovalStartDate(event.target.value)}
-              />
+        ) : isApprovalLinkCommercialError ? (
+          <Card className="space-y-4 border-red-200 bg-red-50 p-5 text-red-700">
+            <div className="space-y-1">
+              <h3 className="text-lg font-bold text-red-900">
+                Não foi possível verificar o acesso deste perfil
+              </h3>
+              <p className="text-sm leading-6">
+                Tente novamente antes de gerar o link público de aprovação.
+              </p>
             </div>
-
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-text-primary">Data final</label>
-              <input
-                type="date"
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
-                value={approvalEndDate}
-                onChange={(event) => setApprovalEndDate(event.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-text-primary">Validade do link</label>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {[
-                { id: '3', label: '3 dias' },
-                { id: '7', label: '7 dias' },
-                { id: '15', label: '15 dias' },
-                { id: 'custom', label: 'Personalizado' },
-              ].map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() =>
-                    setApprovalValidityPreset(option.id as '3' | '7' | '15' | 'custom')
-                  }
-                  className={cn(
-                    'rounded-2xl border px-4 py-3 text-sm font-medium transition-colors',
-                    approvalValidityPreset === option.id
-                      ? 'border-brand bg-brand/5 text-brand'
-                      : 'border-gray-200 bg-white text-text-secondary hover:border-brand/40'
-                  )}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {approvalValidityPreset === 'custom' ? (
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-text-primary">Expira em</label>
-              <input
-                type="datetime-local"
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
-                value={customApprovalExpiryDate}
-                onChange={(event) => setCustomApprovalExpiryDate(event.target.value)}
-              />
-            </div>
-          ) : null}
-
-          <Card className="border-slate-200 bg-white">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="space-y-1">
-                <p className="text-sm font-semibold text-slate-900">Resumo da solicitação</p>
-                <p className="text-sm text-slate-600">
-                  Período de {approvalStartDate || '--'} até {approvalEndDate || '--'} com {approvalRangePosts.length} post(s).
-                </p>
-              </div>
-              <Badge variant={approvalRangePosts.length > 0 ? 'brand' : 'warning'}>
-                {approvalRangePosts.length > 0 ? 'Pronto para gerar' : 'Sem posts no período'}
-              </Badge>
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="secondary"
+                className="gap-2"
+                onClick={() => void commercialAccess.refetch()}
+              >
+                <RefreshCcw className="h-4 w-4" />
+                Tentar novamente
+              </Button>
             </div>
           </Card>
-
-          {generatedApprovalLink ? (
-            <Card className="space-y-4 border-brand/20 bg-brand/5">
-              <div className="flex items-start gap-3">
-                <CheckCircle2 className="mt-0.5 h-5 w-5 text-brand" />
+        ) : isApprovalLinkCommerciallyLocked ? (
+          <LockedModuleState
+            feature="approval"
+            compact
+            eyebrowLabel="Plano do perfil"
+            title="Solicitação de aprovação é um recurso PRO por perfil"
+            description="Ative o PRO neste perfil para gerar novos links públicos de aprovação sem bloquear o restante do calendário."
+          />
+        ) : isApprovalLinkLegacyLocked ? (
+          <LockedModuleState feature="approval" compact />
+        ) : isApprovalLinkPermissionLocked ? (
+          <LockedModuleState
+            feature="approval"
+            compact
+            eyebrowLabel="Permissão do workspace"
+            showUpgradeActions={false}
+            title="Seu papel atual não pode gerar links de aprovação"
+            description="Peça ao administrador do workspace para liberar a permissão necessária neste perfil."
+          />
+        ) : (
+          <div className="space-y-5">
+            <Card className="border-slate-200 bg-slate-50/70">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                  <p className="text-sm font-semibold text-slate-900">Link gerado com sucesso</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    Aprovação via calendário
+                  </p>
+                  <h3 className="mt-1 text-lg font-bold text-slate-900">
+                    Gere um link público para revisar um período inteiro
+                  </h3>
                   <p className="mt-1 text-sm text-slate-600">
-                    Compartilhe este link com o cliente para revisar o período selecionado.
+                    O cliente verá os posts do `editorial_calendar` e abrirá cada item com o mockup completo do módulo de aprovação.
                   </p>
                 </div>
-              </div>
 
-              <div className="space-y-3">
-                <Input label="Link público" value={generatedApprovalLink} readOnly />
-                <div className="flex flex-wrap gap-3">
-                  <Button type="button" className="gap-2" onClick={() => void handleCopyApprovalLink()}>
-                    <Copy className="h-4 w-4" />
-                    {isLinkCopied ? 'Link copiado' : 'Copiar link'}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="gap-2"
-                    onClick={() => window.open(generatedApprovalLink, '_blank', 'noopener,noreferrer')}
-                  >
-                    <Link2 className="h-4 w-4" />
-                    Abrir aprovação
-                  </Button>
+                <div className="rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-center">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    Posts no período
+                  </p>
+                  <p className="mt-2 text-3xl font-bold text-brand">{approvalRangePosts.length}</p>
                 </div>
               </div>
             </Card>
-          ) : null}
 
-          <div className="flex justify-end gap-3">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setIsApprovalRequestModalOpen(false)}
-            >
-              Fechar
-            </Button>
-            <Button
-              type="button"
-              className="gap-2"
-              onClick={() => void handleGenerateApprovalLink()}
-              disabled={approvalRangePosts.length === 0}
-              isLoading={isGeneratingApprovalLink}
-            >
-              <Link2 className="h-4 w-4" />
-              Gerar link público
-            </Button>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-text-primary">Data inicial</label>
+                <input
+                  type="date"
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                  value={approvalStartDate}
+                  onChange={(event) => setApprovalStartDate(event.target.value)}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-text-primary">Data final</label>
+                <input
+                  type="date"
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                  value={approvalEndDate}
+                  onChange={(event) => setApprovalEndDate(event.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-text-primary">Validade do link</label>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {[
+                  { id: '3', label: '3 dias' },
+                  { id: '7', label: '7 dias' },
+                  { id: '15', label: '15 dias' },
+                  { id: 'custom', label: 'Personalizado' },
+                ].map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() =>
+                      setApprovalValidityPreset(option.id as '3' | '7' | '15' | 'custom')
+                    }
+                    className={cn(
+                      'rounded-2xl border px-4 py-3 text-sm font-medium transition-colors',
+                      approvalValidityPreset === option.id
+                        ? 'border-brand bg-brand/5 text-brand'
+                        : 'border-gray-200 bg-white text-text-secondary hover:border-brand/40'
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {approvalValidityPreset === 'custom' ? (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-text-primary">Expira em</label>
+                <input
+                  type="datetime-local"
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                  value={customApprovalExpiryDate}
+                  onChange={(event) => setCustomApprovalExpiryDate(event.target.value)}
+                />
+              </div>
+            ) : null}
+
+            <Card className="border-slate-200 bg-white">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-slate-900">Resumo da solicitação</p>
+                  <p className="text-sm text-slate-600">
+                    Período de {approvalStartDate || '--'} até {approvalEndDate || '--'} com {approvalRangePosts.length} post(s).
+                  </p>
+                </div>
+                <Badge variant={approvalRangePosts.length > 0 ? 'brand' : 'warning'}>
+                  {approvalRangePosts.length > 0 ? 'Pronto para gerar' : 'Sem posts no período'}
+                </Badge>
+              </div>
+            </Card>
+
+            {generatedApprovalLink ? (
+              <Card className="space-y-4 border-brand/20 bg-brand/5">
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 text-brand" />
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">Link gerado com sucesso</p>
+                    <p className="mt-1 text-sm text-slate-600">
+                      Compartilhe este link com o cliente para revisar o período selecionado.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <Input label="Link público" value={generatedApprovalLink} readOnly />
+                  <div className="flex flex-wrap gap-3">
+                    <Button type="button" className="gap-2" onClick={() => void handleCopyApprovalLink()}>
+                      <Copy className="h-4 w-4" />
+                      {isLinkCopied ? 'Link copiado' : 'Copiar link'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="gap-2"
+                      onClick={() => window.open(generatedApprovalLink, '_blank', 'noopener,noreferrer')}
+                    >
+                      <Link2 className="h-4 w-4" />
+                      Abrir aprovação
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            ) : null}
+
+            <div className="flex justify-end gap-3">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setIsApprovalRequestModalOpen(false)}
+              >
+                Fechar
+              </Button>
+              <Button
+                type="button"
+                className="gap-2"
+                onClick={() => void handleGenerateApprovalLink()}
+                disabled={approvalRangePosts.length === 0 || !canGenerateApprovalLink}
+                isLoading={isGeneratingApprovalLink}
+              >
+                <Link2 className="h-4 w-4" />
+                Gerar link público
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
       </Modal>
     </div>
   );

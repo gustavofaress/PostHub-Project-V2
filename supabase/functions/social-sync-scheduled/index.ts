@@ -1,4 +1,6 @@
 import { withSupabase } from 'npm:@supabase/server@1.4.1';
+import { assertProfileCommercialFeature } from '../_shared/profile-entitlements.ts';
+import { runSocialSyncConnectionFlow } from '../_shared/social/commercial.ts';
 import {
   createSyncError,
   listScheduledSocialConnections,
@@ -42,11 +44,26 @@ export default {
 
       for (const connection of eligibleConnections) {
         try {
-          const result = await syncSocialConnectionAccountMetrics({
-            adminClient: ctx.supabaseAdmin,
-            connection,
-            syncType: 'scheduled_account_metrics',
-            loggerLabel: '[social-sync-scheduled]',
+          const result = await runSocialSyncConnectionFlow({
+            assertSocialAnalyticsAccess: () =>
+              assertProfileCommercialFeature(ctx.supabaseAdmin, {
+                profileId: connection.profile_id,
+                feature: 'socialAnalytics',
+                preferEntitlementsOverAdmin: true,
+              }).then(() => undefined),
+            assertMetricsAccess: () =>
+              assertProfileCommercialFeature(ctx.supabaseAdmin, {
+                profileId: connection.profile_id,
+                feature: 'metrics',
+                preferEntitlementsOverAdmin: true,
+              }).then(() => undefined),
+            syncConnection: () =>
+              syncSocialConnectionAccountMetrics({
+                adminClient: ctx.supabaseAdmin,
+                connection,
+                syncType: 'scheduled_account_metrics',
+                loggerLabel: '[social-sync-scheduled]',
+              }),
           });
 
           results.push({
@@ -68,7 +85,7 @@ export default {
             profileId: connection.profile_id,
             provider: connection.provider,
             platform: connection.platform,
-            status: 'failed',
+            status: syncError.code === 'PROFILE_FEATURE_NOT_ENABLED' ? 'skipped' : 'failed',
             code: syncError.code,
           });
         }
@@ -77,6 +94,7 @@ export default {
       const successfulConnections = results.filter((result) => result.status === 'success').length;
       const partialConnections = results.filter((result) => result.status === 'partial').length;
       const failedConnections = results.filter((result) => result.status === 'failed').length;
+      const skippedConnections = results.filter((result) => result.status === 'skipped').length;
 
       return jsonResponse({
         status: failedConnections > 0 ? 'partial' : 'success',
@@ -87,11 +105,13 @@ export default {
         successful: successfulConnections,
         partial: partialConnections,
         failed: failedConnections,
+        skipped: skippedConnections,
         eligibleConnections: eligibleConnections.length,
         processedConnections: results.length,
         successfulConnections,
         partialConnections,
         failedConnections,
+        skippedConnections,
         results,
       });
     } catch (error) {

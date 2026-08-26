@@ -6,44 +6,29 @@ import { MobileMoreSheet } from '../components/MobileMoreSheet';
 import { DesktopRecommendationSheet } from '../components/DesktopRecommendationSheet';
 import { MobileProfileSheet } from '../components/MobileProfileSheet';
 import { MobileModuleRenderer } from './MobileModuleRenderer';
-import { TrialGuidedPopover } from '../../onboarding/components/TrialGuidedPopover';
-import { useTrialGuidedFlow } from '../../onboarding/hooks/useTrialGuidedFlow';
 
 const DESKTOP_RECOMMENDATION_KEY = 'posthub_mobile_desktop_recommendation_seen';
-const MOBILE_READY_MODULES = new Set(['dashboard', 'ideas', 'calendar', 'onboarding']);
+const MOBILE_READY_MODULES = new Set(['dashboard', 'ideas', 'calendar']);
 
 const TITLES: Record<string, { title: string; subtitle?: string }> = {
-  onboarding: { title: 'Guia de Configuração', subtitle: 'Checklist inicial do workspace' },
   dashboard: { title: 'Dashboard', subtitle: 'Visão rápida do dia' },
   ideas: { title: 'Ideias', subtitle: 'Capture e priorize' },
   approval: { title: 'Aprovação', subtitle: 'Decisões rápidas' },
   calendar: { title: 'Calendário', subtitle: 'Planejamento' },
   kanban: { title: 'Kanban', subtitle: 'Produção' },
-  clients: { title: 'Clientes', subtitle: 'Operação por perfil' },
   reports: { title: 'Relatórios', subtitle: 'Resultados' },
   settings: { title: 'Configurações', subtitle: 'Workspace e equipe' },
 };
 
 export const MobileWorkspaceLayout = () => {
   const location = useLocation();
-  const guidedFlow = useTrialGuidedFlow();
   const [isMoreOpen, setIsMoreOpen] = React.useState(false);
   const [isProfileSheetOpen, setIsProfileSheetOpen] = React.useState(false);
   const [isDesktopRecommendationOpen, setIsDesktopRecommendationOpen] = React.useState(false);
   const moduleId = location.pathname.split('/')[2] || 'dashboard';
   const copy = TITLES[moduleId] || { title: 'PostHub', subtitle: 'Workspace mobile' };
-  const shouldSuggestDesktop = !guidedFlow.isActive && !MOBILE_READY_MODULES.has(moduleId);
+  const shouldSuggestDesktop = !MOBILE_READY_MODULES.has(moduleId);
   const isCalendarFocus = moduleId === 'calendar';
-
-  React.useEffect(() => {
-    if (!guidedFlow.isActive) {
-      return;
-    }
-
-    if (guidedFlow.currentTourStep?.targetId === 'sidebar-references') {
-      setIsMoreOpen(true);
-    }
-  }, [guidedFlow.currentTourStep?.targetId, guidedFlow.isActive]);
 
   React.useEffect(() => {
     if (typeof window === 'undefined') {
@@ -102,7 +87,6 @@ export const MobileWorkspaceLayout = () => {
         isOpen={isDesktopRecommendationOpen}
         onClose={handleCloseDesktopRecommendation}
       />
-      <TrialGuidedPopover />
     </div>
   );
 };

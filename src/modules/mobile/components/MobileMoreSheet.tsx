@@ -9,6 +9,10 @@ import { cn } from '../../../shared/utils/cn';
 import { useAuth } from '../../../app/context/AuthContext';
 import { BottomSheet } from './BottomSheet';
 import { hasAccess } from '../../../shared/constants/plans';
+import { useWorkspacePermissions } from '../../../hooks/useWorkspacePermissions';
+import { WORKSPACE_MODULE_PERMISSION_MAP } from '../../../shared/constants/workspaceAccess';
+import { useActiveProfileCommercialAccess } from '../../../hooks/useActiveProfileCommercialAccess';
+import { getWorkspaceModuleCommercialFeature } from '../../../shared/utils/activeProfileCommercialAccess.ts';
 
 interface MobileMoreSheetProps {
   isOpen: boolean;
@@ -26,6 +30,8 @@ export const MobileMoreSheet = ({
 }: MobileMoreSheetProps) => {
   const location = useLocation();
   const { user, logout } = useAuth();
+  const { canAccess, canManageMembers } = useWorkspacePermissions();
+  const commercialAccess = useActiveProfileCommercialAccess();
 
   const visibleGroups = React.useMemo(() => {
     return NAV_GROUPS.map((group) => ({
@@ -33,7 +39,7 @@ export const MobileMoreSheet = ({
       items: group.items.filter((item) => {
         if (item.id === 'admin' && !user?.isAdmin) return false;
         if (HIDDEN_MODULE_IDS.has(item.id)) return false;
-        return !['dashboard', 'ideas', 'scripts', 'approval', 'calendar'].includes(item.id);
+        return !['dashboard', 'ideas', 'approval', 'calendar'].includes(item.id);
       }),
     })).filter((group) => group.items.length > 0);
   }, [user?.isAdmin]);
@@ -49,7 +55,20 @@ export const MobileMoreSheet = ({
             <div className="space-y-2">
               {group.items.map((item) => {
                 const isActive = location.pathname.startsWith(item.path);
-                const isLocked = !hasAccess(user?.currentPlan, item.id, user?.isAdmin);
+                const commercialFeature = getWorkspaceModuleCommercialFeature(item.id);
+                const commercialFeatureAccess = commercialFeature
+                  ? commercialAccess.resolveFeatureAccess(commercialFeature)
+                  : null;
+                const workspacePermissionDenied =
+                  !!user?.isWorkspaceMember &&
+                  (item.id === 'settings'
+                    ? !canManageMembers
+                    : WORKSPACE_MODULE_PERMISSION_MAP[item.id]
+                    ? !canAccess(WORKSPACE_MODULE_PERMISSION_MAP[item.id]!)
+                    : false);
+                const isLocked = commercialFeatureAccess
+                  ? !commercialFeatureAccess.enabled || workspacePermissionDenied
+                  : !hasAccess(user?.currentPlan, item.id, user?.isAdmin) || workspacePermissionDenied;
                 const isMobileReady = MOBILE_READY_MODULES.has(item.id);
                 const isCurrentFallbackModule = activeModuleId === item.id && !isMobileReady;
 
@@ -82,7 +101,11 @@ export const MobileMoreSheet = ({
                             Mobile parcial
                           </span>
                         ) : null}
-                        {isLocked ? (
+                        {workspacePermissionDenied ? (
+                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[0.68rem] font-semibold text-amber-700">
+                            Permissão
+                          </span>
+                        ) : isLocked ? (
                           <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[0.68rem] font-semibold text-brand">
                             PRO
                           </span>

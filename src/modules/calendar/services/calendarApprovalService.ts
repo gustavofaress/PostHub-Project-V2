@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { supabase } from '../../../shared/utils/supabase';
 import { buildAppUrl } from '../../../shared/utils/appUrl';
 import type { ApprovalStatus } from '../../approval/approval.types';
+import { buildLatestCalendarApprovalStatuses } from '../calendarApproval.helpers';
 import {
   mapCalendarRowToApprovalPost,
   mapDbCalendarApprovalFeedback,
@@ -492,27 +493,11 @@ export const calendarApprovalService = {
       throw buildReadableError('Não foi possível carregar os status de aprovação do calendário', approvalsError);
     }
 
-    return ((approvalsRows ?? []) as Array<Record<string, any>>).reduce<
-      Record<string, LatestCalendarApprovalStatus>
-    >((accumulator, row) => {
-      const calendarPostId = String(row.calendar_post_id);
-      const updatedAt = String(row.updated_at);
-      const current = accumulator[calendarPostId];
+    const mappedApprovals = ((approvalsRows ?? []) as Array<Record<string, any>>).map(
+      mapDbCalendarPostApproval
+    );
 
-      if (current && new Date(current.updatedAt).getTime() >= new Date(updatedAt).getTime()) {
-        return accumulator;
-      }
-
-      accumulator[calendarPostId] = {
-        calendarPostId,
-        approvalLinkId: String(row.approval_link_id),
-        linkStatus: linkIdToStatus.get(String(row.approval_link_id)) || 'active',
-        status: (row.status || 'pending') as ApprovalStatus,
-        updatedAt,
-      };
-
-      return accumulator;
-    }, {});
+    return buildLatestCalendarApprovalStatuses(mappedApprovals, linkIdToStatus);
   },
 
   async listInternalApprovalDashboard(
