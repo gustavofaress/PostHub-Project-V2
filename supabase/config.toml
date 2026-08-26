@@ -1,6 +1,12 @@
 [functions.stripe-webhook]
 verify_jwt = false
 
+[functions.create-profile-pro-checkout]
+verify_jwt = true
+
+[functions.stripe-profile-entitlement-webhook]
+verify_jwt = false
+
 [functions.social-sync-connection]
 verify_jwt = true
 
