@@ -11,6 +11,7 @@ import {
 import { useProfile } from '../../../../app/context/ProfileContext';
 import { useApp } from '../../../../app/context/AppContext';
 import { Badge } from '../../../../shared/components/Badge';
+import { ProfileBillingReturnNotice } from '../../../../shared/components/ProfileBillingReturnNotice';
 import { MobilePage } from '../../components/MobilePage';
 import { StickyActionBar } from '../../components/StickyActionBar';
 import { supabase } from '../../../../shared/utils/supabase';
@@ -180,6 +181,8 @@ export const DashboardMobile = () => {
             </p>
           </div>
         </section>
+
+        <ProfileBillingReturnNotice />
 
         <section className="grid grid-cols-2 gap-3">
           {stats.map((stat, index) => (

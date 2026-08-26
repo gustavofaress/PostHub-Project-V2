@@ -18,6 +18,7 @@ import { Card, CardTitle } from '../../shared/components/Card';
 import { Badge } from '../../shared/components/Badge';
 import { Button } from '../../shared/components/Button';
 import { EmptyState } from '../../shared/components/EmptyState';
+import { ProfileBillingReturnNotice } from '../../shared/components/ProfileBillingReturnNotice';
 import { useApp } from '../../app/context/AppContext';
 import { useProfile } from '../../app/context/ProfileContext';
 import { supabase } from '../../shared/utils/supabase';
@@ -200,6 +201,8 @@ export const Dashboard = () => {
           {errorMessage}
         </Card>
       )}
+
+      <ProfileBillingReturnNotice />
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
         {stats.map((stat) => (

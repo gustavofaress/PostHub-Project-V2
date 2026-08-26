@@ -283,7 +283,7 @@ export const NAV_GROUPS: NavGroup[] = [
         subItems: [
           { label: 'Saldo Atual', path: '/workspace/credits' },
           { label: 'Histórico de Uso', path: '/workspace/credits?tab=history' },
-          { label: 'Fazer Upgrade', path: '/workspace/credits?tab=upgrade' },
+          { label: 'Fazer Upgrade', path: '/pricing' },
         ],
       },
       {

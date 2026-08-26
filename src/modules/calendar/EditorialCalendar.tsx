@@ -1602,7 +1602,6 @@ export const EditorialCalendar = () => {
             feature="approval"
             compact
             eyebrowLabel="Plano do perfil"
-            showUpgradeActions={false}
             title="Solicitação de aprovação é um recurso PRO por perfil"
             description="Ative o PRO neste perfil para gerar novos links públicos de aprovação sem bloquear o restante do calendário."
           />

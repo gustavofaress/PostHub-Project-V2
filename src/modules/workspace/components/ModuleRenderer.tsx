@@ -104,7 +104,6 @@ export const ModuleRenderer = () => {
         feature={activeModule}
         autoOpen
         eyebrowLabel="Plano do perfil"
-        showUpgradeActions={false}
         title={
           activeModule === 'references'
             ? 'Referências é um recurso PRO por perfil'
