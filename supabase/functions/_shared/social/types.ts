@@ -99,3 +99,28 @@ export interface WindsorInstagramAccountMetricsRow {
   shares: number | null;
   rawData: Record<string, unknown>;
 }
+
+export interface WindsorYoutubeChannelSnapshotRow {
+  datasource: string | null;
+  accountId: string | null;
+  accountName: string | null;
+  channelImage: string | null;
+  subscriberCount: number | null;
+  rawData: Record<string, unknown>;
+}
+
+export interface WindsorYoutubeDailyMetricsRow {
+  date: string | null;
+  datasource: string | null;
+  accountId: string | null;
+  subscribersGainedChannel: number | null;
+  subscribersLostChannel: number | null;
+  views: number | null;
+  estimatedMinutesWatched: number | null;
+  averageViewDuration: number | null;
+  averageViewPercentage: number | null;
+  likes: number | null;
+  comments: number | null;
+  shares: number | null;
+  rawData: Record<string, unknown>;
+}

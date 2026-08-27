@@ -7,6 +7,18 @@ import {
 } from '../providers/windsor.ts';
 import { getSocialPlatformConfig } from '../registry.ts';
 import type { SocialAdminClient } from '../security.ts';
+import {
+  createSyncError,
+  createSyncRun,
+  finishSyncRun,
+  loadExistingMetricRow,
+  sanitizeErrorMessage,
+  toSyncError,
+  type SocialAccountMetricsSyncResult,
+  type SocialAccountMetricsSyncType,
+  updateConnectionSyncStatus,
+} from './account-metrics-lifecycle.ts';
+import { syncWindsorYoutubeAccountMetrics } from './youtube-account-metrics.ts';
 import type {
   SocialConnectionRecord,
   WindsorInstagramAccountMetricsRow,
@@ -15,26 +27,13 @@ import type {
 export const SOCIAL_CONNECTION_SYNC_SELECT =
   'id, profile_id, provider, platform, provider_datasource, external_account_id, external_account_name, external_account_handle, external_account_avatar_url, status, connected_by, provider_metadata, connected_at, disconnected_at, last_sync_at, last_successful_sync_at, last_sync_error, created_at, updated_at';
 
-export type SocialAccountMetricsSyncType =
-  | 'manual_account_metrics'
-  | 'scheduled_account_metrics';
-
-export interface SocialAccountMetricsSyncResult {
-  status: 'success' | 'partial';
-  connectionId: string;
-  profileId: string;
-  periodStart: string;
-  periodEnd: string;
-  recordsReceived: number;
-  recordsProcessed: number;
-}
-
-export interface SyncError extends Error {
-  code: string;
-  status: number;
-  publicMessage: string;
-  diagnosticMetadata?: Record<string, unknown>;
-}
+export {
+  createSyncError,
+  sanitizeErrorMessage,
+  toSyncError,
+  type SocialAccountMetricsSyncResult,
+  type SocialAccountMetricsSyncType,
+} from './account-metrics-lifecycle.ts';
 
 interface WindsorNoRowsDiagnostic {
   linkedAccountFound: boolean;
@@ -138,85 +137,6 @@ function buildEmptyDiagnostic(errorCode: string | null = null): WindsorNoRowsDia
   };
 }
 
-export function createSyncError(
-  code: string,
-  publicMessage: string,
-  status = 400,
-  diagnosticMetadata?: Record<string, unknown>
-) {
-  const error = new Error(publicMessage) as SyncError;
-  error.code = code;
-  error.status = status;
-  error.publicMessage = publicMessage;
-  error.diagnosticMetadata = diagnosticMetadata;
-  return error;
-}
-
-export function toSyncError(error: unknown): SyncError {
-  if (error instanceof Error && (error as Error & { code?: string }).code === 'windsor_invalid_response') {
-    return createSyncError(
-      'windsor_invalid_response',
-      'Não foi possível interpretar a resposta do Instagram agora.',
-      502
-    );
-  }
-
-  if (
-    error instanceof Error &&
-    'code' in error &&
-    typeof (error as SyncError).code === 'string' &&
-    typeof (error as SyncError).status === 'number' &&
-    typeof (error as SyncError).publicMessage === 'string'
-  ) {
-    return error as SyncError;
-  }
-
-  const status = (error as Error & { status?: number })?.status;
-
-  if (status === 401 || status === 403) {
-    return createSyncError(
-      'windsor_auth_failed',
-      'Não foi possível sincronizar o Instagram agora.',
-      502
-    );
-  }
-
-  if (status === 429) {
-    return createSyncError(
-      'windsor_rate_limited',
-      'O Instagram está temporariamente indisponível para sincronização. Tente novamente em alguns minutos.',
-      429
-    );
-  }
-
-  if (typeof status === 'number' && status >= 500) {
-    return createSyncError(
-      'windsor_unavailable',
-      'Não foi possível sincronizar o Instagram agora. Tente novamente em alguns minutos.',
-      502
-    );
-  }
-
-  return createSyncError(
-    'sync_failed',
-    'Não foi possível sincronizar o Instagram agora.',
-    400
-  );
-}
-
-export function sanitizeErrorMessage(error: unknown) {
-  if (!(error instanceof Error) || !error.message.trim()) {
-    return 'Unknown sync error.';
-  }
-
-  return error.message
-    .replace(/api_key=[^&\s]+/gi, 'api_key=[redacted]')
-    .replace(/access_token=[^&\s]+/gi, 'access_token=[redacted]')
-    .replace(/account_id=[^&\s]+/gi, 'account_id=[redacted]')
-    .replace(/filter=[^&\s]+/gi, 'filter=[redacted]')
-    .slice(0, 500);
-}
-
 function canSyncConnectionAccountMetrics(connection: SocialConnectionRecord) {
   const platformConfig = getSocialPlatformConfig(connection.platform);
 
@@ -243,81 +163,6 @@ function assertConnectionCanSyncAccountMetrics(connection: SocialConnectionRecor
       'Esta conexão do Instagram não está ativa.'
     );
   }
-}
-
-async function createSyncRun(
-  adminClient: SocialAdminClient,
-  params: {
-    profileId: string;
-    connectionId: string;
-    provider: string;
-    platform: string;
-    syncType: SocialAccountMetricsSyncType;
-    periodStart: string;
-    periodEnd: string;
-  }
-) {
-  const { data, error } = await adminClient
-    .from('social_sync_runs')
-    .insert({
-      profile_id: params.profileId,
-      connection_id: params.connectionId,
-      provider: params.provider,
-      platform: params.platform,
-      sync_type: params.syncType,
-      status: 'running',
-      period_start: params.periodStart,
-      period_end: params.periodEnd,
-      started_at: new Date().toISOString(),
-      metadata: {
-        metrics_scope: 'account',
-      },
-    })
-    .select('id')
-    .single();
-
-  if (error) throw error;
-  return data.id as string;
-}
-
-async function finishSyncRun(
-  adminClient: SocialAdminClient,
-  syncRunId: string,
-  updates: Record<string, unknown>
-) {
-  const { error } = await adminClient
-    .from('social_sync_runs')
-    .update({
-      ...updates,
-      finished_at: new Date().toISOString(),
-    })
-    .eq('id', syncRunId);
-
-  if (error) throw error;
-}
-
-async function updateConnectionSyncStatus(
-  adminClient: SocialAdminClient,
-  params: {
-    connectionId: string;
-    success: boolean;
-    errorMessage?: string | null;
-  }
-) {
-  const now = new Date().toISOString();
-  const updates: Record<string, unknown> = {
-    last_sync_at: now,
-    last_sync_error: params.success ? null : params.errorMessage ?? 'Falha na sincronização.',
-    updated_at: now,
-  };
-
-  if (params.success) {
-    updates.last_successful_sync_at = now;
-  }
-
-  const { error } = await adminClient.from('social_connections').update(updates).eq('id', params.connectionId);
-
-  if (error) throw error;
 }
 
 async function persistConnectorAccountId(
@@ -473,23 +318,6 @@ async function buildNoRowsDiagnostic(
 
     return buildEmptyDiagnostic('windsor_no_rows_diagnostic_failed');
   }
-}
-
-async function loadExistingMetricRow(
-  adminClient: SocialAdminClient,
-  params: { connectionId: string; metricDate: string }
-) {
-  const { data, error } = await adminClient
-    .from('social_account_metrics')
-    .select(
-      'followers, followers_gained, reach, impressions, followers_count, follower_count_1d, reach_1d, impressions_1d, accounts_engaged, likes, comments, saves, shares, platform_metrics, raw_data'
-    )
-    .eq('connection_id', params.connectionId)
-    .eq('metric_date', params.metricDate)
-    .maybeSingle();
-
-  if (error) throw error;
-  return (data ?? null) as Record<string, unknown> | null;
 }
 
 async function buildSnapshotMetricUpsertRow(params: {
@@ -686,7 +514,7 @@ export async function loadSocialConnectionById(
   if (!data) {
     throw createSyncError(
       'connection_not_found',
-      'A conexão do Instagram não foi encontrada.',
+      'A conexão social não foi encontrada.',
       404
     );
   }
@@ -707,7 +535,7 @@ export async function listScheduledSocialConnections(adminClient: SocialAdminCli
   return ((data ?? []) as SocialConnectionRecord[]).filter(canSyncConnectionAccountMetrics);
 }
 
-export async function syncSocialConnectionAccountMetrics(params: {
+async function syncInstagramSocialConnectionAccountMetrics(params: {
   adminClient: SocialAdminClient;
   connection: SocialConnectionRecord;
   syncType: SocialAccountMetricsSyncType;
@@ -970,4 +798,50 @@ export async function syncSocialConnectionAccountMetrics(params: {
 
     throw syncError;
   }
+}
+
+export type SocialAccountMetricsSyncAdapter = 'instagram' | 'youtube';
+
+export function getSocialAccountMetricsSyncAdapter(
+  connection: SocialConnectionRecord
+): SocialAccountMetricsSyncAdapter {
+  if (connection.provider !== 'windsor') {
+    throw createSyncError(
+      'unsupported_connection',
+      'Esta conexão ainda não possui sincronização disponível.'
+    );
+  }
+
+  switch (connection.platform) {
+    case 'instagram':
+      return 'instagram';
+    case 'youtube':
+      return 'youtube';
+    default:
+      throw createSyncError(
+        'unsupported_connection',
+        'Esta conexão ainda não possui sincronização disponível.'
+      );
+  }
+}
+
+export async function syncSocialConnectionAccountMetrics(params: {
+  adminClient: SocialAdminClient;
+  connection: SocialConnectionRecord;
+  syncType: SocialAccountMetricsSyncType;
+  loggerLabel?: string;
+}): Promise<SocialAccountMetricsSyncResult> {
+  const adapter = getSocialAccountMetricsSyncAdapter(params.connection);
+
+  if (adapter === 'instagram') {
+    return syncInstagramSocialConnectionAccountMetrics(params);
+  }
+
+  const { today, yesterday } = getDailySyncWindow();
+  return syncWindsorYoutubeAccountMetrics({
+    ...params,
+    dateFrom: yesterday,
+    dateTo: yesterday,
+    snapshotMetricDate: today,
+  });
 }

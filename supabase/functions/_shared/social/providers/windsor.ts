@@ -3,7 +3,15 @@ import type {
   WindsorAuthorizationLink,
   WindsorInstagramAccountMetricsRow,
   WindsorLinkedAccount,
+  WindsorYoutubeChannelSnapshotRow,
+  WindsorYoutubeDailyMetricsRow,
 } from '../types.ts';
+
+declare const Deno: {
+  env: {
+    get(name: string): string | undefined;
+  };
+};
 
 const WINDSOR_API_KEY = Deno.env.get('WINDSOR_API_KEY') ?? '';
 const WINDSOR_ONBOARD_BASE_URL = 'https://onboard.windsor.ai';
@@ -20,6 +28,27 @@ const WINDSOR_INSTAGRAM_ACCOUNT_METRIC_FIELDS = [
   'likes',
   'comments',
   'saves',
+  'shares',
+];
+const WINDSOR_YOUTUBE_CHANNEL_SNAPSHOT_FIELDS = [
+  'datasource',
+  'account_id',
+  'account_name',
+  'channel_image',
+  'subscriber_count',
+];
+const WINDSOR_YOUTUBE_DAILY_METRIC_FIELDS = [
+  'date',
+  'datasource',
+  'account_id',
+  'subscribers_gained_channel',
+  'subscribers_lost_channel',
+  'views',
+  'estimated_minutes_watched',
+  'average_view_duration',
+  'average_view_percentage',
+  'likes',
+  'comments',
   'shares',
 ];
 
@@ -165,6 +194,57 @@ function normalizeInstagramMetricsRow(row: Record<string, unknown>): WindsorInst
   };
 }
 
+function sanitizeYoutubeConnectorRow(
+  row: Record<string, unknown>,
+  fields: readonly string[]
+): Record<string, unknown> {
+  return Object.fromEntries(
+    fields.map((field) => {
+      const value = row[field];
+      const isPrimitive =
+        value === null ||
+        typeof value === 'string' ||
+        typeof value === 'number' ||
+        typeof value === 'boolean';
+
+      return [field, isPrimitive ? value : null];
+    })
+  );
+}
+
+export function normalizeWindsorYoutubeChannelSnapshotRow(
+  row: Record<string, unknown>
+): WindsorYoutubeChannelSnapshotRow {
+  return {
+    datasource: getOptionalString(row, 'datasource'),
+    accountId: getOptionalString(row, 'account_id'),
+    accountName: getOptionalString(row, 'account_name'),
+    channelImage: getOptionalString(row, 'channel_image'),
+    subscriberCount: getNullableNumber(row, 'subscriber_count'),
+    rawData: sanitizeYoutubeConnectorRow(row, WINDSOR_YOUTUBE_CHANNEL_SNAPSHOT_FIELDS),
+  };
+}
+
+export function normalizeWindsorYoutubeDailyMetricsRow(
+  row: Record<string, unknown>
+): WindsorYoutubeDailyMetricsRow {
+  return {
+    date: getOptionalString(row, 'date'),
+    datasource: getOptionalString(row, 'datasource'),
+    accountId: getOptionalString(row, 'account_id'),
+    subscribersGainedChannel: getNullableNumber(row, 'subscribers_gained_channel'),
+    subscribersLostChannel: getNullableNumber(row, 'subscribers_lost_channel'),
+    views: getNullableNumber(row, 'views'),
+    estimatedMinutesWatched: getNullableNumber(row, 'estimated_minutes_watched'),
+    averageViewDuration: getNullableNumber(row, 'average_view_duration'),
+    averageViewPercentage: getNullableNumber(row, 'average_view_percentage'),
+    likes: getNullableNumber(row, 'likes'),
+    comments: getNullableNumber(row, 'comments'),
+    shares: getNullableNumber(row, 'shares'),
+    rawData: sanitizeYoutubeConnectorRow(row, WINDSOR_YOUTUBE_DAILY_METRIC_FIELDS),
+  };
+}
+
 function normalizeInstagramDiagnosticRow(row: Record<string, unknown>) {
   return {
     date: getOptionalString(row, 'date'),
@@ -224,11 +304,18 @@ function ensureWindsorUrl(rawUrl: string) {
     throw new Error('Windsor returned a non-HTTPS authorization URL.');
   }
 
-  if (!parsed.hostname.endsWith('windsor.ai')) {
+  if (!isTrustedWindsorAuthorizationUrl(parsed)) {
     throw new Error('Windsor returned an unexpected authorization host.');
   }
 
   return parsed;
+}
+
+export function isTrustedWindsorAuthorizationUrl(parsed: URL) {
+  const isWindsorHostname =
+    parsed.hostname === 'windsor.ai' || parsed.hostname.endsWith('.windsor.ai');
+
+  return parsed.protocol === 'https:' && isWindsorHostname;
 }
 
 export async function createWindsorAuthorizationLink(
@@ -572,6 +659,38 @@ export async function fetchWindsorInstagramAccountMetrics(params: {
 
   const payload = await requestWindsorConnector(requestUrl.pathname + requestUrl.search);
   return getRowsFromConnectorPayload(payload).map(normalizeInstagramMetricsRow);
+}
+
+export async function fetchWindsorYoutubeChannelSnapshot(params: {
+  accountId: string;
+}): Promise<WindsorYoutubeChannelSnapshotRow[]> {
+  const requestUrl = new URL('/youtube', WINDSOR_CONNECTORS_BASE_URL);
+  requestUrl.searchParams.set('api_key', WINDSOR_API_KEY);
+  requestUrl.searchParams.set('fields', WINDSOR_YOUTUBE_CHANNEL_SNAPSHOT_FIELDS.join(','));
+  requestUrl.searchParams.set('_renderer', 'json');
+  requestUrl.searchParams.set('_max_rows', '25');
+  requestUrl.searchParams.set('filter', JSON.stringify([['account_id', 'eq', params.accountId]]));
+
+  const payload = await requestWindsorConnector(requestUrl.pathname + requestUrl.search);
+  return getRowsFromConnectorPayload(payload).map(normalizeWindsorYoutubeChannelSnapshotRow);
+}
+
+export async function fetchWindsorYoutubeDailyMetrics(params: {
+  accountId: string;
+  dateFrom: string;
+  dateTo: string;
+}): Promise<WindsorYoutubeDailyMetricsRow[]> {
+  const requestUrl = new URL('/youtube', WINDSOR_CONNECTORS_BASE_URL);
+  requestUrl.searchParams.set('api_key', WINDSOR_API_KEY);
+  requestUrl.searchParams.set('fields', WINDSOR_YOUTUBE_DAILY_METRIC_FIELDS.join(','));
+  requestUrl.searchParams.set('date_from', params.dateFrom);
+  requestUrl.searchParams.set('date_to', params.dateTo);
+  requestUrl.searchParams.set('_renderer', 'json');
+  requestUrl.searchParams.set('_max_rows', '100');
+  requestUrl.searchParams.set('filter', JSON.stringify([['account_id', 'eq', params.accountId]]));
+
+  const payload = await requestWindsorConnector(requestUrl.pathname + requestUrl.search);
+  return getRowsFromConnectorPayload(payload).map(normalizeWindsorYoutubeDailyMetricsRow);
 }
 
 export async function fetchWindsorInstagramConnectorAccountCandidates() {
