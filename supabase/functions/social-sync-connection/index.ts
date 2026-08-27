@@ -25,6 +25,8 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 Deno.serve(async (request) => {
+  let errorPlatform: 'instagram' | 'youtube' = 'instagram';
+
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -54,6 +56,7 @@ Deno.serve(async (request) => {
       profileId,
       connectionId,
     });
+    errorPlatform = connection.platform === 'youtube' ? 'youtube' : 'instagram';
 
     const result = await runSocialSyncConnectionFlow({
       assertSocialAnalyticsAccess: () =>
@@ -79,7 +82,7 @@ Deno.serve(async (request) => {
 
     return jsonResponse(result);
   } catch (error) {
-    const syncError = toSyncError(error);
+    const syncError = toSyncError(error, errorPlatform);
 
     return jsonResponse(
       {
